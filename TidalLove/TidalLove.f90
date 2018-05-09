@@ -3,22 +3,9 @@
 !    Computation of the Neutron Star Mass-Radius Relation and    !
 !    y(R) a quantity that needs to be supplemented for tidal        !
 !    Love number k2 and tidal deformability lambda.            !
+!
+!    Modified by Tommy Tsang 5/8/2018 to be interfaced with Python
 !-----------------------------------------------------------------------!
-program TidalLoveNumber
-real, dimension(1000) :: mass_arr, radius_arr, lambda_arr
-integer :: i,j
-
-! real calculation
-CALL TidalLove("EOSBetaIUFSU.dat", mass_arr, radius_arr, lambda_arr)
-
-! write results back to file
-open (unit=50,file="TidalLoveResults.dat")    ! Tidal Number
-write (50, *) '   Mass (MSun)           R (km)              Lambda '
-do i = 1, size(mass_arr)
-    write (50, 500) mass_arr(i), radius_arr(i), lambda_arr(i)
-500 format(6e18.8)
-end do
-end
 !     Purpose: This Program Calculates the Mass, the Radius and
 !             the y(r) function of a neutron star to find the tidal 
 !         Love number k2 and tidal polarizability.
@@ -28,6 +15,7 @@ end
 subroutine TidalLove(EOS_filename, mass_arr, radius_arr, lambda_arr)
     implicit real*8 (a-h,k-z)    !Assign letters for reals and integers
 
+    CHARACTER :: CR = CHAR(13)
     character(len=*),intent(in) :: EOS_filename
     parameter(ipnts=1000000)    !The dimension of array for general output
     !Here (a-h,k-z) = reals, (i,j) = integers         
@@ -35,7 +23,7 @@ subroutine TidalLove(EOS_filename, mass_arr, radius_arr, lambda_arr)
         real, dimension(1000),intent(out) :: mass_arr, radius_arr, lambda_arr
     character*50 header                        !Max number of lines for header
 
-    print *, 'Opening file ', EOS_filename
+    !print *, 'Opening file ', EOS_filename
     open(unit=3,file=EOS_filename)        ! Input profile: Provide an Equation of State 
 
     mevfm3 = 1.60217646d32            ! in J/m3 --> a converter from (MeV/fermi^3)
@@ -49,24 +37,24 @@ subroutine TidalLove(EOS_filename, mass_arr, radius_arr, lambda_arr)
     !-----------------------------------------------------------------------
 
     do ih=1,4                ! read headers
-    read(3,'(a)') header            ! read header
+        read(3,'(a)') header            ! read header
     end do                    ! close ih-loop
 
     ir=0                    ! initialize counter
     do while (.true.)            ! read until EOF ends
-    ir=ir+1                    ! update counter
-    !------------------------------------------------------------------------
-    !    Read the Equation of State and convert it to dimensionless numbers
-    read(3,*,end=8) density, pressure, aa, bb    ! read from file
-    !    Convert to dimensionless units
-    dens(ir) = density*mevfm3/e0        ! dimensionless energy
-    pres(ir) = pressure*mevfm3/p0        ! dimensionless pressure
+       ir=ir+1                    ! update counter
+       !------------------------------------------------------------------------
+       !    Read the Equation of State and convert it to dimensionless numbers
+       read(3,*,end=8) density, pressure, aa, bb    ! read from file
+       !    Convert to dimensionless units
+       dens(ir) = density*mevfm3/e0        ! dimensionless energy
+       pres(ir) = pressure*mevfm3/p0        ! dimensionless pressure
 
     end do                    ! close while-loop
     8    continue                            ! read until EOF
 
-    open (unit=25,file="SoundSpeed.dat")    ! Tidal Number
-    write (25, *) '   R (km)        Density         cs^2 '
+    !open (unit=25,file="SoundSpeed.dat")    ! Tidal Number
+    !write (25, *) '   R (km)        Density         cs^2 '
     !========================================================================
     !    In this DO loop we calculate Tidal Love Numbers 
     !========================================================================
@@ -76,127 +64,131 @@ subroutine TidalLove(EOS_filename, mass_arr, radius_arr, lambda_arr)
     !write (50, *) '   Mass (MSun)           R (km)              Lambda '
 
     pc = 3.0d-5
+     
     do ip = 1, 1000
-    !------------------------------------------------------------------------
-    !    Matching the initial conditions to the solution
-    !    An example central value for pressure:
-    !    pc= 3.162805d-3            ! initial dimensionless pressure for IU-FSU, M=1.6 MSun
+        !write(6,'(TL10,A,F6.1,A,A)',advance='no') "Progress = ", real(ip)/10., "%", CR
+        !------------------------------------------------------------------------
+        !    Matching the initial conditions to the solution
+        !    An example central value for pressure:
+        !    pc= 3.162805d-3            ! initial dimensionless pressure for IU-FSU, M=1.6 MSun
 
-    p=pc
-    m=0.0d0                ! initial dimensionless mass
-    r=1.0d-8            ! initial dimensionless radius
-        y=2.0d0                ! initial value for y(0) 
-    h=1.0d-4            ! step size
-    !------------------------------------------------------------------------
-    !========================================================================
-    !    Interpolate a given pressure for a given density: START
-    !========================================================================
-    !------------------------------------------------------------------------
-    !    Spline the two functions. Uses the external program or subroutine
-    !    (called spline) to calculate these two values.
-    !------------------------------------------------------------------------
+        p=pc
+        m=0.0d0                ! initial dimensionless mass
+        r=1.0d-8            ! initial dimensionless radius
+            y=2.0d0                ! initial value for y(0) 
+        h=1.0d-4            ! step size
+        !------------------------------------------------------------------------
+        !========================================================================
+        !    Interpolate a given pressure for a given density: START
+        !========================================================================
+        !------------------------------------------------------------------------
+        !    Spline the two functions. Uses the external program or subroutine
+        !    (called spline) to calculate these two values.
+        !------------------------------------------------------------------------
 
-        call csplin(ir-1,pres,dens,B,C,D)
-    ec = cseval(ir-1,p,0,pres,dens,B,C,D)    ! corresponding central density     
+            call csplin(ir-1,pres,dens,B,C,D)
+        ec = cseval(ir-1,p,0,pres,dens,B,C,D)    ! corresponding central density     
 
-    print *, 'Pcentral=', pc*p0/mevfm3
-    print *, 'Ecentral=', ec*e0/mevfm3
-    e=0
+        !print *, 'Pcentral=', pc*p0/mevfm3
+        !print *, 'Ecentral=', ec*e0/mevfm3
+        e=0
 
-    do im= 1, 5000000            ! DO loop to calculate the mass/radius/k2
-       !========================================================================
-       !    Runge-Kutta method for solving ODE numerically.
-       !========================================================================
-       k1= h*e*r**2
-       k2= h*e*(r+0.5d0*h)**2
-       k3= h*e*(r+0.5d0*h)**2
-       k4= h*e*(r+h)**2
-       m= m + (k1+2.0d0*k2+2.0d0*k3+k4)/6.0d0            ! mass of the star
-       if (m < 0) then
-          go to 150
-       end if
+        do im= 1, 5000000            ! DO loop to calculate the mass/radius/k2
+           !========================================================================
+           !    Runge-Kutta method for solving ODE numerically.
+           !========================================================================
+           k1= h*e*r**2
+           k2= h*e*(r+0.5d0*h)**2
+           k3= h*e*(r+0.5d0*h)**2
+           k4= h*e*(r+h)**2
+           m= m + (k1+2.0d0*k2+2.0d0*k3+k4)/6.0d0            ! mass of the star
+           if (m < 0) then
+              go to 150
+           end if
 
-       k1= h*(e+p)*(m+p*r**3)/(2.0d0*m*r-r**2)
-       k2= h*(e+(p+0.5d0*k1))*(m+(p+0.5d0*k1)*(r+0.5d0*h)**3)/(2.0d0*m*(r+0.5d0*h)-(r+0.5d0*h)**2)
-       k3= h*(e+(p+0.5d0*k2))*(m+(p+0.5d0*k2)*(r+0.5d0*h)**3)/(2.0d0*m*(r+0.5d0*h)-(r+0.5d0*h)**2)
-k4=    h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
-       p= p + (k1+2.0d0*k2+2.0d0*k3+k4)/6.0d0            ! pressure inside the star
+           k1= h*(e+p)*(m+p*r**3)/(2.0d0*m*r-r**2)
+           k2= h*(e+(p+0.5d0*k1))*(m+(p+0.5d0*k1)*(r+0.5d0*h)**3)/(2.0d0*m*(r+0.5d0*h)-(r+0.5d0*h)**2)
+           k3= h*(e+(p+0.5d0*k2))*(m+(p+0.5d0*k2)*(r+0.5d0*h)**3)/(2.0d0*m*(r+0.5d0*h)-(r+0.5d0*h)**2)
+k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
+           p= p + (k1+2.0d0*k2+2.0d0*k3+k4)/6.0d0            ! pressure inside the star
 
-       !-------------------------------------------------------------------------
-!       Calculation of y(r)
-       !    NOTE: At phase transition the speed of sound will have a spurious oscillation! 
-       !          To avoid that:
-       !         (a) we assume the average constant speed at the vicinity of the phase transition.
-       !         (b) we make a smooth polytropes ---> Smooth Polytropes Work!
-       !          Current work is in progress...
-       !    pcrit = 0.20746519d0*mevfm3/p0        !
-       !    pcrit = 0.40198282d0*mevfm3/p0        ! 
-       !    pcritplus = 1.02d0*pcrit 
-       !    pcritminus= 0.98d0*pcrit
-       !    if (p.gt.pcritplus) then
-       oneovercs2 = cseval(ir-1,p,1,pres,dens,B,C,D)    ! corresponding one-over/speed-of-sound^squared    
-       !    else if (p.lt.pcritminus) then
-       !    oneovercs2 = cseval(ir-1,p,1,pres,dens,B,C,D)    ! corresponding one-over/speed-of-sound^squared    
-       !    else 
-       !    oneovercs2a = cseval(ir-1,pcritplus,1,pres,dens,B,C,D)    
-       !    oneovercs2b = cseval(ir-1,pcritminus,1,pres,dens,B,C,D)    
-!       oneovercs2 = (oneovercs2a*oneovercs2b)/(oneovercs2a+oneovercs2b)
-       !    end if
+           !-------------------------------------------------------------------------
+!           Calculation of y(r)
+           !    NOTE: At phase transition the speed of sound will have a spurious oscillation! 
+           !          To avoid that:
+           !         (a) we assume the average constant speed at the vicinity of the phase transition.
+           !         (b) we make a smooth polytropes ---> Smooth Polytropes Work!
+           !          Current work is in progress...
+           !    pcrit = 0.20746519d0*mevfm3/p0        !
+           !    pcrit = 0.40198282d0*mevfm3/p0        ! 
+           !    pcritplus = 1.02d0*pcrit 
+           !    pcritminus= 0.98d0*pcrit
+           !    if (p.gt.pcritplus) then
+           oneovercs2 = cseval(ir-1,p,1,pres,dens,B,C,D)    ! corresponding one-over/speed-of-sound^squared    
+           !    else if (p.lt.pcritminus) then
+           !    oneovercs2 = cseval(ir-1,p,1,pres,dens,B,C,D)    ! corresponding one-over/speed-of-sound^squared    
+           !    else 
+           !    oneovercs2a = cseval(ir-1,pcritplus,1,pres,dens,B,C,D)    
+           !    oneovercs2b = cseval(ir-1,pcritminus,1,pres,dens,B,C,D)    
+!           oneovercs2 = (oneovercs2a*oneovercs2b)/(oneovercs2a+oneovercs2b)
+           !    end if
 
-       !    Phase Transition is taken into account!
-       !-----------------------------------------------------------
-       k1a = -y**2/r - (y/r)/(1.0d0-2.0d0*m/r)*(1.0d0+r**2*(p-e))
-k1b    = -r/(1.0d0-2.0d0*m/r)*(5.0d0*e+9.0d0*p+(e+p)*oneovercs2)
-       k1c = (6.0d0/r)/(1.0d0-2.0d0*m/r) + (1.0d0/r)*(2.0d0/(1.0d0-2.0d0*m/r)&
-               *(m+r**3*p)/r)**2 
-k1 =    h*(k1a + k1b + k1c)
+           !    Phase Transition is taken into account!
+           !-----------------------------------------------------------
+           k1a = -y**2/r - (y/r)/(1.0d0-2.0d0*m/r)*(1.0d0+r**2*(p-e))
+           k1b = -r/(1.0d0-2.0d0*m/r)*(5.0d0*e+9.0d0*p+(e+p)*oneovercs2)
+           k1c = (6.0d0/r)/(1.0d0-2.0d0*m/r) + (1.0d0/r)*(2.0d0/(1.0d0-2.0d0*m/r)&
+                   *(m+r**3*p)/r)**2 
+           k1 = h*(k1a + k1b + k1c)
 
-       k2a = -(y+0.5d0*k1)**2/(r+0.5d0*h) 
-k2a    = k2a - ((y+0.5d0*k1)/(r+0.5d0*h))/(1.0d0-2.0d0*m/(r+0.5d0*h))*(1.0d0+(r+0.5d0*h)**2*(p-e))
-       k2b = -(r+0.5d0*h)/(1.0d0-2.0d0*m/(r+0.5d0*h))*(5.0d0*e+9.0d0*p+(e+p)&
-               *oneovercs2)
-k2c    = (6.0d0/(r+0.5d0*h))/(1.0d0-2.0d0*m/(r+0.5d0*h)) 
-       k2c = k2c + (1.0d0/(r+0.5d0*h))*(2.0d0/(1.0d0-2.0d0*m/(r+0.5d0*h))*(m+&
-                   (r+0.5d0*h)**3*p)/(r+0.5d0*h))**2
-k2 =    h*(k2a + k2b + k2c)
+           k2a = -(y+0.5d0*k1)**2/(r+0.5d0*h) 
+           k2a = k2a - ((y+0.5d0*k1)/(r+0.5d0*h))/(1.0d0-2.0d0*m/(r+0.5d0*h))*(1.0d0+(r+0.5d0*h)**2*(p-e))
+           k2b = -(r+0.5d0*h)/(1.0d0-2.0d0*m/(r+0.5d0*h))*(5.0d0*e+9.0d0*p+(e+p)&
+                   *oneovercs2)
+           k2c = (6.0d0/(r+0.5d0*h))/(1.0d0-2.0d0*m/(r+0.5d0*h)) 
+           k2c = k2c + (1.0d0/(r+0.5d0*h))*(2.0d0/(1.0d0-2.0d0*m/(r+0.5d0*h))*(m+&
+                       (r+0.5d0*h)**3*p)/(r+0.5d0*h))**2
+           k2 = h*(k2a + k2b + k2c)
 
-       k3a = -(y+0.5d0*k2)**2/(r+0.5d0*h) 
-       k3a = k3a - ((y+0.5d0*k2)/(r+0.5d0*h))/(1.0d0-2.0d0*m/(r+0.5d0*h))*(1.0d0+(r+0.5d0*h)**2*(p-e))
-k3 =    h*(k3a + k2b + k2c)
+           k3a = -(y+0.5d0*k2)**2/(r+0.5d0*h) 
+           k3a = k3a - ((y+0.5d0*k2)/(r+0.5d0*h))/(1.0d0-2.0d0*m/(r+0.5d0*h))*(1.0d0+(r+0.5d0*h)**2*(p-e))
+           k3 = h*(k3a + k2b + k2c)
 
-       k4a = -(y+k3)**2/(r+h) - ((y+k3)/(r+h))/(1.0d0-2.0d0*m/(r+h))*(1.0d0+(&
-                   r+h)**2*(p-e))
-k4b    = -(r+h)/(1.0d0-2.0d0*m/(r+h))*(5.0d0*e+9.0d0*p+(e+p)*oneovercs2)
-       k4c = (6.0d0/(r+h))/(1.0d0-2.0d0*m/(r+h)) + (1.0d0/(r+h))*(2.0d0/(&
-                   1.0d0-2.0d0*m/(r+h))*(m+(r+h)**3*p)/(r+h))**2
-k4 =    h*(k4a + k4b + k4c)
+           k4a = -(y+k3)**2/(r+h) - ((y+k3)/(r+h))/(1.0d0-2.0d0*m/(r+h))*(1.0d0+(&
+                       r+h)**2*(p-e))
+           k4b = -(r+h)/(1.0d0-2.0d0*m/(r+h))*(5.0d0*e+9.0d0*p+(e+p)*oneovercs2)
+           k4c = (6.0d0/(r+h))/(1.0d0-2.0d0*m/(r+h)) + (1.0d0/(r+h))*(2.0d0/(&
+                       1.0d0-2.0d0*m/(r+h))*(m+(r+h)**3*p)/(r+h))**2
+           k4 = h*(k4a + k4b + k4c)
 
-       y = y + (k1+2.0d0*k2+2.0d0*k3+k4)/6.0d0        ! y function inside the star
+           y = y + (k1+2.0d0*k2+2.0d0*k3+k4)/6.0d0        ! y function inside the star
 
-       !TEST TEST TEST TEST TEST TEST TEST TEST TEST ...
-       !------------------------------------------------------------------
-       test1 = -r/(1.0d0-2.0d0*m/r)*(5.0d0*e+9.0d0*p)
-       test2 = -r/(1.0d0-2.0d0*m/r)*((e+p)*oneovercs2)
-       test3 = (6.0d0/r)/(1.0d0-2.0d0*m/r) 
-       test4 = (1.0d0/r)*(2.0d0/(1.0d0-2.0d0*m/r)*(m+r**3*p)/r)**2
-       !--------------------------------------------------------------------
+           !TEST TEST TEST TEST TEST TEST TEST TEST TEST ...
+           !------------------------------------------------------------------
+           test1 = -r/(1.0d0-2.0d0*m/r)*(5.0d0*e+9.0d0*p)
+           test2 = -r/(1.0d0-2.0d0*m/r)*((e+p)*oneovercs2)
+           test3 = (6.0d0/r)/(1.0d0-2.0d0*m/r) 
+           test4 = (1.0d0/r)*(2.0d0/(1.0d0-2.0d0*m/r)*(m+r**3*p)/r)**2
+           !--------------------------------------------------------------------
 
-       r= r + h                    ! radius of the star    
-       e = cseval(ir-1,p,0,pres,dens,B,C,D)        ! corresponding density    
+           r= r + h                    ! radius of the star    
+           e = cseval(ir-1,p,0,pres,dens,B,C,D)        ! corresponding density    
 
-       pmin = 0.60817d-14*mevfm3/p0            ! minimum pressure given by BPS
-       pmin = 1.0d-14                    ! change as needed...
+           pmin = 0.60817d-14*mevfm3/p0            ! minimum pressure given by BPS
+           pmin = 1.0d-14                    ! change as needed...
 
-       if (P .le. pmin) then
-          go to 20
-       end if
+           if (P .le. pmin) then
+              go to 20
+           end if
 
-       !    write (25, 500) r*r0, e/mevfm3*e0/931.5d0, 1.0d0/oneovercs2
+           !    write (25, 500) r*r0, e/mevfm3*e0/931.5d0, 1.0d0/oneovercs2
 
     end do
-20    print *, 'Mass is = ', m*m0, 'MSun'
-    print *, 'Radius is = ', r*r0, 'km'
-    print *, 'y(R) = ', y
+
+20  continue
+    !print *, 'Mass is = ', m*m0, 'MSun'
+    !print *, 'Radius is = ', r*r0, 'km'
+    !print *, 'y(R) = ', y
 
     !    TEST TEST TEST TEST
     !    m = 1.0d0/m0*1.9888d0/1.98892d0
@@ -212,7 +204,7 @@ k4 =    h*(k4a + k4b + k4c)
     CB = CA
     XContact = 1.0d0/(XA/CA + XB/CB)
 fcontact = XContact**(1.5d0)/(3.141592654d0*(2.0d0*m*1.98892d30*6.673d-11)/(299792458.0d0**3.0d0))
-    print *, 'fcontact = ', fcontact, 'Hz'
+    !print *, 'fcontact = ', fcontact, 'Hz'
 
     term = 2.0d0*beta**2*(13.0d0-11.0d0*y+beta*(3.0d0*y-2.0d0)+2.0d0*beta&
             **2*(1.0d0+y))
@@ -226,22 +218,22 @@ k2 = 8.0d0/5.0d0*beta**5*(1.0d0-2.0d0*beta)**2*(2.0d0-y+2.0d0*beta*(y-1.0d0))/(k
 
     dimlambda = lambda/((6.673d-11)**4.0d0)/((m*1.989d30)**5.0d0)*(299792458.0d0)**10.0d0
 
-    print *, 'beta=', beta
-    print *, 'k2 = ', k2
-    print *, 'lambda = ', lambda, 'x 10^29 m^2 kg s^2'
-    print *, 'DimLambda = ', dimlambda
-    print *, 'R_lambda = ', Rlambda, 'km'
-sigmal = 1.0d35*((2.0d0*m)**2.5d0)/(fcontact)**(2.2d0)*(50.0d0/100.0d0)
-    print *, 'SigmaLambda(Adv. LIGO) =', sigmal
+    !print *, 'beta=', beta
+    !print *, 'k2 = ', k2
+    !print *, 'lambda = ', lambda, 'x 10^29 m^2 kg s^2'
+    !print *, 'DimLambda = ', dimlambda
+    !print *, 'R_lambda = ', Rlambda, 'km'
+    sigmal = 1.0d35*((2.0d0*m)**2.5d0)/(fcontact)**(2.2d0)*(50.0d0/100.0d0)
+    !print *, 'SigmaLambda(Adv. LIGO) =', sigmal
     lambdaPAdvLigo = lambda + sigmal
     lambdaMAdvLigo = lambda - sigmal
-    print *, sigmal/lambda*1.0d2, '%'
+    !print *, sigmal/lambda*1.0d2, '%'
 sigmal = 8.4d33*((2.0d0*m)**2.5d0)/(fcontact)**(2.2d0)*(50.0d0/100.0d0)
-    print *, 'SigmaLambda(Einstein Tel.) =', sigmal
+    !print *, 'SigmaLambda(Einstein Tel.) =', sigmal
     lambdaPEinstein = lambda + sigmal
     lambdaMEinstein = lambda - sigmal
-    print *, sigmal/lambda*1.0d2, '%'
-    print *, '=================================='
+    !print *, sigmal/lambda*1.0d2, '%'
+    !print *, '=================================='
 
     !    write (50, 500) m, r*r0, beta, k2, lambda/1.0d29, Rlambda
     ! write (50, 500) m, r*r0, dimlambda
@@ -249,7 +241,7 @@ sigmal = 8.4d33*((2.0d0*m)**2.5d0)/(fcontact)**(2.2d0)*(50.0d0/100.0d0)
         radius_arr(ip) = r*r0
         lambda_arr(ip) = dimlambda
     !    write (50, 500) m, lambda/1.0d29, lambdaPAdvLigo/1.0d29, lambdaMAdvLigo/1.0d29, lambdaPEinstein/1.0d29, lambdaMEinstein/1.0d29 ! Only for errors
-150     print *, 'NEXT'
+150 continue
     pc = pc + 2.0d-5
     end do
 
@@ -304,13 +296,13 @@ DOUBLE PRECISION X(N), Y(N), B(N), C(N), D(N)
     !         CHECK INPUT FOR CONSISTENCY
     !
     IF (N .GE. 2) GO TO 1
-    WRITE(LOUT, 1000)N
+    !WRITE(LOUT, 1000)N
     RETURN
     !
     1 NM1 = N-1
     DO 3 I = 1, NM1
     IF (X(I) .LT. X(I+1)) GO TO 3
-WRITE(LOUT, 1001)
+!WRITE(LOUT, 1001)
     RETURN
     3 CONTINUE
     !
@@ -415,7 +407,7 @@ DOUBLE PRECISION U, X(N), Y(N), B(N), C(N), D(N)
     DATA I, LOUT/1, 6/
     !
     IF (IDERIV .GE. 0 .AND. IDERIV .LE. 2) GO TO 5
-    WRITE(LOUT, 1000)IDERIV
+    !WRITE(LOUT, 1000)IDERIV
     RETURN
     !
     5 IF ( I .GE. N ) I = 1

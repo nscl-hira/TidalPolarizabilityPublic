@@ -4,16 +4,27 @@ marker = itertools.cycle((',', '+', '.', 'o', '*'))
 import matplotlib.pyplot as plt
 
 import SkyrmeEOS as sky
+from Constants import rho0
+
+def PlotSkyrmeSymEnergy(fig, df):
+    ax = plt.subplot(111)
+    n = np.linspace(0,3,1000)
+    for index, row in df.iterrows():
+        ax.plot(n, sky.GetAsymEnergy(n*rho0, row), label=index, zorder=-32, color='b')
+    ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
+    ax.set_ylabel('$S(\\rho)$ (MeV)', fontsize=30)
+    plt.subplots_adjust(right=0.85)
+    return ax
 
 def PlotSkyrmeEnergy(df):
     fig = plt.figure()
     ax = plt.subplot(111)
     n = np.linspace(0, 5, 100)
     for index, row in df.iterrows():
-        energy = sky.GetEnergy(n*0.16, 0.5, row)
+        energy = sky.GetEnergy(n*rho0, 0.5, row)
         ax.plot(n, energy, label='%s SNM' % index, marker=marker.next())
     for index, row in df.iterrows():
-        energy = sky.GetEnergy(n*0.16, 0., row)
+        energy = sky.GetEnergy(n*rho0, 0., row)
         ax.plot(n, energy, label='%s PNM' % index, marker=marker.next())
     ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
     ax.set_ylabel('Energy per nucleons (MeV)', fontsize=30)
@@ -25,7 +36,7 @@ def PlotSkyrmePressure(df):
     ax = plt.subplot(111)
     n = np.linspace(0, 5, 100)
     for index, row in df.iterrows():
-        pressure = sky.GetAutoGradPressure(n*0.16, 0.0, row)
+        pressure = sky.GetAutoGradPressure(n*rho0, 0.0, row)
         ax.plot(n, pressure, label=index, marker=marker.next())
     ax.set_ylim([1,1000])
     ax.set_xlim([1,5])

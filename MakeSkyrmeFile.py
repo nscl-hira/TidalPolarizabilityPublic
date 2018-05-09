@@ -1,3 +1,4 @@
+import sys
 import cPickle as pickle
 import itertools
 marker = itertools.cycle((',', '+', '.', 'o', '*')) 
@@ -8,10 +9,7 @@ import TidalLove.TidalLove as tidal
 from decimal import Decimal
 import matplotlib.pyplot as plt
 import autograd.numpy as np
-from autograd import elementwise_grad as egrad
-from autograd import grad, jacobian
 import pandas as pd
-import math
 
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
@@ -22,8 +20,8 @@ if __name__ == "__main__":
     df.fillna(0, inplace=True)
     
     summary = sky.SummarizeSkyrme(df)
-    utl.PlotSkyrmeEnergy(df)
-    utl.PlotSkyrmePressure(df)
+    #utl.PlotSkyrmeEnergy(df)
+    #utl.PlotSkyrmePressure(df)
     
     """
     Print the selected EOS into a file for the tidallove script to run
@@ -51,6 +49,8 @@ if __name__ == "__main__":
 
     name_list = [ index for index, row in df.iterrows() ] 
     result = []
+    num_requested = float(df.shape[0])
+    num_completed = 0.
     with ProcessPool() as pool:
         future = pool.map(CalculateModel, name_list, timeout=50)
         iterator = future.result()
@@ -66,6 +66,9 @@ if __name__ == "__main__":
             except Exception as error:
                 print("function raised %s" % error)
                 print(error.traceback)  # Python's traceback of remote process
+            num_completed=1+num_completed
+            sys.stdout.write('\rProgress Main %f %%' % (100.*num_completed/num_requested))
+            sys.stdout.flush()
 
     mass = {val[0]: val[1] for val in result}
     radius = {val[0]: val[2] for val in result}
@@ -83,5 +86,5 @@ if __name__ == "__main__":
 
     # save everything into a pickle file
     all_results = {'mass':mass, 'radius':radius, 'lambda':lambda_, 'summary':summary}
-    pickle.dump(all_results, open("all_results.pkl", "wb"))
+    pickle.dump(all_results, open("Results/all_results.pkl", "wb"))
 
