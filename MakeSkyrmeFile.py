@@ -20,13 +20,17 @@ if __name__ == "__main__":
     df.fillna(0, inplace=True)
     
     summary = sky.SummarizeSkyrme(df)
-    #utl.PlotSkyrmeEnergy(df)
-    #utl.PlotSkyrmePressure(df)
+
+    ax = plt.subplot(121)
+    plt.subplots_adjust(right=0.85)
+    utl.PlotSkyrmeEnergy(df, ax, color='r')
+    ax = plt.subplot(122)
+    utl.PlotSkyrmePressure(df, ax, color='r')
+    plt.show()
     
     """
     Print the selected EOS into a file for the tidallove script to run
     """
-     
     def CalculateModel(name):
         with tempfile.NamedTemporaryFile() as output:
             #print header
@@ -34,7 +38,6 @@ if __name__ == "__main__":
             output.write("       E/V           P              n           eps      \n") 
             output.write("    (MeV/fm3)     (MeV/fm3)      (#/fm3)    (erg/cm^3/s) \n")
             output.write(" ========================================================\n")
-        
             # the last 2 column (n and eps) is actually not used in the program
             # therefore eps column will always be zero
             n = np.linspace(1e-10, 2, 10000)
@@ -42,8 +45,6 @@ if __name__ == "__main__":
             pressure = sky.GetAutoGradPressure(n, 0., df.loc[name]) 
             for density, e, p in zip(n, energy, pressure):
                 output.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))
-
-
             mass, radius, lambda_ = tidal.tidallove(output.name)
             return name, mass, radius, lambda_
 
@@ -80,9 +81,13 @@ if __name__ == "__main__":
     summary = pd.concat([summary, data], axis=1)
     summary.to_csv('Results/Skyrme_summary.csv', index=True)
 
-    utl.PlotMassVsRadius(mass, radius)
-    utl.PlotMassVsLambda(mass, lambda_)
-    utl.PlotLambdaRadius(mass, radius, lambda_)
+    ax = plt.subplot(221)
+    utl.PlotMassVsRadius(mass, radius, ax, color='b')
+    ax = plt.subplot(222)
+    utl.PlotMassVsLambda(mass, lambda_, ax, color='b')
+    ax = plt.subplot(223)
+    utl.PlotLambdaRadius(mass, radius, lambda_, ax, color='b')
+    plt.show()
 
     # save everything into a pickle file
     all_results = {'mass':mass, 'radius':radius, 'lambda':lambda_, 'summary':summary}
