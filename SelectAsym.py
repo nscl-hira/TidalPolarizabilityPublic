@@ -14,7 +14,7 @@ from Utilities.Constants import *
 def chisqr(obs, exp, error):
     return (np.power((obs-exp),2)/(np.power(error, 2))).sum()
 
-def SelectLowEnergy(constraint_filename, df):
+def SelectLowDensity(constraint_filename, df):
     """
     Input: 
        constraint_filename: filename containing all lower energy constraint points
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
     df.fillna(0, inplace=True)
  
-    constrainted_df, rho, S, rho_Error, S_Error = SelectLowEnergy('Constraints/LowEnergySym.csv', df)
+    constrainted_df, rho, S, rho_Error, S_Error = SelectLowDensity('Constraints/LowEnergySym.csv', df)
     # save result to a file first
     constrainted_df.to_csv('SkyrmeParameters/SkyrmeConstraintedLowDensity.csv', sep=',')
     
