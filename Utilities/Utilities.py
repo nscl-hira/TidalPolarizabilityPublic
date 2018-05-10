@@ -20,28 +20,28 @@ def GetContour(df, rho_min, rho_max):
     return values, contour
     
 
-def PlotSkyrmeSymEnergy(df, ax, color='', range_=[0,3], pfrac=0):
+def PlotSkyrmeSymEnergy(df, ax, range_=[0,3], pfrac=0, **args):
     n = np.linspace(*range_, num=1000)
     for index, row in df.iterrows():
-        ax.plot(n, sky.GetAsymEnergy(n*rho0, row), label=index, zorder=-32, color=color)
+        ax.plot(n, sky.GetAsymEnergy(n*rho0, row), label=index, zorder=-32, **args)
     ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
     ax.set_ylabel('$S(\\rho)$ (MeV)', fontsize=30)
     return ax
 
-def PlotSkyrmeEnergy(df, ax, color='', range_=[0,3], pfrac=0):
+def PlotSkyrmeEnergy(df, ax, range_=[0,3], pfrac=0, **args):
     n = np.linspace(*range_, num=1000)
     for index, row in df.iterrows():
         energy = sky.GetEnergy(n*rho0, pfrac, row)
-        ax.plot(n, energy, label='%s PNM' % index, color=color)
+        ax.plot(n, energy, label='%s PNM' % index, **args)
     ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
     ax.set_ylabel('Energy per nucleons (MeV)', fontsize=30)
     return ax
 
-def PlotSkyrmePressure(df, ax, color='', range_=[0,3], pfrac=0):
+def PlotSkyrmePressure(df, ax, range_=[0,3], pfrac=0, **args):
     n = np.linspace(*range_, num=1000)
     for index, row in df.iterrows():
         pressure = sky.GetAutoGradPressure(n*rho0, pfrac, row)
-        ax.plot(n, pressure, label=index, color=color, zorder=1)
+        ax.plot(n, pressure, label=index, zorder=1, **args)
     ax.set_ylim([1,1000])
     ax.set_xlim(range_)
     ax.set_yscale('log')
@@ -49,26 +49,26 @@ def PlotSkyrmePressure(df, ax, color='', range_=[0,3], pfrac=0):
     ax.set_ylabel('Pressure (MeV/fm3)', fontsize=30)
     return ax
 
-def PlotMassVsRadius(mass, radius, ax, color=''):
+def PlotMassVsRadius(mass, radius, ax, **args):
     for key in mass:
-        ax.plot(radius[key], mass[key], label=key, color=color)
+        ax.plot(radius[key], mass[key], label=key, **args)
     ax.set_xlabel('Radius (km)', fontsize=30)
     ax.set_ylabel('Mass (solar)', fontsize=30)
     ax.set_ylim([0, 3])
     ax.set_xlim([0, 20])
     return ax
 
-def PlotMassVsLambda(mass, lambda_, ax, color=''):
+def PlotMassVsLambda(mass, lambda_, ax, **args):
     for key in mass:
-        ax.plot(mass[key], lambda_[key], label=key, color=color)
+        ax.plot(mass[key], lambda_[key], label=key, **args)
     ax.set_xlabel('Mass (solar)', fontsize=30)
     ax.set_ylabel('lambda', fontsize=30)
     ax.set_ylim([0, 4000])
     return ax
 
-def PlotLambdaRadius(mass, radius, lambda_, ax, color=''):
+def PlotLambdaRadius(mass, radius, lambda_, ax, **args):
     for key in mass:
-        ax.plot([np.interp(1.4, mass[key], radius[key])], [np.interp(1.4, mass[key], lambda_[key])], label=key, marker=marker.next(), markersize=20, color=color)
+        ax.plot([np.interp(1.4, mass[key], radius[key])], [np.interp(1.4, mass[key], lambda_[key])], label=key, marker=marker.next(), markersize=20, **args)
     ax.set_xlabel('R(1.4 solar mass) km', fontsize=30)
     ax.set_ylabel('lambda', fontsize=30)
     ax.set_ylim([-200, 2000])

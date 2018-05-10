@@ -35,7 +35,7 @@ def SelectFlow(constraint_filename, df, accept_percentage=0.8, **args):
     return df_selected, patch
 
 if __name__ == "__main__":
-    df = pd.read_csv('SkyrmeParameters/SkyrmeConstraintedLowDensity.csv', index_col=0)
+    df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
     df.fillna(0, inplace=True)
 
     
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     value, contour = utl.GetContour(df_stiff, 2, 4.5)
     _, patch = ContourToPatches(value, contour, linewidth=5, 
                                 edgecolor='black', facecolor='pink', alpha=.8,
-                                lw=2, zorder=10, label='Exp.+Asy_stiff')
+                                lw=2, zorder=11, label='Exp.+Asy_stiff')
     ax.add_patch(patch)
     ax.legend(loc='upper left')
 
@@ -84,5 +84,5 @@ if __name__ == "__main__":
     utl.PlotSkyrmeEnergy(df_soft, ax, color='black', range_=[0,5], pfrac=0.0)
     utl.PlotSkyrmeEnergy(df_stiff, ax, color='pink', range_=[0,5], pfrac=0.0)
     ax.set_ylim([0,500])
-    ax.set_ylabel('Energy for pure neutron matter')
+    ax.set_ylabel('E/A for pure neutron matter (MeV)')
     plt.show()

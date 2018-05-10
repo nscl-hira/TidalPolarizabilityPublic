@@ -24,8 +24,9 @@ if __name__ == "__main__":
     for col in df:
         mean = df[col].mean()
         std = df[col].std()
-        new_dict[col] = np.random.uniform(low=mean-2*std, high=mean+2*std, size=(samples,))
+        new_dict[col] = np.random.uniform(low=mean-std, high=mean+std, size=(samples,))
     df = pd.DataFrame.from_dict(new_dict)
+    df.to_csv('SkyrmeParameters/RandomSkyrme.csv', sep=',')
     summary = sky.SummarizeSkyrme(df)
     
     ax = plt.subplot(121)
@@ -86,7 +87,7 @@ if __name__ == "__main__":
     data = pd.DataFrame.from_dict(data)
     data.set_index('Model', inplace=True)
     summary = pd.concat([summary, data], axis=1)
-    summary.to_csv('Results/Skyrme_summary.csv', index=True)
+    summary.to_csv('Results/Skyrme_summary_Random.csv', index=True)
 
     ax = plt.subplot(221)
     utl.PlotMassVsRadius(mass, radius, ax, color='b')

@@ -1,6 +1,6 @@
 import itertools
 color = itertools.cycle(('g', 'purple', 'r', 'black', 'grey', 'orange'))
-linestyle = itertools.cycle(('dashdot','dashed','dotted'))
+linestyle = itertools.cycle(((15.,15.,2.,5.),(15.,15.),(3.,3.)))
 import matplotlib.pyplot as plt
 import matplotlib.path as pltPath
 import matplotlib.patches as patches
@@ -12,6 +12,7 @@ import Utilities.SkyrmeEOS as sky
 import SelectFlow as sflow
 import SelectAsym as sasym
 import SelectPolarizability as spol
+import SelectRadius as srad
 from Utilities.Constants import *
 
 if __name__ == "__main__":
@@ -26,9 +27,13 @@ if __name__ == "__main__":
     LDFlowStiff, patch_stiff = sflow.SelectFlow('Constraints/FlowAsymStiff.csv', LowDensityConstrainted, 0.8,
                                                 linewidth=5, edgecolor='black', facecolor='green', alpha=.7,
                                                 lw=2, zorder=10, label='Exp.+Asy_stiff')
-    JustFlowSoft, _ = sflow.SelectFlow('Constraints/FlowAsymSoft.csv', LowDensityConstrainted, 0.8)
-    JustFlowStiff, _ = sflow.SelectFlow('Constraints/FlowAsymStiff.csv', LowDensityConstrainted, 0.8)
-    PolPatchList = spol.SelectPolarizability('Results/Skyrme_summary.csv', df, max_lambda=1200)
+    JustFlowSoft, _ = sflow.SelectFlow('Constraints/FlowAsymSoft.csv', df, 0.8)
+    JustFlowStiff, _ = sflow.SelectFlow('Constraints/FlowAsymStiff.csv', df, 0.8)
+    PolPatchList = []
+    interval = np.arange(12,14,0.5)
+    for interval_min, interval_max in zip(interval[:-1], interval[1:]):
+        patch ,_ = srad.SelectRadius('Results/Skyrme_summary.csv', df, interval_min, interval_max)
+        PolPatchList.append(patch)
 
 
     """
@@ -52,13 +57,14 @@ if __name__ == "__main__":
     ax.add_patch(patch_FSoft)
     ax.add_patch(patch_FStiff)
     for patch in PolPatchList:
-        patch.set_linestyle(linestyle.next())
+        patch.set_linestyle((20., linestyle.next()))
         patch.set_edgecolor(color.next())
         patch.set_fill(None)
         ax.add_patch(patch)
 
-    ax.legend(loc='upper left')
+    ax.legend(loc='upper left', fontsize=20)
 
+    """
     range_ = [0, 5]
     # plot all the skyrmes
     utl.PlotSkyrmeEnergy(df, ax, color='b', range_=range_, pfrac=0.0)
@@ -68,11 +74,12 @@ if __name__ == "__main__":
     utl.PlotSkyrmeEnergy(LDFlowSoft, ax, color='black', range_=range_, pfrac=0.0)
     # plot skyrmes that are selected both by low density points and stiff asym from flow
     utl.PlotSkyrmeEnergy(LDFlowStiff, ax, color='green', range_=range_, pfrac=0.0)
+    """
 
     ax.set_xlim([0, 5])
     ax.set_ylim([0, 250])
     ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
-    ax.set_ylabel('Energy density (MeV/fm3)', fontsize=30)
+    ax.set_ylabel('E/A (MeV)', fontsize=30)
 
     plt.show()
    

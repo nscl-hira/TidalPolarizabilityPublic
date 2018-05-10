@@ -1,18 +1,26 @@
+import matplotlib.pyplot as plt
 import numpy as np
-from MakeSkyrmeFile import PlotMassVsRadius, PlotLambdaRadius, PlotMassVsLambda
+from Utilities.Utilities import PlotMassVsRadius, PlotLambdaRadius, PlotMassVsLambda
 import cPickle as pickle
 
 if __name__ == "__main__":
-    with open("all_results.pkl", "rb") as buff:\
+    with open("Results/all_results.pkl", "rb") as buff:\
         data = pickle.load(buff)
 
     mass = data['mass']
     radius = data['radius']
     lambda_ = data['lambda']
     
-    PlotMassVsRadius(data['mass'], data['radius'])
-    PlotLambdaRadius(data['mass'], data['radius'], data['lambda'])
-    PlotMassVsLambda(data['mass'], data['lambda'])
+    ax = plt.subplot(111)    
+    PlotMassVsRadius(data['mass'], data['radius'], ax)
+    plt.show()
+    ax = plt.subplot(111)
+    PlotLambdaRadius(data['mass'], data['radius'], data['lambda'], ax)
+    ax.xaxis.set_ticks(np.arange(0.,20.,1.))
+    plt.show()
+    ax = plt.subplot(111)
+    PlotMassVsLambda(data['mass'], data['lambda'], ax)
+    plt.show()
     #with open("Lambda.dat", "wb") as file_:
     #    file_.write('ModelName\tR(1.4)\tLambda(1.4)\n')
     #    for key in mass:
