@@ -42,7 +42,7 @@ def SelectLowDensity(constraint_filename, df):
     
 
 if __name__ == "__main__":
-    df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
+    df = pd.read_csv('Results/Skyrme_summary.csv', index_col=0)
     df.fillna(0, inplace=True)
  
     constrainted_df, rho, S, rho_Error, S_Error = SelectLowDensity('Constraints/LowEnergySym.csv', df)
@@ -62,8 +62,8 @@ if __name__ == "__main__":
 
     ax = plt.subplot(122)
     # plot background as comparison
-    ax = utl.PlotSkyrmeEnergy(df, ax, color='b', range_=[0,5])
-    ax = utl.PlotSkyrmeEnergy(constrainted_df, ax, color='r', range_=[0,5])
+    ax = utl.PlotSkyrmePressure(df, ax, color='b', range_=[0,5])
+    ax = utl.PlotSkyrmePressure(constrainted_df, ax, color='r', range_=[0,5])
     value, contour = utl.GetContour(constrainted_df, 0.3, 1)
     # write contour to file
     np.savetxt('Results/E_Constrainted_with_S.csv', np.array([contour, value]), delimiter=',') 

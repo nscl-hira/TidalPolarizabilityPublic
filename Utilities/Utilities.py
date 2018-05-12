@@ -4,13 +4,13 @@ marker = itertools.cycle((',', '+', '.', 'o', '*'))
 import matplotlib.pyplot as plt
 
 import SkyrmeEOS as sky
-from Constants import rho0
+from Constants import *
 
-def GetContour(df, rho_min, rho_max):
+def GetContour(df, rho_min, rho_max, func=sky.GetEnergy):
     n = np.linspace(rho_min,rho_max,1000)
     value = []
     for index, row in df.iterrows():
-        value.append(sky.GetEnergy(n*rho0, 0., row))
+        value.append(func(n*rho0, 0., row))
     value = np.array(value)
     contour = np.concatenate([np.amax(value, axis=0), np.amin(value, axis=0)[::-1]]).flatten()
     values = np.array([n, n[::-1]]).flatten()
@@ -32,10 +32,10 @@ def PlotSkyrmeEnergy(df, ax, range_=[0,3], pfrac=0, **args):
     n = np.linspace(*range_, num=1000)
     for index, row in df.iterrows():
         energy = sky.GetEnergy(n*rho0, pfrac, row)
-        ax.plot(n, energy, label='%s PNM' % index, **args)
+        labels = ax.plot(n, energy, label='%s PNM' % index, **args)
     ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
     ax.set_ylabel('Energy per nucleons (MeV)', fontsize=30)
-    return ax
+    return labels
 
 def PlotSkyrmePressure(df, ax, range_=[0,3], pfrac=0, **args):
     n = np.linspace(*range_, num=1000)
@@ -48,6 +48,20 @@ def PlotSkyrmePressure(df, ax, range_=[0,3], pfrac=0, **args):
     ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
     ax.set_ylabel('Pressure (MeV/fm3)', fontsize=30)
     return ax
+
+def PlotSkyrmePressureEnergy(df, ax, range_=[0,3], pfrac=0, **args):
+    n = np.linspace(*range_, num=1000)
+    for index, row in df.iterrows():
+        energy = (sky.GetEnergy(n, pfrac, row) + mn)*(n)
+        pressure = sky.GetAutoGradPressure(n, pfrac, row)
+        labels = ax.plot(energy, pressure, label=index, zorder=1, **args)
+    ax.set_ylim([0.5,1e4])
+    ax.set_xlim([1e2, 3e4])
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    ax.set_xlabel('$Energy\ density\ (MeV/fm^{3})$', fontsize=30)
+    ax.set_ylabel('$Pressure (MeV/fm^{3})$', fontsize=30)
+    return labels
 
 def PlotMassVsRadius(mass, radius, ax, **args):
     for key in mass:

@@ -16,7 +16,7 @@ import SelectRadius as srad
 from Utilities.Constants import *
 
 if __name__ == "__main__":
-    df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
+    df = pd.read_csv('Results/Skyrme_summary.csv', index_col=0)
     df.fillna(0, inplace=True)
 
     # Let's try to constrainted with Low energy points, then constraint with flow afterward
@@ -34,6 +34,10 @@ if __name__ == "__main__":
     for interval_min, interval_max in zip(interval[:-1], interval[1:]):
         patch ,_ = srad.SelectRadius('Results/Skyrme_summary.csv', df, interval_min, interval_max)
         PolPatchList.append(patch)
+
+    LowDensityConstrainted.to_csv('Results/LowDensityConstrainted.csv', sep=',')
+    JustFlowSoft.to_csv('Results/FlowSoftAsym.csv', sep=',')
+    JustFlowStiff.to_csv('Results/FlowStiffAsym.csv', sep=',')
 
 
     """
@@ -77,9 +81,42 @@ if __name__ == "__main__":
     """
 
     ax.set_xlim([0, 5])
-    ax.set_ylim([0, 250])
+    ax.set_ylim([1, 1e3])
     ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
     ax.set_ylabel('E/A (MeV)', fontsize=30)
+    ax.set_yscale('log')
 
+    plt.show()
+
+    ax = plt.subplot(221)
+    ax.plot(df['R(1.4)'], df['lambda(1.4)'], 'ro', color='b', label='All Skyrmes')
+    ax.plot(LowDensityConstrainted['R(1.4)'], LowDensityConstrainted['lambda(1.4)'], 'ro', color='r', label='Low density constrainted')
+    ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.legend(loc='upper left', fontsize=20)
+    
+    ax = plt.subplot(222)
+    ax.plot(df['R(1.4)'], df['lambda(1.4)'], 'ro', color='b', label='All Skyrmes')
+    ax.plot(JustFlowSoft['R(1.4)'], JustFlowSoft['lambda(1.4)'], 'ro', color='r', label='Flow Soft Asym.')
+    ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.legend(loc='upper left', fontsize=20)
+    
+    ax = plt.subplot(223)
+    ax.plot(df['R(1.4)'], df['lambda(1.4)'], 'ro', color='b', label='All Skyrmes')
+    ax.plot(JustFlowStiff['R(1.4)'], JustFlowStiff['lambda(1.4)'], 'ro', color='r', label='Flow Stiff Asym.')
+    ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.legend(loc='upper left', fontsize=20)
+
+    ax = plt.subplot(224)
+    ax.plot(df['R(1.4)'], df['lambda(1.4)'], 'ro', color='b', label='All Skyrmes')
+    ax.plot(LowDensityConstrainted['R(1.4)'], LowDensityConstrainted['lambda(1.4)'], 'ro', color='r', label='Low density constrainted')
+    ax.plot(JustFlowSoft['R(1.4)'], JustFlowSoft['lambda(1.4)'], 'ro', color='g', label='Flow Soft Asym.')
+    ax.plot(JustFlowStiff['R(1.4)'], JustFlowStiff['lambda(1.4)'], 'ro', color='orange', label='Flow Stiff Asym.')
+    ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.legend(loc='upper left', fontsize=20)
+  
     plt.show()
    

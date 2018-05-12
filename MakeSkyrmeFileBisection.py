@@ -1,4 +1,3 @@
-from shutil import copyfile
 import sys
 import cPickle as pickle
 import itertools
@@ -6,11 +5,12 @@ marker = itertools.cycle((',', '+', '.', 'o', '*'))
 from pebble import ProcessPool, ProcessExpired
 from concurrent.futures import TimeoutError
 import tempfile
-import TidalLove.TidalLove as tidal
+import TidalLove.TidalLove_individual as tidal
 from decimal import Decimal
 import matplotlib.pyplot as plt
 import autograd.numpy as np
 import pandas as pd
+import scipy.optimize as opt
 
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
@@ -19,15 +19,8 @@ from Utilities.Constants import *
 if __name__ == "__main__":
     df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
     df.fillna(0, inplace=True)
-    
-    summary = sky.SummarizeSkyrme(df)
 
-    ax = plt.subplot(121)
-    plt.subplots_adjust(right=0.85)
-    utl.PlotSkyrmeEnergy(df, ax, color='r')
-    ax = plt.subplot(122)
-    utl.PlotSkyrmePressure(df, ax, color='r')
-    plt.show()
+    summary = sky.SummarizeSkyrme(df)
     
     """
     Print the selected EOS into a file for the tidallove script to run
@@ -46,7 +39,20 @@ if __name__ == "__main__":
             pressure = sky.GetAutoGradPressure(n, 0., df.loc[name]) 
             for density, e, p in zip(n, energy, pressure):
                 output.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))
-            mass, radius, lambda_ = tidal.tidallove(output.name)
+
+            def FuncBisec(pc):
+                mass, _, _ = tidal.tidallove_individual(output.name, pc)
+                return mass - 1.4
+            try:
+                pc = opt.newton(FuncBisec, 1e-4)
+                mass, radius, lambda_ = tidal.tidallove_individual(output.name, pc)
+                print('%s, %f, %f, %f' % (name, mass, radius, lambda_))
+            except RuntimeError as error:
+                mass, radius, lambda_ = np.nan, np.nan, np.nan
+            
+            if not all([mass, radius, lambda_]):
+                mass, radius, lambda_ = np.nan, np.nan, np.nan
+            
             return name, mass, radius, lambda_
 
     name_list = [ index for index, row in df.iterrows() ] 
@@ -54,7 +60,7 @@ if __name__ == "__main__":
     num_requested = float(df.shape[0])
     num_completed = 0.
     with ProcessPool() as pool:
-        future = pool.map(CalculateModel, name_list, timeout=50)
+        future = pool.map(CalculateModel, name_list, timeout=5)
         iterator = future.result()
         while True:
             try:
@@ -76,21 +82,12 @@ if __name__ == "__main__":
     radius = {val[0]: val[2] for val in result}
     lambda_ = {val[0]: val[3] for val in result}
 
-    data = [{'Model':val[0], 'Max_mass':np.amax(val[1]), 'R(1.4)':np.interp(1.4, val[1], val[2]), 'lambda(1.4)':np.interp(1.4, val[1], val[3])} for val in result]
+    data = [{'Model':val[0], 'R(1.4)':val[2], 'lambda(1.4)':val[3]} for val in result]
     data = pd.DataFrame.from_dict(data)
     data.set_index('Model', inplace=True)
-    summary = pd.concat([summary, data], axis=1)
-    summary.to_csv('Results/Skyrme_summary.csv', index=True)
+    data = pd.concat([df, summary, data], axis=1)
+    data.dropna(axis=0, how='any', inplace=True)
+    data.to_csv('Results/Skyrme_summary.csv', index=True)
 
-    ax = plt.subplot(221)
-    utl.PlotMassVsRadius(mass, radius, ax, color='b')
-    ax = plt.subplot(222)
-    utl.PlotMassVsLambda(mass, lambda_, ax, color='b')
-    ax = plt.subplot(223)
-    utl.PlotLambdaRadius(mass, radius, lambda_, ax, color='b')
-    plt.show()
-
-    # save everything into a pickle file
-    all_results = {'mass':mass, 'radius':radius, 'lambda':lambda_, 'summary':summary}
-    pickle.dump(all_results, open("Results/all_results.pkl", "wb"))
+    
 

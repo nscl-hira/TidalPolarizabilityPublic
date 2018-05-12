@@ -18,10 +18,6 @@ def chisqr(obs, exp, error):
     return (np.power((obs-exp),2)/(np.power(error, 2))).sum()
 
 def SelectRadius(constraint_filename, df, min_radius=12, max_radius=14):
-    l_result = pd.read_csv(constraint_filename, index_col=0)
-    # merge with polarizability results for each skryme
-    df = pd.concat([df, l_result], axis=1)
-
     sub_data = df.loc[(df['R(1.4)'] > min_radius) & (df['R(1.4)'] < max_radius)]
     if sub_data.shape[0] == 0:
         return None, None
@@ -29,11 +25,10 @@ def SelectRadius(constraint_filename, df, min_radius=12, max_radius=14):
     contour = [[x, y] for x, y in zip(value, contour)]
     path = pltPath.Path(contour)
     patch = patches.PathPatch(path, label='%5.1f km < $R(1.4 M_{\odot})$ < %5.1f km'%(min_radius, max_radius))
-    return patch, sub_data.drop(list(l_result), axis=1) 
-
+    return patch, sub_data
 
 if __name__ == "__main__":
-    df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
+    df = pd.read_csv('Results/Skyrme_summary.csv', index_col=0)
     df.fillna(0, inplace=True)
 
     ax = plt.subplot(111)    

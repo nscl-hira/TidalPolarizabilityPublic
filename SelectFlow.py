@@ -35,16 +35,16 @@ def SelectFlow(constraint_filename, df, accept_percentage=0.8, **args):
     return df_selected, patch
 
 if __name__ == "__main__":
-    df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
+    df = pd.read_csv('Results/Skyrme_summary.csv', index_col=0)
     df.fillna(0, inplace=True)
 
     
     # load the constraints from flow experiments
-    df_soft, patch_soft = SelectFlow('Constraints/FlowAsymSoft.csv', df, 0.8, 
+    df_soft, patch_soft = SelectFlow('Constraints/FlowAsymSoft.csv', df, 0.5, 
                                      linewidth=5, edgecolor='black', facecolor='black', alpha=.8,
                                      lw=2, zorder=10, label='Exp.+Asy_soft')
     # create cut fo stiff asym
-    df_stiff, patch_stiff = SelectFlow('Constraints/FlowAsymStiff.csv', df, 0.8,
+    df_stiff, patch_stiff = SelectFlow('Constraints/FlowAsymStiff.csv', df, 0.5,
                                        linewidth=5, edgecolor='black', facecolor='pink', alpha=.8,
                                        lw=2, zorder=10, label='Exp.+Asy_stiff')
 
@@ -83,6 +83,7 @@ if __name__ == "__main__":
     utl.PlotSkyrmeEnergy(df, ax, color='b', range_=[0,5], pfrac=0.0)
     utl.PlotSkyrmeEnergy(df_soft, ax, color='black', range_=[0,5], pfrac=0.0)
     utl.PlotSkyrmeEnergy(df_stiff, ax, color='pink', range_=[0,5], pfrac=0.0)
-    ax.set_ylim([0,500])
+    #ax.set_ylim([1,500])
+    ax.set_yscale('log')
     ax.set_ylabel('E/A for pure neutron matter (MeV)')
     plt.show()
