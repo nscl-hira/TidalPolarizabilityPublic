@@ -26,7 +26,8 @@ def SelectFlow(constraint_filename, df, accept_percentage=0.8, **args):
     inside_list = []
     n = np.linspace(2, 4.5, 1000)
     for index, row in df.iterrows():
-        pressure = sky.GetAutoGradPressure(n*rho0, 0, row)
+        eos = sky.Skryme(row)
+        pressure = eos.GetAutoGradPressure(n*rho0, 0)
         inside = path.contains_points(np.array([n, pressure]).T)
         if NumTrueAbovePercentage(inside, accept_percentage):
             inside_list.append(index)

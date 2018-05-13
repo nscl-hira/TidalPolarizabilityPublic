@@ -25,7 +25,9 @@ if __name__ == "__main__":
     """
     Print the selected EOS into a file for the tidallove script to run
     """
-    def CalculateModel(name):
+    def CalculateModel(name_and_eos):
+        name = name_and_eos[0]
+        eos = name_and_eos[1]
         with tempfile.NamedTemporaryFile() as output:
             #print header
             output.write(" ========================================================\n")
@@ -35,8 +37,8 @@ if __name__ == "__main__":
             # the last 2 column (n and eps) is actually not used in the program
             # therefore eps column will always be zero
             n = np.linspace(1e-10, 2, 10000)
-            energy = (sky.GetEnergy(n, 0., df.loc[name]) + mn)*n
-            pressure = sky.GetAutoGradPressure(n, 0., df.loc[name]) 
+            energy = (eos.GetEnergy(n, 0.) + mn)*n
+            pressure = eos.GetAutoGradPressure(n, 0.) 
             for density, e, p in zip(n, energy, pressure):
                 output.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))
 
@@ -55,7 +57,7 @@ if __name__ == "__main__":
             
             return name, mass, radius, lambda_
 
-    name_list = [ index for index, row in df.iterrows() ] 
+    name_list = [ (index, sky.Skryme(row)) for index, row in df.iterrows() ] 
     result = []
     num_requested = float(df.shape[0])
     num_completed = 0.

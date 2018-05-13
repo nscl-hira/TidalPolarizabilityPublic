@@ -8,7 +8,6 @@ import autograd.numpy as np
 import pandas as pd
 
 import Utilities.Utilities as utl
-import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
 
    # obs -- observed value

@@ -93,6 +93,7 @@ if __name__ == "__main__":
     ax.plot(LowDensityConstrainted['R(1.4)'], LowDensityConstrainted['lambda(1.4)'], 'ro', color='r', label='Low density constrainted')
     ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
     ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_ylim([0, 2000])
     ax.legend(loc='upper left', fontsize=20)
     
     ax = plt.subplot(222)
@@ -100,6 +101,7 @@ if __name__ == "__main__":
     ax.plot(JustFlowSoft['R(1.4)'], JustFlowSoft['lambda(1.4)'], 'ro', color='r', label='Flow Soft Asym.')
     ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
     ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_ylim([0, 2000])
     ax.legend(loc='upper left', fontsize=20)
     
     ax = plt.subplot(223)
@@ -107,6 +109,7 @@ if __name__ == "__main__":
     ax.plot(JustFlowStiff['R(1.4)'], JustFlowStiff['lambda(1.4)'], 'ro', color='r', label='Flow Stiff Asym.')
     ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
     ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_ylim([0, 2000])
     ax.legend(loc='upper left', fontsize=20)
 
     ax = plt.subplot(224)
@@ -116,6 +119,7 @@ if __name__ == "__main__":
     ax.plot(JustFlowStiff['R(1.4)'], JustFlowStiff['lambda(1.4)'], 'ro', color='orange', label='Flow Stiff Asym.')
     ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
     ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_ylim([0, 2000])
     ax.legend(loc='upper left', fontsize=20)
   
     plt.show()

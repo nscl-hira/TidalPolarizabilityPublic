@@ -6,11 +6,12 @@ import matplotlib.pyplot as plt
 import SkyrmeEOS as sky
 from Constants import *
 
-def GetContour(df, rho_min, rho_max, func=sky.GetEnergy):
+def GetContour(df, rho_min, rho_max):
     n = np.linspace(rho_min,rho_max,1000)
     value = []
     for index, row in df.iterrows():
-        value.append(func(n*rho0, 0., row))
+        eos = sky.Skryme(row)
+        value.append(eos.GetEnergy(n*rho0, 0.))
     value = np.array(value)
     contour = np.concatenate([np.amax(value, axis=0), np.amin(value, axis=0)[::-1]]).flatten()
     values = np.array([n, n[::-1]]).flatten()
@@ -23,7 +24,7 @@ def GetContour(df, rho_min, rho_max, func=sky.GetEnergy):
 def PlotSkyrmeSymEnergy(df, ax, range_=[0,3], pfrac=0, **args):
     n = np.linspace(*range_, num=1000)
     for index, row in df.iterrows():
-        ax.plot(n, sky.GetAsymEnergy(n*rho0, row), label=index, zorder=-32, **args)
+        ax.plot(n, eos.GetAsymEnergy(n*rho0, row), label=index, zorder=-32, **args)
     ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
     ax.set_ylabel('$S(\\rho)$ (MeV)', fontsize=30)
     return ax
@@ -31,7 +32,8 @@ def PlotSkyrmeSymEnergy(df, ax, range_=[0,3], pfrac=0, **args):
 def PlotSkyrmeEnergy(df, ax, range_=[0,3], pfrac=0, **args):
     n = np.linspace(*range_, num=1000)
     for index, row in df.iterrows():
-        energy = sky.GetEnergy(n*rho0, pfrac, row)
+        eos = sky.Skryme(row)
+        energy = eos.GetEnergy(n*rho0, pfrac)
         labels = ax.plot(n, energy, label='%s PNM' % index, **args)
     ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
     ax.set_ylabel('Energy per nucleons (MeV)', fontsize=30)
@@ -40,7 +42,8 @@ def PlotSkyrmeEnergy(df, ax, range_=[0,3], pfrac=0, **args):
 def PlotSkyrmePressure(df, ax, range_=[0,3], pfrac=0, **args):
     n = np.linspace(*range_, num=1000)
     for index, row in df.iterrows():
-        pressure = sky.GetAutoGradPressure(n*rho0, pfrac, row)
+        eos = sky.Skryme(row)
+        pressure = eos.GetAutoGradPressure(n*rho0, pfrac)
         ax.plot(n, pressure, label=index, zorder=1, **args)
     ax.set_ylim([1,1000])
     ax.set_xlim(range_)
@@ -52,8 +55,9 @@ def PlotSkyrmePressure(df, ax, range_=[0,3], pfrac=0, **args):
 def PlotSkyrmePressureEnergy(df, ax, range_=[0,3], pfrac=0, **args):
     n = np.linspace(*range_, num=1000)
     for index, row in df.iterrows():
-        energy = (sky.GetEnergy(n, pfrac, row) + mn)*(n)
-        pressure = sky.GetAutoGradPressure(n, pfrac, row)
+        eos = sky.Skryme(row)
+        energy = (eos.GetEnergy(n, pfrac) + mn)*(n)
+        pressure = eos.GetAutoGradPressure(n, pfrac)
         labels = ax.plot(energy, pressure, label=index, zorder=1, **args)
     ax.set_ylim([0.5,1e4])
     ax.set_xlim([1e2, 3e4])

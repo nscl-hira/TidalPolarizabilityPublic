@@ -31,7 +31,8 @@ def SelectLowDensity(constraint_filename, df):
 
     delete_model = []
     for index, row in df.iterrows():
-        asym = sky.GetAsymEnergy(constraints['rho']*rho0, row)
+        eos = sky.Skryme(row)
+        asym = eos.GetAsymEnergy(constraints['rho']*rho0)
         chi_square = chisqr(asym, constraints['S'], constraints['S_Error'])
         # only accept models with chisqr per deg. freedom < 3
         if chi_square/float(num_constraints) > 2:
