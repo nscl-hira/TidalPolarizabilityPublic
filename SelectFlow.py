@@ -1,4 +1,5 @@
 from copy import copy
+from scipy.interpolate import InterpolatedUnivariateSpline
 import matplotlib.pyplot as plt
 import matplotlib.path as pltPath
 import matplotlib.patches as patches
@@ -64,6 +65,16 @@ if __name__ == "__main__":
     #df_stiff.to_csv('SkyrmeParameters/SkyrmeConstraintedWithFlowStiff.csv', sep=',')
 
     ax1, ax2 = utl.PlotMaster(df, [df_stiff, df_soft], ['Kaon+Asy_stiff', 'Kaon+Asy_soft'], ('pink', 'b'))
+
+    additional_constraints_fig1 = pd.read_csv('Constraints/x_1_fig1.csv')
+    spl = InterpolatedUnivariateSpline(additional_constraints_fig1['rho/rho0'], additional_constraints_fig1['P(MeV/fm3)'])
+    density = np.linspace(0, 3, 1000)
+    ax1.plot(density, spl(density), color='r', label='Xiao paper x=1', markevery=100)
+    leg = ax1.legend()
+    for line, text in zip(leg.get_lines(), leg.get_texts()):
+        text.set_color(line.get_color())
+
+    
     # plot the region and the legend
     ax2.add_patch(copy(patch_soft))
     ax2.add_patch(copy(patch_stiff))

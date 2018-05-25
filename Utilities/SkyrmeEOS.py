@@ -3,11 +3,33 @@ from autograd import elementwise_grad as egrad
 import pandas as pd
 import math
 import scipy.misc as misc
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 from Constants import *
 
-class EOS:
+class EOSSpline:
 
+
+    def __init__(self, rho, energy):
+        self.spl = InterpolatedUnivariateSpline(rho, energy)
+        self.dspl = self.spl.derivative(1)
+        self.ddspl = self.spl.derivative(2)
+
+    def GetEnergy(self, rho, pfrac):
+        self.spl(rho)
+
+    def GetEnergyDensity(self, rho, pfrac):
+        return rho*self.spl(rho)
+
+    def GetAutoGradPressure(self, rho, pfrac):
+        grad_edensity = self.dspl(rho)
+        return rho*rho*grad_edensity
+
+    def GetSpeedOfSound(self, rho, pfrac):
+        return (2*rho*self.dspl(rho) + rho*rho*self.ddspl(rho))/(self.spl(rho) + self.dspl(rho)*rho)
+    
+
+class EOS:
 
     def __init__(self):
         pass
@@ -49,7 +71,7 @@ class EOS:
         return 27*rho*rho*rho*third_grad_density
 
     def GetSpeedOfSound(self, rho, pfrac):
-        return egrad(self.GetAutoGradPressure, 0)(rho, pfrac)/(self.GetEnergy(rho, pfrac) + mn + egrad(self.GetEnergy, 0)(rho, pfrac)*rho)
+        return egrad(self.GetAutoGradPressure, 0)(rho, pfrac)/(self.GetEnergy(rho, pfrac) + egrad(self.GetEnergy, 0)(rho, pfrac)*rho)
     
     """
     Usually these functions are defined only at rho0
