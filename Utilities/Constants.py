@@ -4,6 +4,8 @@ import math
 # Please don't EVER modify it
 hbar     = 197.32
 mn       = 938.0
+me       = 0.511
+mmu      = 105.658
 rho0     = 0.157
 E0       = -16
 K0       = 230

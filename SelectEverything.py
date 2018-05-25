@@ -1,3 +1,4 @@
+from copy import copy
 import itertools
 color = itertools.cycle(('g', 'purple', 'r', 'black', 'grey', 'orange'))
 linestyle = itertools.cycle(((15.,15.,2.,5.),(15.,15.),(3.,3.)))
@@ -20,13 +21,13 @@ if __name__ == "__main__":
     df.fillna(0, inplace=True)
 
     # Let's try to constrainted with Low energy points, then constraint with flow afterward
-    LowDensityConstrainted, rho, S, rho_Error, S_Error = sasym.SelectLowDensity('Constraints/LowEnergySym.csv', df)
+    LowDensityConstrainted, _ = sasym.SelectLowDensity('Constraints/LowEnergySym.csv', df)
     LDFlowSoft, patch_soft = sflow.SelectFlow('Constraints/FlowAsymSoft.csv', LowDensityConstrainted, 0.8,
-                                              linewidth=5, edgecolor='black', facecolor='black', alpha=.7,
-                                              lw=2, zorder=10, label='Exp.+Asy_soft')
+                                              linewidth=5, edgecolor='black', alpha=1,
+                                              hatch='/', lw=2, zorder=10, fill=False, label='Exp.+Asy_soft')
     LDFlowStiff, patch_stiff = sflow.SelectFlow('Constraints/FlowAsymStiff.csv', LowDensityConstrainted, 0.8,
-                                                linewidth=5, edgecolor='black', facecolor='green', alpha=.7,
-                                                lw=2, zorder=10, label='Exp.+Asy_stiff')
+                                                linewidth=5, edgecolor='red', alpha=1,
+                                                hatch='\\', lw=2, zorder=10, fill=False, label='Exp.+Asy_stiff')
     JustFlowSoft, _ = sflow.SelectFlow('Constraints/FlowAsymSoft.csv', df, 0.8)
     JustFlowStiff, _ = sflow.SelectFlow('Constraints/FlowAsymStiff.csv', df, 0.8)
     PolPatchList = []
@@ -34,6 +35,12 @@ if __name__ == "__main__":
     for interval_min, interval_max in zip(interval[:-1], interval[1:]):
         patch ,_ = srad.SelectRadius('Results/Skyrme_summary.csv', df, interval_min, interval_max)
         PolPatchList.append(patch)
+
+    interval = [(0, 400.), (400., 800.), (800., 1200)]
+    Lambda_List = []
+    for interval_min, interval_max in interval:
+        _, sub_data = spol.SelectPolarizability('Results/Skryme_summary.csv', df, interval_min, interval_max)
+        Lambda_List.append(sub_data)
 
     LowDensityConstrainted.to_csv('Results/LowDensityConstrainted.csv', sep=',')
     JustFlowSoft.to_csv('Results/FlowSoftAsym.csv', sep=',')
@@ -66,7 +73,7 @@ if __name__ == "__main__":
         patch.set_fill(None)
         ax.add_patch(patch)
 
-    ax.legend(loc='upper left', fontsize=20)
+    ax.legend(loc='upper left', fontsize=20, numpoints=1)
 
     """
     range_ = [0, 5]
@@ -82,45 +89,52 @@ if __name__ == "__main__":
 
     ax.set_xlim([0, 5])
     ax.set_ylim([1, 1e3])
-    ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
-    ax.set_ylabel('E/A (MeV)', fontsize=30)
+    ax.set_xlabel('$\\rho/\\rho_{0}$')
+    ax.set_ylabel('E/A (MeV)')
     ax.set_yscale('log')
 
     plt.show()
 
+    ax1, ax2 = utl.PlotMaster(df, Lambda_List, [r'%4.1f < $\Lambda$ < %4.1f' % (low, high) for low, high in interval])
+    ax2.add_patch(patch_soft)
+    ax2.add_patch(patch_stiff)
+    ax2.legend(loc='lower right')
+    plt.show()
+   
+
     ax = plt.subplot(221)
     ax.plot(df['R(1.4)'], df['lambda(1.4)'], 'ro', color='b', label='All Skyrmes')
     ax.plot(LowDensityConstrainted['R(1.4)'], LowDensityConstrainted['lambda(1.4)'], 'ro', color='r', label='Low density constrainted')
-    ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
-    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_xlabel('$R(1.4 M_{\\odot})$')
+    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$')
     ax.set_ylim([0, 2000])
-    ax.legend(loc='upper left', fontsize=20)
+    ax.legend(loc='upper left', fontsize=20, numpoints=1)
     
     ax = plt.subplot(222)
     ax.plot(df['R(1.4)'], df['lambda(1.4)'], 'ro', color='b', label='All Skyrmes')
     ax.plot(JustFlowSoft['R(1.4)'], JustFlowSoft['lambda(1.4)'], 'ro', color='r', label='Flow Soft Asym.')
-    ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
-    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_xlabel('$R(1.4 M_{\\odot})$')
+    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$')
     ax.set_ylim([0, 2000])
-    ax.legend(loc='upper left', fontsize=20)
+    ax.legend(loc='upper left', fontsize=20, numpoints=1)
     
     ax = plt.subplot(223)
     ax.plot(df['R(1.4)'], df['lambda(1.4)'], 'ro', color='b', label='All Skyrmes')
     ax.plot(JustFlowStiff['R(1.4)'], JustFlowStiff['lambda(1.4)'], 'ro', color='r', label='Flow Stiff Asym.')
-    ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
-    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_xlabel('$R(1.4 M_{\\odot})$')
+    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$')
     ax.set_ylim([0, 2000])
-    ax.legend(loc='upper left', fontsize=20)
+    ax.legend(loc='upper left', fontsize=20, numpoints=1)
 
     ax = plt.subplot(224)
     ax.plot(df['R(1.4)'], df['lambda(1.4)'], 'ro', color='b', label='All Skyrmes')
     ax.plot(LowDensityConstrainted['R(1.4)'], LowDensityConstrainted['lambda(1.4)'], 'ro', color='r', label='Low density constrainted')
     ax.plot(JustFlowSoft['R(1.4)'], JustFlowSoft['lambda(1.4)'], 'ro', color='g', label='Flow Soft Asym.')
     ax.plot(JustFlowStiff['R(1.4)'], JustFlowStiff['lambda(1.4)'], 'ro', color='orange', label='Flow Stiff Asym.')
-    ax.set_xlabel('$R(1.4 M_{\\odot})$', fontsize=30)
-    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$', fontsize=30)
+    ax.set_xlabel('$R(1.4 M_{\\odot})$')
+    ax.set_ylabel('$\\Lambda(1.4 M_{\\odot})$')
     ax.set_ylim([0, 2000])
-    ax.legend(loc='upper left', fontsize=20)
+    ax.legend(loc='upper left', fontsize=20, numpoints=1)
   
     plt.show()
    

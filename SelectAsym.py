@@ -1,9 +1,9 @@
-from pebble import ProcessPool, ProcessExpired
-from concurrent.futures import TimeoutError
+import itertools
+color = itertools.cycle(('fuchsia', 'r', 'r', 'b', 'g', 'orange')) 
+marker = itertools.cycle(('o','v','^','*','s')) 
 import matplotlib.pyplot as plt
 import autograd.numpy as np
 import pandas as pd
-
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
@@ -38,37 +38,29 @@ def SelectLowDensity(constraint_filename, df):
         if chi_square/float(num_constraints) > 2:
             delete_model.append(index)
 
-    return df.drop(delete_model), constraints['rho'], constraints['S'], \
-           constraints['rho_Error'], constraints['S_Error']
+    return df.drop(delete_model), constraints
     
 
 if __name__ == "__main__":
     df = pd.read_csv('Results/Skyrme_summary.csv', index_col=0)
     df.fillna(0, inplace=True)
  
-    constrainted_df, rho, S, rho_Error, S_Error = SelectLowDensity('Constraints/LowEnergySym.csv', df)
+    constrainted_df, constraints = SelectLowDensity('Constraints/LowEnergySym.csv', df)
     # save result to a file first
     constrainted_df.to_csv('SkyrmeParameters/SkyrmeConstraintedLowDensity.csv', sep=',')
-    
-    ax = plt.subplot(121)
-    # also plot all for comparison for symmetry term
-    ax = utl.PlotSkyrmeSymEnergy(df, ax, color='b', range_=[0,5])
-    ax = utl.PlotSkyrmeSymEnergy(constrainted_df, ax, color='r', range_=[0,5])
-    ax.errorbar(rho, S, xerr=rho_Error, yerr=S_Error, 
-                fmt='o', color='black', ecolor='black', 
-                markersize=10, elinewidth=2)
-    ax.set_ylim([0,500])
-    ax.set_xlim([0,5])
-    
 
-    ax = plt.subplot(122)
-    # plot background as comparison
-    ax = utl.PlotSkyrmePressure(df, ax, color='b', range_=[0,5])
-    ax = utl.PlotSkyrmePressure(constrainted_df, ax, color='r', range_=[0,5])
-    value, contour = utl.GetContour(constrainted_df, 0.3, 1)
-    # write contour to file
-    np.savetxt('Results/E_Constrainted_with_S.csv', np.array([contour, value]), delimiter=',') 
-    ax.plot(value, contour, color='black', linewidth=5)
-    ax.set_ylim([0,500])
-    ax.set_xlim([0,5])
+    ax1, ax2 = utl.PlotMaster(df, [constrainted_df], [None])
+    color_list = []
+    for index, row in constraints.iterrows():
+        color_ = color.next()
+        color_list.append(color_)
+        ax1.errorbar(row['rho'], row['S'], fmt='ro', xerr=row['rho_Error'], yerr=row['S_Error'], 
+                    marker=marker.next(), mfc=color_, mec=color_, ecolor=color_, label=('$%s$' % row['label']),
+                    markersize=10, elinewidth=2)
+    leg = ax1.legend(loc='upper left', numpoints=1)
+
+    # change the font colors to match the line colors:
+    for color_,text in zip(color_list, leg.get_texts()):
+        text.set_color(color_)    
+
     plt.show()

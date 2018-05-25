@@ -40,9 +40,9 @@ if __name__ == "__main__":
            patch.set_fill(None)
            ax.add_patch(patch)
 
-    ax.set_xlabel('$\\rho/\\rho_{0}$', fontsize=30)
+    ax.set_xlabel('$\\rho/\\rho_{0}$')
     ax.set_xlim([0, 2])
-    ax.set_ylabel('E/A (MeV)', fontsize=30)
+    ax.set_ylabel('E/A (MeV)')
     ax.set_ylim([0, 80])
-    plt.legend(loc='upper left', fontsize=30)
+    plt.legend(loc='upper left')
     plt.show()

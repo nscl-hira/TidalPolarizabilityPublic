@@ -49,7 +49,7 @@ if __name__ == "__main__":
         text.append('$%s < \\Lambda < %s$' % (interval_min, interval_max))
 
     #ax1.legend(labels_PE, text, fontsize=30, loc='lower right')
-    ax2.legend(labels_E, text, fontsize=30, loc='upper left')
+    ax2.legend(labels_E, text, loc='upper left')
     ax2.set_ylim([0,200])
     plt.show()
 
@@ -62,8 +62,9 @@ if __name__ == "__main__":
 
     ax1 = plt.subplot(111)
     ax1.plot(df['R(1.4)'], df['lambda(1.4)'], 'ro', label='All skyrmes', color='b')
-    ax1.plot(df_low['R(1.4)'], df_low['lambda(1.4)'], 'ro', label='Skyrmes consistent with low energy constraints', color='r')
-    ax1.set_xlabel('R(1.4)', fontsize=30)
-    ax1.set_ylabel('lambda(1.4)', fontsize=30)
-    ax1.legend(fontsize=30)
+    #ax1.plot(df_low['R(1.4)'], df_low['lambda(1.4)'], 'ro', label='Skyrmes consistent with low energy constraints', color='r')
+    ax1.set_xlabel('$R(1.4 M_{\odot})$')
+    ax1.set_ylabel('$\Lambda(1.4 M_{\odot})$')
+    ax1.set_xlim([4, 16])
+    #ax1.legend(fontsize=30)
     plt.show()

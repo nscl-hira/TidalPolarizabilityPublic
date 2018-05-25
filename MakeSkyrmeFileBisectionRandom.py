@@ -20,6 +20,14 @@ if __name__ == "__main__":
     df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
     df.fillna(0, inplace=True)
 
+    samples = 2000
+    new_dict = {}
+    for col in df:
+        mean = df[col].mean()
+        std = df[col].std()
+        new_dict[col] = np.random.uniform(low=mean-std, high=mean+std, size=(samples,))
+    df = pd.DataFrame.from_dict(new_dict)
+    df.to_csv('SkyrmeParameters/RandomSkyrme.csv', sep=',')   
     summary = sky.SummarizeSkyrme(df)
     
     """
@@ -84,7 +92,7 @@ if __name__ == "__main__":
     data.set_index('Model', inplace=True)
     data = pd.concat([df, summary, data], axis=1)
     data.dropna(axis=0, how='any', inplace=True)
-    data.to_csv('Results/Skyrme_summary.csv', index=True)
+    data.to_csv('Results/Skyrme_summary_Random.csv', index=True)
 
     
 

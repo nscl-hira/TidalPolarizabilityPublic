@@ -2,6 +2,7 @@ import autograd.numpy as np
 from autograd import elementwise_grad as egrad
 import pandas as pd
 import math
+import scipy.misc as misc
 
 from Constants import *
 
@@ -20,10 +21,13 @@ class EOS:
     Gradient will be calculated with autograd, so try to write the function in an explicity mannar
     Avoid unsupported library
     """
-    def GetEnergy(rho, pfrac):
+    def GetEnergy(self, rho, pfrac):
         pass
 
-    def GetEffectiveMass(rho, pfrac):
+    def GetEnergyDensity(self, rho, pfrac):
+        return rho*self.GetEnergy(rho, pfrac)
+
+    def GetEffectiveMass(self, rho, pfrac):
         pass
 
     def GetAsymEnergy(self, rho):
@@ -43,6 +47,9 @@ class EOS:
         """
         third_grad_density = egrad(egrad(egrad(self.GetEnergy, 0), 0), 0)(rho, pfrac)
         return 27*rho*rho*rho*third_grad_density
+
+    def GetSpeedOfSound(self, rho, pfrac):
+        return egrad(self.GetAutoGradPressure, 0)(rho, pfrac)/(self.GetEnergy(rho, pfrac) + mn + egrad(self.GetEnergy, 0)(rho, pfrac)*rho)
     
     """
     Usually these functions are defined only at rho0
@@ -59,6 +66,62 @@ class EOS:
     def GetQsym(self, rho):
         third_grad_S = egrad(egrad(egrad(self.GetAsymEnergy, 0), 0), 0)(rho)
         return 27*rho*rho*rho*third_grad_S
+
+class PolyTrope(EOS):
+
+
+    def __init__(self, init_density, init_energy, init_pressure, final_density, final_pressure):
+        self.init_pressure = init_pressure
+        self.init_energy = init_energy
+        self.init_density = init_density
+        self.gamma = np.log(final_pressure/init_pressure)/np.log(final_density/init_density)
+        self.K = init_pressure/np.power(init_density, self.gamma)
+
+    def GetEnergy(self, rho, pfrac):
+        return self.init_energy + self.K*(np.power(rho, self.gamma-1) - np.power(self.init_density, self.gamma-1))/(self.gamma - 1)
+    
+    """
+    Polytrope is not a full equation
+    It doesn't handle proton fraction at all
+    """
+    def GetEffectiveMass(self, rho, pfrac):
+        return 0
+
+    def GetAsymEnergy(self, rho):
+        return 0
+
+
+class FermiGas(EOS):
+
+  
+    def __init__(self, mass):
+        self.mass = mass
+
+    def GetEnergyDensity(self, rho, pfrac):
+        a = self.mass*self.mass
+        b = hbar*hbar
+
+        """
+        reduce to a form of integrate x^2sqrt(a + b*x^2) dx from 0 to 3.094rho
+        """
+        def anti_deriv(x):
+            return (np.sqrt(b*(a+b*x*x))*x*(a+2*b*x*x)-a*a*np.log(np.sqrt(b*(a+b*x*x))+b*x))/(8*np.power(b, 1.5)*pi2)
+
+        return (anti_deriv(3.094*np.power(rho, 0.33333333333333)) - anti_deriv(0))
+
+    def GetEnergy(self, rho, pfrac):
+        return self.GetEnergyDensity(rho, pfrac)/rho
+
+    """
+    Fermi gas is not a full equation
+    It doesn't handle proton fraction at all
+    """
+    def GetEffectiveMass(self, rho, pfrac):
+        return 0
+
+    def GetAsymEnergy(self, rho):
+        return 0
+
 
 
 class Skryme(EOS):
@@ -88,7 +151,7 @@ class Skryme(EOS):
         for i in xrange(1, 4):
             result += 1./48.*self.para['t3%d'%i]*(rho**(self.para['sigma%d'%i]+1.))*(2.*(self.para['x3%d'%i]+2.)-(2.*self.para['x3%d'%i]+1.)*self.__GetH(2., pfrac))
         result += 3./40.*((3.*pi2/2.)**0.666667)*np.power(rho, 5./3.)*(self.a*self.__GetH(5./3., pfrac)+self.b*self.__GetH(8./3., pfrac))
-        return result
+        return result + mn
     
     def GetAsymEnergy(self, rho):
         result = (hbar**2.)/(6.*mn)*((3.*pi2/2.)**0.666667)*np.power(rho, 0.6667)
