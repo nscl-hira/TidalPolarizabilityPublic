@@ -25,9 +25,13 @@ def AddPressure(df):
     pressure = []
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
-        pressure.append({'Model':index, 'P(2rho0)':eos.GetAutoGradPressure(2*rho0, 0), 
+        pressure.append({'Model':index, 
+                        'P(2rho0)':eos.GetAutoGradPressure(2*rho0, 0), 
                         'P(1.5rho0)':eos.GetAutoGradPressure(1.5*rho0, 0),
                         'P(0.67rho0)':eos.GetAutoGradPressure(0.67*rho0, 0),
+                        'P_Sym(2rho0)':eos.GetAutoGradPressure(2*rho0, 0.5), 
+                        'P_Sym(1.5rho0)':eos.GetAutoGradPressure(1.5*rho0, 0.5),
+                        'P_Sym(0.67rho0)':eos.GetAutoGradPressure(0.67*rho0, 0.5),
                         'Sym(2rho0)':eos.GetAsymEnergy(2*rho0),
                         'Sym(1.5rho0)':eos.GetAsymEnergy(1.5*rho0),
                         'Sym(0.67rho0)':eos.GetAsymEnergy(0.67*rho0)})
@@ -57,7 +61,7 @@ if __name__ == "__main__":
     # plot the region and the legend
     ax = plt.subplot(111)
 
-    intervals = [(4, 10), (10, 20), (20, 30), (30, 40), (40, 70)]
+    intervals = [(0, 10), (10, 20), (20, 30), (30, 40), (40, 7000)]
 
     for interval in intervals:
         df_part = SelectPressure(df, interval[0], interval[1])

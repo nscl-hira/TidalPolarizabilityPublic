@@ -27,13 +27,19 @@ if __name__ == "__main__":
     def SymEnergy(rho, F):
         fermi_ave = 22.0
         return (np.power(2,0.66666667) - 1.)*fermi_ave*(np.power(rho, 0.666666667) - F(rho)) + 30*F(rho)
+    additional_constraints_fig1 = pd.read_csv('Constraints/x_1_fig1.csv')
+    eos_spline = sky.EOSSpline(additional_constraints_fig1['rho/rho0']*rho0, additional_constraints_fig1['P(MeV/fm3)'], smooth=0.5)
 
     P_sym_soft = rho0*density*density*egrad(SymEnergy, 0)(density, F_soft)
     P_sym_stiff = rho0*density*density*egrad(SymEnergy, 0)(density, F_stiff)
+    P_sym_fig1 = eos_spline.GetAutoGradPressure(density*rho0, 0)
+
     _, sym_patch_soft = ContourToPatches(density, pressure + P_sym_soft, alpha=0.5, color='red', label='soft')
     _, sym_patch_stiff = ContourToPatches(density, pressure + P_sym_stiff, alpha=0.5, color='blue', label='stiff')
+    _, sym_patch_fig1 = ContourToPatches(density, pressure + P_sym_fig1, alpha=0.5, color='blue', label='Fig1')
     pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + P_sym_soft}).to_csv('KaonSoft.csv', sep=',', index=False)
     pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + P_sym_stiff}).to_csv('KaonStiff.csv', sep=',', index=False)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + P_sym_fig1}).to_csv('KaonFig1.csv', sep=',', index=False)
 
     constraints = pd.read_csv('Constraints/FlowSymMat.csv')
     density = np.array(constraints['rho/rho0'].tolist())
@@ -57,6 +63,7 @@ if __name__ == "__main__":
     ax.add_patch(given_patch_stiff)
     ax.add_patch(flow_patch_soft)
     ax.add_patch(flow_patch_stiff)
+    ax.add_patch(sym_patch_fig1)
     ax.plot([1,5], [1, 400])
     ax.set_yscale('log')
     ax.legend()

@@ -3,30 +3,104 @@ from autograd import elementwise_grad as egrad
 import pandas as pd
 import math
 import scipy.misc as misc
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import UnivariateSpline
+import matplotlib.pyplot as plt
 
 from Constants import *
+
+class PseudoEOS:
+
+    """
+    This EOS would not obey P = -rho^2de/drho
+    The only reason it exists it to bridge different EOS together
+    Since TOV equation only cares about energy as a function of pressure, 
+    Density is irrelavent here
+    Therefore we are ignoring the relation of variables with rho
+    rho is only used as a parameter such that E vs P graph is contineous
+    Speed of sound is now discontineous
+    """
+
+    def __init__(self, ini_rho, ini_energy_density, ini_pressure, final_rho, final_energy_density, final_pressure):
+        
+        """
+        EnergyDensity = A*rho + B
+        A, B is chosen such that the energy at corresponding rho agree
+        """
+        self.A = (final_energy_density - ini_energy_density)/(final_rho - ini_rho)
+        self.B = ini_energy_density - self.A*ini_rho
+
+        """
+        Assume ultra relativistic fermi gas
+        P = C + K*energy_density^4/3
+        """
+        self.K = (final_pressure - ini_pressure)/(np.power(final_energy_density, 4./3.) - np.power(ini_energy_density, 4./3.))
+        self.C = ini_pressure - self.K*np.power(ini_energy_density, 4./3.)
+
+    def GetAutoGradPressure(self, rho, pfrac):
+        return self.C + self.K*np.power(self.GetEnergyDensity(rho, pfrac), 4./3.)
+
+    def GetEnergy(self, rho, pfrac):
+        return self.GetEnergyDensity(rho, pfrac)/rho
+
+    def GetEnergyDensity(self, rho, pfrac):
+        return self.A*rho + self.B
 
 class EOSSpline:
 
 
-    def __init__(self, rho, energy):
-        self.spl = InterpolatedUnivariateSpline(rho, energy)
+    def __init__(self, rho, energy=None, smooth=0, rho_Sym=None, Sym=None, smooth_sym=0.5, pressure=None, energy_density=None):
+        if energy_density is None:
+            self.spl = UnivariateSpline(rho, energy, s=smooth)
+            self.density_spl = None
+        else:
+            self.spl = UnivariateSpline(rho, energy_density/rho, s=smooth)
+            self.density_spl = UnivariateSpline(rho, energy_density, s=smooth)
         self.dspl = self.spl.derivative(1)
         self.ddspl = self.spl.derivative(2)
+        
+        if rho_Sym is None:
+            rho_Sym = rho
+        if Sym is None:
+            self.SymSpl = UnivariateSpline(rho_Sym, np.zeros(rho_Sym.shape))
+        else:
+            self.SymSpl = UnivariateSpline(rho_Sym, Sym, s=smooth_sym)
+        self.dSymSpl = self.SymSpl.derivative(1)
+        self.ddSymSpl = self.SymSpl.derivative(2)
+        if pressure is None:
+            self.SplPressure = None
+        else:
+            self.SplPressure = UnivariateSpline(rho, pressure, s=0)
+        #plt.plot(rho, energy, 'ro')
+        #plt.plot(0.16*np.linspace(0.1, 3, 100), self.spl(0.16*np.linspace(0.1, 3, 100)))
+        #plt.plot(0.16*np.linspace(0.1, 3, 100), self.dSymSpl(0.16*np.linspace(0.1, 3, 100)))
+        #plt.show()
+
 
     def GetEnergy(self, rho, pfrac):
-        self.spl(rho)
+        return self.spl(rho) + (2*pfrac - 1)**2*self.SymSpl(rho)
 
     def GetEnergyDensity(self, rho, pfrac):
-        return rho*self.spl(rho)
+        if self.density_spl is None:
+            return rho*self.GetEnergy(rho, pfrac)
+        else:
+            return self.density_spl(rho)
 
     def GetAutoGradPressure(self, rho, pfrac):
-        grad_edensity = self.dspl(rho)
-        return rho*rho*grad_edensity
+        if self.SplPressure is None:
+            grad_edensity = self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho)
+            pressure = rho*rho*grad_edensity
+        else:
+            pressure = self.SplPressure(rho)
+        return pressure
 
     def GetSpeedOfSound(self, rho, pfrac):
-        return (2*rho*self.dspl(rho) + rho*rho*self.ddspl(rho))/(self.spl(rho) + self.dspl(rho)*rho)
+        return (2*rho*(self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho)) 
+               + rho*rho*(self.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho))) \
+               /(self.GetEnergy(rho, pfrac) 
+               + (self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho))*rho)
+
+    def GetAsymEnergy(self, rho):
+        return self.SymSpl(rho)
     
 
 class EOS:
@@ -182,6 +256,26 @@ class Skryme(EOS):
             result -= 1./48.*self.para['t3%d'%i]*(rho**(self.para['sigma%d'%i]+1.))*(2.*self.para['x3%d'%i]+1.)
         result += 1./24.*((3.*pi2/2.)**0.666667)*np.power(rho, 5./3.)*(self.a+4*self.b)
         return result
+
+
+class EOSConnect(EOS):
+
+
+    def __init__(self, intervals, eos_list):
+        self.eos_list = eos_list
+        self.intervals = intervals
+
+    def GetEnergy(self, rho, pfrac):
+        return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetEnergy(rho, pfrac))(eos) for eos in self.eos_list])
+
+    def GetEnergyDensity(self, rho, pfrac):
+        return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetEnergyDensity(rho, pfrac))(eos) for eos in self.eos_list])
+
+    def GetAutoGradPressure(self, rho, pfrac):
+        return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetAutoGradPressure(rho, pfrac))(eos) for eos in self.eos_list])
+
+    def _Interval(self, rho):
+        return [(rho > interval[0]) & (rho < interval[1]) for interval in self.intervals]
     
 
 def SummarizeSkyrme(df):

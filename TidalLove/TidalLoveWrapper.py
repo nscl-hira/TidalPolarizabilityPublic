@@ -25,8 +25,8 @@ class TidalLoveWrapper:
         self.output.write(" ========================================================\n")
         # the last 2 column (n and eps) is actually not used in the program
         # therefore eps column will always be zero
-        n = np.linspace(1e-10, 2, 10000)
-        energy = (self.eos.GetEnergy(n, 0.))*n
+        n = np.linspace(1e-12, 2, 10000)
+        energy = (self.eos.GetEnergyDensity(n, 0.))
         pressure = self.eos.GetAutoGradPressure(n, 0.) 
         for density, e, p in zip(n, energy, pressure):
             self.output.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))

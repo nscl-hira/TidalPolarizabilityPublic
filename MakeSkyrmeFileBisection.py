@@ -15,8 +15,13 @@ import TidalLove.TidalLoveWrapper as wrapper
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
+from Test import EOSCreator
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print('To use, enter: python %s NameOfOutput' % sys.argv[0])
+        sys.exit()
+
     df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
     df.fillna(0, inplace=True)
 
@@ -27,21 +32,21 @@ if __name__ == "__main__":
     """
     def CalculateModel(name_and_eos):
         name = name_and_eos[0]
-        eos = name_and_eos[1]
+        eos = EOSCreator(name_and_eos[1])
         tidal_love = wrapper.TidalLoveWrapper(eos)
 
         def FuncBisec(pc):
             mass, _, _ = tidal_love.Calculate(pc)
             return -mass + 1.4
         try:
-            pc = opt.newton(FuncBisec, 1e-4)
+            pc = opt.newton(FuncBisec, 1e-3)
             mass, radius, lambda_ = tidal_love.Calculate(pc)
         except RuntimeError as error:
             mass, radius, lambda_ = np.nan, np.nan, np.nan
 
         # try finding the maximum mass
         try:
-            pc = opt.fmin(FuncBisec, 1e-4, disp=False)
+            pc = opt.fmin(FuncBisec, 1e-3, disp=False)
             max_mass, _, _ = tidal_love.Calculate(pc[0])
         except RuntimeError as error:
             max_mass = np.nan
@@ -52,12 +57,20 @@ if __name__ == "__main__":
         print('%s, %f, %f, %f, %f' % (name, mass, radius, lambda_, max_mass))
         return name, mass, radius, lambda_, max_mass
 
-    name_list = [ (index, sky.Skryme(row)) for index, row in df.iterrows() ] 
+    name_list = []
+    num_eos_calculated = 0
+    tot_num_eos = df.shape[0]
+    for index, row in df.iterrows(): 
+        name_list.append((index, sky.Skryme(row)))
+        num_eos_calculated = num_eos_calculated + 1
+        sys.stdout.write('Percentage %3.0f\r' % (float(num_eos_calculated)/float(tot_num_eos)*100.))
+        sys.stdout.flush()
+
     result = []
     num_requested = float(df.shape[0])
     num_completed = 0.
     with ProcessPool() as pool:
-        future = pool.map(CalculateModel, name_list, timeout=5)
+        future = pool.map(CalculateModel, name_list, timeout=60)
         iterator = future.result()
         while True:
             try:
@@ -84,7 +97,7 @@ if __name__ == "__main__":
     data.set_index('Model', inplace=True)
     data = pd.concat([df, summary, data], axis=1)
     data.dropna(axis=0, how='any', inplace=True)
-    data.to_csv('Results/Skyrme_summary.csv', index=True)
+    data.to_csv('Results/%s.csv' % sys.argv[1], index=True)
 
     
 

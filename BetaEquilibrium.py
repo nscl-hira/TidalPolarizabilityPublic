@@ -12,6 +12,34 @@ import Utilities.SkyrmeEOS as sky
 from Utilities.Constants import *
 
 
+def BetaEquilibrium(SkyrmeEOS):
+    """
+    This function will return a equilibrated Skyrme in terms of EOSSpline
+    from 0.1rho0 to 3rho0
+    """
+
+    ele_fermi = sky.FermiGas(me)
+    mu_fermi = sky.FermiGas(mmu)
+
+    def GetEnergy(rho, pfrac, mufrac):
+        nuc_energy = SkyrmeEOS.GetEnergyDensity(rho, pfrac)
+        ele_energy = ele_fermi.GetEnergyDensity(rho*pfrac*(1-mufrac), 0)
+        mu_energy = mu_fermi.GetEnergyDensity(rho*pfrac*mufrac, 0)
+        return nuc_energy + ele_energy + mu_energy
+
+    def GetPressure(rho, pfrac, mufrac):
+        nuc_pressure = SkyrmeEOS.GetAutoGradPressure(rho, pfrac)
+        ele_pressure = ele_fermi.GetAutoGradPressure(rho*pfrac*(1-mufrac), 0)
+        mu_pressure = mu_fermi.GetAutoGradPressure(rho*pfrac*mufrac, 0)
+        return nuc_pressure + ele_pressure + mu_pressure
+
+    rho = np.linspace(0.1,10,100)
+    min_result = [optimize.minimize(lambda frac: GetEnergy(rho_*rho0, frac[0], frac[1]), [0.5, 0.5], bounds=[(1e-4, 1), (1e-4,1)], method='SLSQP', options={'disp':False}) for rho_ in rho]
+
+    energy = [min_.fun for min_ in min_result]
+    return sky.EOSSpline(rho*rho0, energy/(rho*rho0))
+
+
 if __name__ == "__main__":
     df = pd.read_csv('Results/Skyrme_summary.csv', index_col=0)
     df.fillna(0, inplace=True)

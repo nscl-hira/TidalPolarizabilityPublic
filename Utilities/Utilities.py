@@ -28,6 +28,7 @@ params = {'figure.autolayout': True,
           'axes.labelsize': 40,
           #'axes.titlesize': 5,
           'axes.labelpad': 1,
+          'axes.unicode_minus': False,
           'xtick.labelsize':30,
           'ytick.labelsize':30,
           'xtick.major.size': 20,
@@ -79,14 +80,14 @@ def PlotSkyrmeEnergy(df, ax, range_=[0,3], pfrac=0, label=None, **args):
     first = True
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
-        energy = eos.GetEnergy(n*rho0, pfrac)
+        energy = eos.GetEnergy(n*rho0, pfrac) - mn
         if not first:
             label = None
         first = False
         labels = ax.plot(n, energy, label=label, **args)
     ax.set_xlabel('$Density\ \\rho/\\rho_{0}$')
     ax.set_ylabel('Energy per nucleons (MeV)')
-    return labels
+    return ax
 
 def PlotSkyrmePressure(df, ax, range_=[0,3], pfrac=0, label=None, **args):
     n = np.linspace(*range_, num=1000)
@@ -100,7 +101,7 @@ def PlotSkyrmePressure(df, ax, range_=[0,3], pfrac=0, label=None, **args):
         ax.plot(n, pressure, label=label, zorder=1, **args)
     ax.set_ylim([1,1000])
     ax.set_xlim(range_)
-    ax.set_yscale('log')
+    #ax.set_yscale('log')
     ax.set_xlabel('$Density\ \\rho/\\rho_{0}$')
     ax.set_ylabel('$Pressure (MeV/fm^{3})$')
     return ax
@@ -155,32 +156,34 @@ def PlotMaster(df, constrainted_df_list, labels, color_list=('b', 'g', 'orange')
     
 
     # also plot all for comparison for symmetry term
-    ax1 = PlotSkyrmeSymEnergy(df, ax1, color='lawngreen', range_=[0,5])
+    #ax1 = PlotSkyrmeSymEnergy(df, ax1, color='lawngreen', range_=[0,5])
+    ax1 = PlotSkyrmeSymEnergy(df, ax1, color='lawngreen', range_=[0,5], pfrac=pfrac)
     color = itertools.cycle(color_list)
     for constrainted_df, label in zip(constrainted_df_list, labels):
         ax1 = PlotSkyrmeSymEnergy(constrainted_df, ax1, pfrac=pfrac, color=color.next(), range_=[0,5], label=label)
     
-    ax1.set_ylim([0,50])
-    ax1.set_xlim([1., 3.])#[0,1.5])
+    ax1.set_ylim([-20,50])
+    #ax1.set_xlim([1., 3.])
+    ax1.set_xlim([0,3])
 
-    minor_ticks = np.arange(0, 1.5, 0.1)
-    major_ticks = np.arange(0,1.5, 0.5)
+    minor_ticks = np.arange(0, 3, 0.1)
+    major_ticks = np.arange(0,3, 0.5)
     ax1.set_xticks(major_ticks)
     ax1.set_xticks(minor_ticks, minor=True)
 
-    minor_ticks = np.arange(0, 50, 2)
-    major_ticks = np.arange(0, 50, 10)
+    minor_ticks = np.arange(-20, 50, 2)
+    major_ticks = np.arange(-20, 50, 10)
     ax1.set_yticks(major_ticks)
     ax1.set_yticks(minor_ticks, minor=True)
     
     ax2 = plt.subplot(122)
     # plot background as comparison
-    ax2 = PlotSkyrmePressure(df, ax2, pfrac=pfrac, color='lawngreen', range_=[1,5])
+    ax2 = PlotSkyrmePressure(df, ax2, pfrac=pfrac, color='lawngreen', range_=[1e-1,5])
     color = itertools.cycle(color_list)
     for constrainted_df, label in zip(constrainted_df_list, labels):
         ax2 = PlotSkyrmePressure(constrainted_df, ax2, pfrac=pfrac, color=color.next(), range_=[1,5], label=label)
-    ax2.set_ylim([1,400])
-    ax2.set_xlim([1,5])
+    ax2.set_ylim([-100,400])
+    ax2.set_xlim([1e-1,5])
 
     minor_ticks = np.arange(1, 5, 0.2)
     major_ticks = np.arange(1, 5, 1)
