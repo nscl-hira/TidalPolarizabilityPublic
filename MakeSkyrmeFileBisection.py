@@ -10,12 +10,13 @@ import matplotlib.pyplot as plt
 import autograd.numpy as np
 import pandas as pd
 import scipy.optimize as opt
+import scipy.special
 
 import TidalLove.TidalLoveWrapper as wrapper
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
-from Test import EOSCreator
+from EOSCreator import EOSCreator
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -26,6 +27,11 @@ if __name__ == "__main__":
     df.fillna(0, inplace=True)
 
     summary = sky.SummarizeSkyrme(df)
+
+    print('''\
+{dashes}
+{m:^12} | {r:^12} | {l:^12} | {p:^12} | {a:^12} | {b:^12}
+{dashes}'''.format(dashes='-'*100, m='name', r='radius1.4', l='lambda1.4', p='pc1.4', a='max_mass', b='pc'))
     
     """
     Print the selected EOS into a file for the tidallove script to run
@@ -34,27 +40,34 @@ if __name__ == "__main__":
         name = name_and_eos[0]
         eos = EOSCreator(name_and_eos[1])
         tidal_love = wrapper.TidalLoveWrapper(eos)
+        pc14=0
+        pc=[0]
 
         def FuncBisec(pc):
             mass, _, _ = tidal_love.Calculate(pc)
             return -mass + 1.4
         try:
-            pc = opt.newton(FuncBisec, 1e-3)
-            mass, radius, lambda_ = tidal_love.Calculate(pc)
+            pc14 = opt.newton(FuncBisec, 30)
+            mass, radius, lambda_ = tidal_love.Calculate(pc14)
         except RuntimeError as error:
             mass, radius, lambda_ = np.nan, np.nan, np.nan
 
         # try finding the maximum mass
         try:
-            pc = opt.fmin(FuncBisec, 1e-3, disp=False)
+            pc = opt.fmin(FuncBisec, 30, disp=False)
             max_mass, _, _ = tidal_love.Calculate(pc[0])
         except RuntimeError as error:
             max_mass = np.nan
-            
+        
+        #print "Mass: {:^5f}, Radius: {:^5f}, Lambda: {:^5f}, 1.4Central_Pressure: {:^f}, Max_Mass: {:^5f}, Central_Pressure: {:^5f}".format(mass, radius, lambda_, pc14, max_mass, pc)
+    
         if not all([mass, radius, lambda_, max_mass]):
             mass, radius, lambda_, max_mass = np.nan, np.nan, np.nan, np.nan
+        else:
+            print("{m:^12} | {r:^12.3f} | {l:^12.3f} | {p:^12.3f} | {a:^12.3f} | {c:^12.3f} ".format(m=name, r=radius, l=lambda_, p=pc14, a=max_mass, c=pc[0]))
+
+        tidal_love.Close()
         
-        print('%s, %f, %f, %f, %f' % (name, mass, radius, lambda_, max_mass))
         return name, mass, radius, lambda_, max_mass
 
     name_list = []
@@ -63,8 +76,8 @@ if __name__ == "__main__":
     for index, row in df.iterrows(): 
         name_list.append((index, sky.Skryme(row)))
         num_eos_calculated = num_eos_calculated + 1
-        sys.stdout.write('Percentage %3.0f\r' % (float(num_eos_calculated)/float(tot_num_eos)*100.))
-        sys.stdout.flush()
+        #sys.stdout.write('Percentage %3.0f\r' % (float(num_eos_calculated)/float(tot_num_eos)*100.))
+        #sys.stdout.flush()
 
     result = []
     num_requested = float(df.shape[0])
@@ -78,14 +91,15 @@ if __name__ == "__main__":
             except StopIteration:
                 break
             except TimeoutError as error:
-                print("function took longer than %d seconds" % error.args[1])
+                pass
+                #print("function took longer than %d seconds" % error.args[1])
             except ProcessExpired as error:
                 print("%s. Exit code: %d" % (error, error.exitcode))
             except Exception as error:
                 print("function raised %s" % error)
                 print(error.traceback)  # Python's traceback of remote process
             num_completed=1+num_completed
-            sys.stdout.write('\rProgress Main %f %%' % (100.*num_completed/num_requested))
+            #sys.stdout.write('\rProgress Main %f %%' % (100.*num_completed/num_requested))
             sys.stdout.flush()
 
     mass = {val[0]: val[1] for val in result}
@@ -98,6 +112,3 @@ if __name__ == "__main__":
     data = pd.concat([df, summary, data], axis=1)
     data.dropna(axis=0, how='any', inplace=True)
     data.to_csv('Results/%s.csv' % sys.argv[1], index=True)
-
-    
-

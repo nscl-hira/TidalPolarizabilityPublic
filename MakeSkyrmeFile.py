@@ -15,6 +15,7 @@ import pandas as pd
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
+from EOSCreator import EOSCreator
 
 if __name__ == "__main__":
     df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
@@ -27,14 +28,14 @@ if __name__ == "__main__":
     utl.PlotSkyrmeEnergy(df, ax, color='r')
     ax = plt.subplot(122)
     utl.PlotSkyrmePressure(df, ax, color='r')
-    plt.show()
+    #plt.show()
     
     """
     Print the selected EOS into a file for the tidallove script to run
     """
     def CalculateModel(name_and_eos):
         name = name_and_eos[0]
-        eos = name_and_eos[1]
+        eos = EOSCreator(name_and_eos[1])
         with tempfile.NamedTemporaryFile() as output:
             #print header
             output.write(" ========================================================\n")
@@ -43,8 +44,8 @@ if __name__ == "__main__":
             output.write(" ========================================================\n")
             # the last 2 column (n and eps) is actually not used in the program
             # therefore eps column will always be zero
-            n = np.linspace(1e-10, 2, 10000)
-            energy = (eos.GetEnergy(n, 0.) + mn)*n
+            n =  np.concatenate([np.linspace(1e-12, 3.76e-4, 1000), np.linspace(3.77e-4, 2, 9000)])
+            energy = eos.GetEnergyDensity(n, 0.)
             pressure = eos.GetAutoGradPressure(n, 0.) 
             for density, e, p in zip(n, energy, pressure):
                 output.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))
@@ -52,11 +53,12 @@ if __name__ == "__main__":
             return name, mass, radius, lambda_
 
     eos_list = [ (index, sky.Skryme(row)) for index, row in df.iterrows() ] 
+    eos_list = eos_list[0:20]
     result = []
     num_requested = float(df.shape[0])
     num_completed = 0.
     with ProcessPool() as pool:
-        future = pool.map(CalculateModel, eos_list, timeout=50)
+        future = pool.map(CalculateModel, eos_list, timeout=100)
         iterator = future.result()
         while True:
             try:
@@ -78,11 +80,12 @@ if __name__ == "__main__":
     radius = {val[0]: val[2] for val in result}
     lambda_ = {val[0]: val[3] for val in result}
 
-    data = [{'Model':val[0], 'Max_mass':np.amax(val[1]), 'R(1.4)':np.interp(1.4, val[1], val[2]), 'lambda(1.4)':np.interp(1.4, val[1], val[3])} for val in result]
+    data = [{'Model':val[0], 'Max_mass':np.amax(val[1]), 'R(1.4)':np.interp(1.4, val[1], val[2]), 'lambda(1.4)':np.interp(1.4, val[1], val[3]), "1.4PressureC":np.interp(1.4, val[1], np.linspace(3e-5, 3e-5+2e-5*1000, 1000))} for val in result]
     data = pd.DataFrame.from_dict(data)
+    print(data)
     data.set_index('Model', inplace=True)
     summary = pd.concat([summary, data], axis=1)
-    summary.to_csv('Results/Skyrme_summary.csv', index=True)
+    summary.to_csv('Results/Skyrme_summary_test.csv', index=True)
 
     ax = plt.subplot(221)
     utl.PlotMassVsRadius(mass, radius, ax, color='b')

@@ -45,6 +45,9 @@ class PseudoEOS:
     def GetEnergyDensity(self, rho, pfrac):
         return self.A*rho + self.B
 
+    def GetSpeedOfSound(self, rho, pfrac):
+        return 4./3.*self.K*np.power(self.GetEnergyDensity(rho, 0), 1./3.)
+
 class EOSSpline:
 
 
@@ -274,6 +277,9 @@ class EOSConnect(EOS):
     def GetAutoGradPressure(self, rho, pfrac):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetAutoGradPressure(rho, pfrac))(eos) for eos in self.eos_list])
 
+    def GetSpeedOfSound(self, rho, pfrac):
+        return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetSpeedOfSound(rho, pfrac))(eos) for eos in self.eos_list])
+
     def _Interval(self, rho):
         return [(rho > interval[0]) & (rho < interval[1]) for interval in self.intervals]
     
@@ -283,7 +289,7 @@ def SummarizeSkyrme(df):
     This function will print out the value of E0, K0, K'=-Q0, J=S(rho0), L, Ksym, Qsym, m*
     """
     summary_list = []
-    print('Model\tE0\tK0\tK\'\tJ\tL\tKsym\tQsym\tm*')
+    #print('Model\tE0\tK0\tK\'\tJ\tL\tKsym\tQsym\tm*')
     for index, row in df.iterrows():
         sky = Skryme(row)
         E0 = sky.GetEnergy(rho0, 0.5)
@@ -294,7 +300,7 @@ def SummarizeSkyrme(df):
         Ksym = sky.GetKsym(rho0)
         Qsym = sky.GetQsym(rho0)
         eff_m = sky.GetEffectiveMass(rho0, 0.5)
-        print('%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f' % (index, E0, K0, Kprime, J, L, Ksym, Qsym, eff_m))
+        #print('%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f' % (index, E0, K0, Kprime, J, L, Ksym, Qsym, eff_m))
         summary_dict = {'Model':index, 'E0':E0, 'K0':K0, 'K\'':Kprime, 'J':J, 'L':L, 'Ksym':Ksym, 'Qsym':Qsym, 'm*':eff_m}
         summary_list.append(summary_dict)
 

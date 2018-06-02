@@ -73,7 +73,7 @@ subroutine TidalLove_individual(EOS_filename, pc, mass_out, radius_out, lambda_o
         !    An example central value for pressure:
         !    pc= 3.162805d-3            ! initial dimensionless pressure for IU-FSU, M=1.6 MSun
 
-        p=pc
+        p=pc*mevfm3/p0
         m=0.0d0                ! initial dimensionless mass
         r=1.0d-8            ! initial dimensionless radius
             y=2.0d0                ! initial value for y(0) 

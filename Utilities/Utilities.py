@@ -162,9 +162,10 @@ def PlotMaster(df, constrainted_df_list, labels, color_list=('b', 'g', 'orange')
     for constrainted_df, label in zip(constrainted_df_list, labels):
         ax1 = PlotSkyrmeSymEnergy(constrainted_df, ax1, pfrac=pfrac, color=color.next(), range_=[0,5], label=label)
     
-    ax1.set_ylim([-20,50])
+    #ax1.set_ylim([-20,50])
     #ax1.set_xlim([1., 3.])
-    ax1.set_xlim([0,3])
+    ax1.set_xlim([0, 1.5])
+    ax1.set_ylim([0, 50])
 
     minor_ticks = np.arange(0, 3, 0.1)
     major_ticks = np.arange(0,3, 0.5)
@@ -182,8 +183,9 @@ def PlotMaster(df, constrainted_df_list, labels, color_list=('b', 'g', 'orange')
     color = itertools.cycle(color_list)
     for constrainted_df, label in zip(constrainted_df_list, labels):
         ax2 = PlotSkyrmePressure(constrainted_df, ax2, pfrac=pfrac, color=color.next(), range_=[1,5], label=label)
-    ax2.set_ylim([-100,400])
-    ax2.set_xlim([1e-1,5])
+    ax2.set_ylim([1,1300])
+    ax2.set_xlim([1,5])
+    ax2.set_yscale('log')
 
     minor_ticks = np.arange(1, 5, 0.2)
     major_ticks = np.arange(1, 5, 1)
