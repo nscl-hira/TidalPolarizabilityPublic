@@ -9,8 +9,6 @@ from decimal import Decimal
 import matplotlib.pyplot as plt
 import autograd.numpy as np
 import pandas as pd
-import scipy.optimize as opt
-import scipy.special
 
 import TidalLove.TidalLoveWrapper as wrapper
 import Utilities.Utilities as utl
@@ -38,46 +36,25 @@ if __name__ == "__main__":
     """
     def CalculateModel(name_and_eos):
         name = name_and_eos[0]
-        eos = EOSCreator(name_and_eos[1])
+        eos = EOSCreator(name_and_eos[1]).GetEOS()
         tidal_love = wrapper.TidalLoveWrapper(eos)
         pc14=0
         pc=[0]
 
-        def FuncBisec(pc):
-            mass, _, _ = tidal_love.Calculate(pc)
-            return -mass + 1.4
-        try:
-            pc14 = opt.newton(FuncBisec, 30)
-            mass, radius, lambda_ = tidal_love.Calculate(pc14)
-        except RuntimeError as error:
-            mass, radius, lambda_ = np.nan, np.nan, np.nan
-
-        # try finding the maximum mass
-        try:
-            pc = opt.fmin(FuncBisec, 30, disp=False)
-            max_mass, _, _ = tidal_love.Calculate(pc[0])
-        except RuntimeError as error:
-            max_mass = np.nan
-        
-        #print "Mass: {:^5f}, Radius: {:^5f}, Lambda: {:^5f}, 1.4Central_Pressure: {:^f}, Max_Mass: {:^5f}, Central_Pressure: {:^5f}".format(mass, radius, lambda_, pc14, max_mass, pc)
+        mass, radius, lambda_, pc14 = tidal_love.FindMass14()
+        max_mass, pc = tidal_love.FindMaxMass()
     
-        if not all([mass, radius, lambda_, max_mass]):
+        if np.nan in [mass, radius, lambda_, max_mass]:
             mass, radius, lambda_, max_mass = np.nan, np.nan, np.nan, np.nan
         else:
+            #print(name, radius, lambda_, pc14, max_mass, pc)
             print("{m:^12} | {r:^12.3f} | {l:^12.3f} | {p:^12.3f} | {a:^12.3f} | {c:^12.3f} ".format(m=name, r=radius, l=lambda_, p=pc14, a=max_mass, c=pc[0]))
 
         tidal_love.Close()
         
         return name, mass, radius, lambda_, max_mass
 
-    name_list = []
-    num_eos_calculated = 0
-    tot_num_eos = df.shape[0]
-    for index, row in df.iterrows(): 
-        name_list.append((index, sky.Skryme(row)))
-        num_eos_calculated = num_eos_calculated + 1
-        #sys.stdout.write('Percentage %3.0f\r' % (float(num_eos_calculated)/float(tot_num_eos)*100.))
-        #sys.stdout.flush()
+    name_list = [(index, sky.Skryme(row)) for index, row in df.iterrows()]
 
     result = []
     num_requested = float(df.shape[0])

@@ -2,6 +2,7 @@ import tempfile
 import TidalLove_individual as tidal
 from decimal import Decimal
 import autograd.numpy as np
+import scipy.optimize as opt
 
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
@@ -22,10 +23,6 @@ class TidalLoveWrapper:
         self.output.write("       E/V           P              n           eps      \n") 
         self.output.write("    (MeV/fm3)     (MeV/fm3)      (#/fm3)    (erg/cm^3/s) \n")
         self.output.write(" ========================================================\n")
-        # When density is 0, everything = 0
-        # unfortunately this simple point cannot be handled by regular eos calculation
-        # So we are doing this manually
-        # self.output.write("1e-15 1e-15 1e-15 0\n")
         # the last 2 column (n and eps) is actually not used in the program
         # therefore eps column will always be zero
         n = np.concatenate([np.linspace(1e-12, 3.76e-4, 1000), np.linspace(3.77e-4, 2, 9000)])#np.linspace(1e-12, 2, 10000) 
@@ -39,8 +36,27 @@ class TidalLoveWrapper:
         mass, radius, lambda_ = tidal.tidallove_individual(self.output.name, pc)
         return mass, radius, lambda_
 
+    def FindMaxMass(self, central_pressure0=30, disp=False, *args):
+        # try finding the maximum mass
+        pc = np.nan
+        try:
+            pc = opt.fmin(self._GetMass14, x0=central_pressure0, disp=disp, *args)
+            max_mass, _, _ = self.Calculate(pc[0])
+        except RuntimeError as error:
+            max_mass = np.nan
+        return max_mass, pc
+
+    def FindMass14(self, central_pressure0=30, *args):
+        try:
+            pc = opt.newton(self._GetMass14, x0=central_pressure0, *args)
+            mass, radius, lambda_ = self.Calculate(pc)
+        except RuntimeError as error:
+            mass, radius, lambda_, pc = np.nan, np.nan, np.nan, np.nan
+        return mass, radius, lambda_, pc
 
     def Close(self):
         self.output.close()
     
-
+    def _GetMass14(self, pc):
+        mass, _, _ = self.Calculate(pc)
+        return -mass + 1.4
