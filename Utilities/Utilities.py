@@ -17,8 +17,8 @@ params = {'figure.autolayout': True,
           'legend.fontsize': 25,
           'legend.framealpha': 0,
           'lines.linewidth': 2,
-          'font.family': 'serif',
-          'font.serif': 'CMU Typewriter Text', 
+          'font.family': 'stixgeneral', #'serif',
+          'font.serif': 'stix',#'cmr10',#'CMU Typewriter Text', 
           #'text.usetex': True,
           #'mathtext.fontset': 'cm',
           'mathtext.rm': 'serif',
@@ -167,13 +167,13 @@ def PlotMaster(df, constrainted_df_list, labels, color_list=('b', 'g', 'orange')
     ax1.set_xlim([0, 1.5])
     ax1.set_ylim([0, 50])
 
-    minor_ticks = np.arange(0, 3, 0.1)
-    major_ticks = np.arange(0,3, 0.5)
+    minor_ticks = np.arange(0, 1.5, 0.1)
+    major_ticks = np.arange(0, 1.5, 0.5)
     ax1.set_xticks(major_ticks)
     ax1.set_xticks(minor_ticks, minor=True)
 
-    minor_ticks = np.arange(-20, 50, 2)
-    major_ticks = np.arange(-20, 50, 10)
+    minor_ticks = np.arange(0, 50, 2)
+    major_ticks = np.arange(0, 50, 10)
     ax1.set_yticks(major_ticks)
     ax1.set_yticks(minor_ticks, minor=True)
     

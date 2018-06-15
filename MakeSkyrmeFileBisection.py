@@ -1,3 +1,5 @@
+#!/usr/bin/python -W ignore
+import math
 import sys
 import cPickle as pickle
 import itertools
@@ -5,10 +7,11 @@ marker = itertools.cycle((',', '+', '.', 'o', '*'))
 from pebble import ProcessPool, ProcessExpired
 from concurrent.futures import TimeoutError
 import tempfile
-from decimal import Decimal
 import matplotlib.pyplot as plt
 import autograd.numpy as np
 import pandas as pd
+import scipy.optimize as opt
+import argparse
 
 import TidalLove.TidalLoveWrapper as wrapper
 import Utilities.Utilities as utl
@@ -17,48 +20,104 @@ from Utilities.Constants import *
 from EOSCreator import EOSCreator
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print('To use, enter: python %s NameOfOutput' % sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--Output", default="Result", help="Name of the CSV output (Default: Result)")
+    parser.add_argument("-et", "--EOSType", default="EOS", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme (Default: EOS)")
+    parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Density at which Skyrme takes over from crustal EOS (Default: 0.3)")
+    parser.add_argument("-td", "--TranDensity", type=float, default=0.001472, help="Density at which Crustal EOS ends (Default: 0.001472)")
+    parser.add_argument("-pd", "--PRCDensity", type=float, default=None, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
+    args = parser.parse_args()
 
     df = pd.read_csv('SkyrmeParameters/PawelSkyrme.csv', index_col=0)
     df.fillna(0, inplace=True)
 
     summary = sky.SummarizeSkyrme(df)
 
+    title='MaxMass'
+    if args.EOSType == "EOS":
+        title='PressureHigh'
+
     print('''\
 {dashes}
-{m:^12} | {r:^12} | {l:^12} | {p:^12} | {a:^12} | {b:^12}
-{dashes}'''.format(dashes='-'*100, m='name', r='radius1.4', l='lambda1.4', p='pc1.4', a='max_mass', b='pc'))
+{m:^12} | {r:^12} | {l:^12} | {p:^12} | {a:^12} | {b:^12} | {c:^12}
+{dashes}'''.format(dashes='-'*100, m='name', r='radius1.4', l='lambda1.4', p='pc1.4', a='pcMaxMass', b=title, c='Causal'))
     
     """
     Print the selected EOS into a file for the tidallove script to run
     """
     def CalculateModel(name_and_eos):
-        name = name_and_eos[0]
-        eos = EOSCreator(name_and_eos[1]).GetEOS()
-        tidal_love = wrapper.TidalLoveWrapper(eos)
-        pc14=0
-        pc=[0]
+        name = name_and_eos[0]    
+        eos_creator = EOSCreator(name_and_eos[1], TranDensity=args.TranDensity*rho0, SkyrmeDensity=args.SkyrmeDensity*rho0, PRCTransDensity=args.PRCDensity)
 
-        mass, radius, lambda_, pc14 = tidal_love.FindMass14()
-        max_mass, pc = tidal_love.FindMaxMass()
+        """
+        Depending on the type of EOS, different calculation is performed
+        if EOSType == EOS, it will calculate pressure at 7rho0 such that max mass = 2
+        and the corresponding central pressure
+
+        For all other EOS, it will just calculate max mass and 1.4 Neutron star
+        """
+  
+        if(args.EOSType == "EOS"):
+            def FixMaxMass(pressure_high):
+                eos_creator.PressureHigh = pressure_high
+                eos = eos_creator.GetEOSType(args.EOSType)
+                tidal_love = wrapper.TidalLoveWrapper(eos)
+                max_mass, pc_max = tidal_love.FindMaxMass()
+                tidal_love.Close()
+                return max_mass - 2.
+
+            try:
+                pressure = opt.newton(FixMaxMass, x0=800)
+                eos_creator.PressureHigh = pressure
+                eos = eos_creator.GetEOSType(args.EOSType)
+                tidal_love = wrapper.TidalLoveWrapper(eos)
+                mass, radius, lambda_, pc14 = tidal_love.FindMass14()
+                max_mass, pc_max = tidal_love.FindMaxMass()
+                tidal_love.Close()
+
+                # look for pressure corresponding the central pressure of max mass
+                # Then check for causailiry in range
+                highest_density = opt.newton(lambda rho: eos.GetAutoGradPressure(rho,0), x0=7*0.16)
+                causal = not eos.ViolateCausality(np.linspace(1e-5, highest_density, 100), 0)
+            except RuntimeError as error:
+                pressure = np.nan
+                mass, radius, lambda_, causal = np.nan, np.nan, np.nan, np.nan
+
+            
+      
     
-        if np.nan in [mass, radius, lambda_, max_mass]:
-            mass, radius, lambda_, max_mass = np.nan, np.nan, np.nan, np.nan
-        else:
-            #print(name, radius, lambda_, pc14, max_mass, pc)
-            print("{m:^12} | {r:^12.3f} | {l:^12.3f} | {p:^12.3f} | {a:^12.3f} | {c:^12.3f} ".format(m=name, r=radius, l=lambda_, p=pc14, a=max_mass, c=pc[0]))
+            if math.isnan(sum([mass, radius, lambda_, pressure])):
+                mass, radius, lambda_, pressure, pc_max = np.nan, np.nan, np.nan, np.nan, [np.nan]
+            else:
+                print("{m:^12} | {r:^12.3f} | {l:^12.3f} | {p:^12.3f} | {a:^12.3f} | {b:^12.3f} | {c:^12}".format(m=name, r=radius, l=lambda_, p=pc14, a=pc_max[0], b=pressure, c=causal))
 
-        tidal_love.Close()
-        
-        return name, mass, radius, lambda_, max_mass
+            return name, mass, radius, lambda_, pc14, pc_max[0], pressure, causal
+
+        else:
+            try:
+                eos = eos_creator.GetEOSType(args.EOSType)
+                tidal_love = wrapper.TidalLoveWrapper(eos)
+                mass, radius, lambda_, pc14 = tidal_love.FindMass14()
+                max_mass, pc_max = tidal_love.FindMaxMass()
+                tidal_love.Close()
+
+                # look for pressure corresponding the central pressure of max mass
+                # Then check for causailiry in range
+                highest_density = opt.newton(lambda rho: eos.GetAutoGradPressure(rho,0), x0=7*0.16)
+                causal = not eos.ViolateCausality(np.linspace(1e-5, highest_density, 100), 0)
+            except RuntimeError as error:
+                mass, radius, lambda_, max_mass, pc_max = np.nan, np.nan, np.nan, np.nan, [np.nan]
+
+            if math.isnan(sum([mass, radius, lambda_, max_mass, pc_max[0]])):
+                mass, radius, lambda_, max_mass, pc_max = np.nan, np.nan, np.nan, np.nan, [np.nan]
+            else:
+                print("{m:^12} | {r:^12.3f} | {l:^12.3f} | {p:^12.3f} | {a:^12.3f} | {b:^12.3f} | {c:^12}".format(m=name, r=radius, l=lambda_, p=pc14, a=pc_max[0], b=max_mass, c=causal))
+
+            return name, mass, radius, lambda_, pc14, pc_max[0], max_mass, causal
 
     name_list = [(index, sky.Skryme(row)) for index, row in df.iterrows()]
 
     result = []
-    num_requested = float(df.shape[0])
-    num_completed = 0.
     with ProcessPool() as pool:
         future = pool.map(CalculateModel, name_list, timeout=60)
         iterator = future.result()
@@ -75,17 +134,11 @@ if __name__ == "__main__":
             except Exception as error:
                 print("function raised %s" % error)
                 print(error.traceback)  # Python's traceback of remote process
-            num_completed=1+num_completed
-            #sys.stdout.write('\rProgress Main %f %%' % (100.*num_completed/num_requested))
             sys.stdout.flush()
 
-    mass = {val[0]: val[1] for val in result}
-    radius = {val[0]: val[2] for val in result}
-    lambda_ = {val[0]: val[3] for val in result}
-
-    data = [{'Model':val[0], 'R(1.4)':val[2], 'lambda(1.4)':val[3], 'MaxMass':val[4]} for val in result]
+    data = [{'Model':val[0], 'R(1.4)':val[2], 'lambda(1.4)':val[3], 'PCentral':val[4], title:val[5]} for val in result]
     data = pd.DataFrame.from_dict(data)
     data.set_index('Model', inplace=True)
     data = pd.concat([df, summary, data], axis=1)
     data.dropna(axis=0, how='any', inplace=True)
-    data.to_csv('Results/%s.csv' % sys.argv[1], index=True)
+    data.to_csv('Results/%s.csv' % args.Output, index=True)

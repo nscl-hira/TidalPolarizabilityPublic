@@ -280,6 +280,10 @@ class EOSConnect(EOS):
     def GetSpeedOfSound(self, rho, pfrac):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetSpeedOfSound(rho, pfrac))(eos) for eos in self.eos_list])
 
+    def ViolateCausality(self, rho, pfrac):
+        speed = self.GetSpeedOfSound(rho, pfrac)
+        return any(speed > 1)
+
     def _Interval(self, rho):
         return [(rho > interval[0]) & (rho < interval[1]) for interval in self.intervals]
     
