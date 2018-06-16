@@ -33,10 +33,11 @@ class TidalLoveWrapper:
             self.output.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))
        
         self.mass = 0
+        self.checkpoint = []
 
     def Calculate(self, pc):
-        mass, radius, lambda_ = tidal.tidallove_individual(self.output.name, pc)
-        return mass, radius, lambda_
+        mass, radius, lambda_, checkpoint_mass, checkpoint_radius = tidal.tidallove_individual(self.output.name, pc, self.checkpoint)
+        return mass, radius, lambda_, checkpoint_mass, checkpoint_radius
 
     def FindMaxMass(self, central_pressure0=30, disp=False, *args):
         # try finding the maximum mass
@@ -51,15 +52,15 @@ class TidalLoveWrapper:
     def FindMass14(self, central_pressure0=30, *args):
         try:
             pc = opt.newton(self._GetMass14, x0=central_pressure0, *args)
-            mass, radius, lambda_ = self.Calculate(pc)
+            mass, radius, lambda_, checkpoint_mass, checkpoint_radius = self.Calculate(pc)
         except RuntimeError as error:
-            mass, radius, lambda_, pc = np.nan, np.nan, np.nan, np.nan
-        return mass, radius, lambda_, pc
+            mass, radius, lambda_, pc, checkpoint_mass, checkpoint_radius = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        return mass, radius, lambda_, pc, checkpoint_mass, checkpoint_radius
 
     def Close(self):
         self.output.close()
     
     def _GetMass14(self, pc):
-        mass, _, _ = self.Calculate(pc)
+        mass, _, _, _, _ = self.Calculate(pc)
         self.mass = mass
         return -mass + 1.4

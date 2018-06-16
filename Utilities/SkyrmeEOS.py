@@ -285,7 +285,7 @@ class EOSConnect(EOS):
         return any(speed > 1)
 
     def _Interval(self, rho):
-        return [(rho > interval[0]) & (rho < interval[1]) for interval in self.intervals]
+        return [(rho > interval[0]) & (rho <= interval[1]) for interval in self.intervals]
     
 
 def SummarizeSkyrme(df):

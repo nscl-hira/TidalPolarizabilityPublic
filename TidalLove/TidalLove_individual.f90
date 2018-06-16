@@ -12,16 +12,23 @@
 !    UPDATE: Edited to calculate Dimensionless Tidal Polarizability.
 !        May 1, 2018, Bloomington, IN, USA.
     !-----------------------------------------------------------------------!
-subroutine TidalLove_individual(EOS_filename, pc, mass_out, radius_out, lambda_out)
+subroutine TidalLove_individual(EOS_filename, pc, num_checkpoint, &
+                                checkpoint, mass_out, radius_out, &
+                                lambda_out, checkpoint_mass, &
+                                checkpoint_radius)
     implicit real*8 (a-h,k-z)    !Assign letters for reals and integers
 
     CHARACTER :: CR = CHAR(13)
     character(len=*),intent(in) :: EOS_filename
+    integer, intent(in) :: num_checkpoint
+    real, dimension(num_checkpoint), intent(in) :: checkpoint
+    real, dimension(num_checkpoint), intent(out) :: checkpoint_mass, checkpoint_radius
+    real, intent(out) :: mass_out, radius_out, lambda_out
     real, intent(in) :: pc
     parameter(ipnts=1000000)    !The dimension of array for general output
     !Here (a-h,k-z) = reals, (i,j) = integers         
     dimension dens(ipnts),pres(ipnts),B(ipnts),C(ipnts),D(ipnts)     !Creates an array
-        real, intent(out) :: mass_out, radius_out, lambda_out
+        
     character*50 header                        !Max number of lines for header
 
     !print *, 'Opening file ', EOS_filename
@@ -94,6 +101,7 @@ subroutine TidalLove_individual(EOS_filename, pc, mass_out, radius_out, lambda_o
         !print *, 'Ecentral=', ec*e0/mevfm3
         e=0
 
+        icheckpoint = 1              ! counter for checkpoints
         do im= 1, 5000000            ! DO loop to calculate the mass/radius/k2
            !========================================================================
            !    Runge-Kutta method for solving ODE numerically.
@@ -176,7 +184,20 @@ k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
            e = cseval(ir-1,p,0,pres,dens,B,C,D)        ! corresponding density    
 
            pmin = 0.60817d-14*mevfm3/p0            ! minimum pressure given by BPS
+
+           if (icheckpoint <= num_checkpoint) then
+               pcheckpoint = checkpoint(icheckpoint)*mevfm3/p0
+
+               if (P .le. pcheckpoint) then
+                   checkpoint_mass(icheckpoint) = m
+                   checkpoint_radius(icheckpoint) = r*r0
+                   icheckpoint = icheckpoint + 1
+               end if
+           end if
+
+           
            ! pmin = 1.0d-14                    ! change as needed...
+
 
            if (P .le. pmin) then
               go to 20

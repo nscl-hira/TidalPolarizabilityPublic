@@ -60,8 +60,9 @@ if __name__ == "__main__":
         if(args.EOSType == "EOS"):
             def FixMaxMass(pressure_high):
                 eos_creator.PressureHigh = pressure_high
-                eos = eos_creator.GetEOSType(args.EOSType)
+                eos, _ = eos_creator.GetEOSType(args.EOSType)
                 tidal_love = wrapper.TidalLoveWrapper(eos)
+                
                 max_mass, pc_max = tidal_love.FindMaxMass()
                 tidal_love.Close()
                 return max_mass - 2.
@@ -69,9 +70,13 @@ if __name__ == "__main__":
             try:
                 pressure = opt.newton(FixMaxMass, x0=800)
                 eos_creator.PressureHigh = pressure
-                eos = eos_creator.GetEOSType(args.EOSType)
+                eos, list_tran_density = eos_creator.GetEOSType(args.EOSType)
+                print('tran dens', list_tran_density, eos.GetAutoGradPressure(np.array(list_tran_density), 0))
                 tidal_love = wrapper.TidalLoveWrapper(eos)
-                mass, radius, lambda_, pc14 = tidal_love.FindMass14()
+                tidal_love.checkpoint = eos.GetAutoGradPressure(np.array(list_tran_density), 0)
+                print('pressure', tidal_love.checkpoint)
+                mass, radius, lambda_, pc14, checkpoint_mass, checkpoint_radius = tidal_love.FindMass14()
+                print('mass ', mass, ' radius ', radius, ' checkpoint mass ', checkpoint_mass, ' checkpoint radius ', checkpoint_radius)
                 max_mass, pc_max = tidal_love.FindMaxMass()
                 tidal_love.Close()
 
