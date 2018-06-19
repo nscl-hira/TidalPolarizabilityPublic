@@ -13,12 +13,16 @@ font_manager.fontManager.ttflist.extend(font_list)
 
 import matplotlib.pylab as pylab
 params = {'figure.autolayout': True,
-          'figure.figsize': [16, 9],
-          'legend.fontsize': 25,
+          'figure.figsize': [16, 7],
+          'legend.fontsize': 15,
           'legend.framealpha': 0,
           'lines.linewidth': 2,
+          'lines.markeredgewidth': 2,
+          'lines.markersize': 15,
+          'errorbar.capsize': 3,
           'font.family': 'stixgeneral', #'serif',
-          'font.serif': 'stix',#'cmr10',#'CMU Typewriter Text', 
+          'font.serif': 'stix',
+          #'font.serif': 'CMU Typewriter Text', 
           #'text.usetex': True,
           #'mathtext.fontset': 'cm',
           'mathtext.rm': 'serif',
@@ -35,10 +39,14 @@ params = {'figure.autolayout': True,
           'xtick.minor.size': 5,
           'xtick.major.width': 4,
           'xtick.minor.width': 2,
+          'xtick.major.pad': 10,
+          'xtick.direction': 'in',
           'ytick.major.size': 20,
           'ytick.minor.size': 5,
           'ytick.major.width': 2,
           'ytick.minor.width': 1.5,
+          'ytick.direction': 'in',
+          'ytick.major.pad': 10,
           'figure.facecolor': 'white'}
 pylab.rcParams.update(params)
 
@@ -151,7 +159,7 @@ def PlotLambdaRadius(mass, radius, lambda_, ax, **args):
     ax.set_xlim([0, 20])
     return ax
     
-def PlotMaster(df, constrainted_df_list, labels, color_list=('b', 'g', 'orange'), pfrac=0):
+def PlotMaster(df, constrainted_df_list, labels, color_list=('royalblue', 'g', 'orange'), pfrac=0):
     ax1 = plt.subplot(121)
     
 

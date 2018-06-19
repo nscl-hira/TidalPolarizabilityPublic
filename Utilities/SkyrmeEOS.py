@@ -165,6 +165,9 @@ class EOS:
     def GetQsym(self, rho):
         third_grad_S = egrad(egrad(egrad(self.GetAsymEnergy, 0), 0), 0)(rho)
         return 27*rho*rho*rho*third_grad_S
+            
+            
+
 
 class PolyTrope(EOS):
 
@@ -260,6 +263,20 @@ class Skryme(EOS):
         result += 1./24.*((3.*pi2/2.)**0.666667)*np.power(rho, 5./3.)*(self.a+4*self.b)
         return result
 
+    def ToCSV(self, filename, rho, pfrac):
+
+        sym_energy = self.GetAsymEnergy(rho)
+        energy = self.GetEnergy(rho, pfrac)
+        energy_density = self.GetEnergyDensity(rho, pfrac)
+        pressure = self.GetAutoGradPressure(rho, pfrac)
+        data = np.vstack((sym_energy, energy, energy_density, pressure, rho, rho/rho0)).T
+       
+        with open(filename, 'w') as file_:
+            file_.write('''({dashes}
+{S:^12},{EV:^12},{EN:^12},{P:^12},{rho:^12},{rho_rho0}:^12
+{dashes})\n'''.format(dashes='-'*106, S='S(rho) (MeV)', EV='E/V (MeV/fm3)', EN='E/N MeV', P='P (MeV/fm3)', rho='rho (fm-3)', rho_rho0='rho/rho0'))
+            np.savetxt(file_, data, fmt='%12.3f', delimiter=',')
+
 
 class EOSConnect(EOS):
 
@@ -279,10 +296,6 @@ class EOSConnect(EOS):
 
     def GetSpeedOfSound(self, rho, pfrac):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetSpeedOfSound(rho, pfrac))(eos) for eos in self.eos_list])
-
-    def ViolateCausality(self, rho, pfrac):
-        speed = self.GetSpeedOfSound(rho, pfrac)
-        return any(speed > 1)
 
     def _Interval(self, rho):
         return [(rho > interval[0]) & (rho <= interval[1]) for interval in self.intervals]

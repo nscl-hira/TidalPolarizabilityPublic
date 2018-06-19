@@ -54,7 +54,7 @@ def SelectPressure(df, p_min, p_max, **args):
     return df_selected
 
 if __name__ == "__main__":
-    df = pd.read_csv('Results/Skyrme_summary.csv', index_col=0)
+    df = pd.read_csv('Results/Skyrme_pd_0.7.csv', index_col=0)
     df.fillna(0, inplace=True)
 
     
@@ -75,24 +75,24 @@ if __name__ == "__main__":
     
     ax = plt.subplot(122)
     df_with_p = AddPressure(df)
-    ax.plot(df_with_p['lambda(1.4)'], df_with_p['P(1.5rho0)'], 'ro', marker='o')
+    ax.plot(df_with_p['lambda(1.4)'], df_with_p['P(0.67rho0)'], 'ro', marker='o', markerfacecolor='w', color='b')
     ax.set_ylim([1e-2,3000])
     #ax.set_yscale('log')
     ax.set_xlabel(r'$Deformability\ \Lambda$')
-    ax.set_ylabel(r'$Pressure\ (1.5\rho_{0})\ (MeV/fm^{3})$')
+    ax.set_ylabel(r'$P(0.67\rho_{0})\ (MeV/fm^{3})$')
     ax.set_xlim([60,1500])
     ax.set_xscale('log')
     ax.set_ylim([0, 25])
 
     ax = plt.subplot(121)
-    ax.plot(df_with_p['lambda(1.4)'], df_with_p['Sym(1.5rho0)'], 'ro', marker='o')
+    ax.plot(df_with_p['lambda(1.4)'], df_with_p['Sym(0.67rho0)'], 'ro', marker='o', markerfacecolor='w', color='b')
     ax.set_ylim([1e-2,3000])
     #ax.set_yscale('log')
     ax.set_xlabel(r'$Deformability\ \Lambda$')
-    ax.set_ylabel(r'$S(1.5\rho_{0})\ (MeV/fm^{3})$')
+    ax.set_ylabel(r'$S(0.67\rho_{0})\ (MeV/fm^{3})$')
     ax.set_xlim([60,1500])
     ax.set_ylim([20, 60])
     ax.set_xscale('log')
 
-    df_with_p.to_csv('0.67rho0.csv')
+    #df_with_p.to_csv('2rho0.csv')
     plt.show()

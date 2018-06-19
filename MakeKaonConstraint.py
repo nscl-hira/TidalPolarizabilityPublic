@@ -34,12 +34,20 @@ if __name__ == "__main__":
     P_sym_stiff = rho0*density*density*egrad(SymEnergy, 0)(density, F_stiff)
     P_sym_fig1 = eos_spline.GetAutoGradPressure(density*rho0, 0)
 
-    _, sym_patch_soft = ContourToPatches(density, pressure + P_sym_soft, alpha=0.5, color='red', label='soft')
-    _, sym_patch_stiff = ContourToPatches(density, pressure + P_sym_stiff, alpha=0.5, color='blue', label='stiff')
-    _, sym_patch_fig1 = ContourToPatches(density, pressure + P_sym_fig1, alpha=0.5, color='blue', label='Fig1')
-    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + P_sym_soft}).to_csv('KaonSoft.csv', sep=',', index=False)
-    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + P_sym_stiff}).to_csv('KaonStiff.csv', sep=',', index=False)
-    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + P_sym_fig1}).to_csv('KaonFig1.csv', sep=',', index=False)
+    _, sym_patch_soft = ContourToPatches(density, pressure + 1.5*P_sym_soft, alpha=0.5, color='red', label='soft')
+    _, sym_patch_stiff = ContourToPatches(density, pressure + 1.5*P_sym_stiff, alpha=0.5, color='blue', label='stiff')
+    #_, sym_patch_fig1 = ContourToPatches(density, pressure + P_sym_fig1, alpha=0.5, color='blue', label='Fig1')
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + 1.5*P_sym_soft}).to_csv('KaonSoftUpper.csv', sep=',', index=False)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + 1.5*P_sym_stiff}).to_csv('KaonStiffUpper.csv', sep=',', index=False)
+    #pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + P_sym_fig1}).to_csv('KaonFig1.csv', sep=',', index=False)
+
+    _, sym_patch_soft_min = ContourToPatches(density, pressure + 0.5*P_sym_soft, alpha=0.5, color='red', label='soft')
+    _, sym_patch_stiff_min = ContourToPatches(density, pressure + 0.5*P_sym_stiff, alpha=0.5, color='blue', label='stiff')
+    #_, sym_patch_fig1 = ContourToPatches(density, pressure + P_sym_fig1, alpha=0.5, color='blue', label='Fig1')
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + 0.5*P_sym_soft}).to_csv('KaonSoftLower.csv', sep=',', index=False)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + 0.5*P_sym_stiff}).to_csv('KaonStiffLower.csv', sep=',', index=False)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': P_sym_soft}).to_csv('KaonSoftAsymTerm.csv', sep=',', index=False)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': P_sym_stiff}).to_csv('KaonStiffAsymTerm.csv', sep=',', index=False)
 
     constraints = pd.read_csv('Constraints/FlowSymMat.csv')
     density = np.array(constraints['rho/rho0'].tolist())
@@ -47,8 +55,16 @@ if __name__ == "__main__":
 
     P_sym_soft = rho0*density*density*egrad(SymEnergy, 0)(density, F_soft)
     P_sym_stiff = rho0*density*density*egrad(SymEnergy, 0)(density, F_stiff)
-    _, given_patch_soft = ContourToPatches(density, pressure + P_sym_soft, alpha=0.5, color='red', label='soft')
-    _, given_patch_stiff = ContourToPatches(density, pressure + P_sym_stiff, alpha=0.5, color='blue', label='stiff')
+    _, given_patch_soft = ContourToPatches(density, pressure + 1.5*P_sym_soft, alpha=0.5, color='red', label='soft')
+    _, given_patch_stiff = ContourToPatches(density, pressure + 1.5*P_sym_stiff, alpha=0.5, color='blue', label='stiff')
+
+    _, given_patch_soft_min = ContourToPatches(density, pressure + 0.5*P_sym_soft, alpha=0.5, color='red', label='soft')
+    _, given_patch_stiff_min = ContourToPatches(density, pressure + 0.5*P_sym_stiff, alpha=0.5, color='blue', label='stiff')
+
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': P_sym_soft}).to_csv('FlowSoftAsymTerm.csv', sep=',', index=False)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': P_sym_stiff}).to_csv('FlowStiffAsymTerm.csv', sep=',', index=False)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + 0.5*P_sym_soft}).to_csv('FlowSoftLower.csv', sep=',', index=False)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': pressure + 0.5*P_sym_stiff}).to_csv('FlowStiffLower.csv', sep=',', index=False)
     
 
     constraints = pd.read_csv('Constraints/FlowAsymSoft.csv')
@@ -56,14 +72,19 @@ if __name__ == "__main__":
     constraints = pd.read_csv('Constraints/FlowAsymStiff.csv')
     _, flow_patch_stiff = ContourToPatches(constraints['rho/rho0'], constraints['P(MeV/fm3)'], alpha=0.5, color='orange', label='stiff_original')
 
+
     ax = plt.subplot(111)
     ax.add_patch(sym_patch_soft)
     ax.add_patch(sym_patch_stiff)
+    ax.add_patch(sym_patch_soft_min)
+    ax.add_patch(sym_patch_stiff_min)
     ax.add_patch(given_patch_soft)
     ax.add_patch(given_patch_stiff)
     ax.add_patch(flow_patch_soft)
     ax.add_patch(flow_patch_stiff)
-    ax.add_patch(sym_patch_fig1)
+    ax.add_patch(given_patch_soft_min)
+    ax.add_patch(given_patch_stiff_min)
+    #ax.add_patch(sym_patch_fig1)
     ax.plot([1,5], [1, 400])
     ax.set_yscale('log')
     ax.legend()
