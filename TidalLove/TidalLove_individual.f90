@@ -195,6 +195,10 @@ k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
                end if
            end if
 
+           if (icheckpoint > num_checkpoint) then
+               go to 20
+           end if
+
            
            ! pmin = 1.0d-14                    ! change as needed...
 

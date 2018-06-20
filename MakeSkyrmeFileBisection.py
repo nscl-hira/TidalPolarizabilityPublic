@@ -20,6 +20,7 @@ from Utilities.Constants import *
 from EOSCreator import EOSCreator
 
 OuterCrustDensity = 0.3e-3
+SurfaceDensity = 1e-8
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -79,7 +80,7 @@ if __name__ == "__main__":
         
 
         tidal_love = wrapper.TidalLoveWrapper(eos)
-        tidal_love.checkpoint = eos.GetAutoGradPressure(np.array(list_tran_density + [OuterCrustDensity]), 0)
+        tidal_love.checkpoint = eos.GetAutoGradPressure(np.array(list_tran_density + [OuterCrustDensity, SurfaceDensity]), 0)
 
         try:
             mass, radius, lambda_, pc14, checkpoint_mass, checkpoint_radius = tidal_love.FindMass14()
