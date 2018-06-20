@@ -4,6 +4,7 @@ import pandas as pd
 import math
 import scipy.misc as misc
 from scipy.interpolate import UnivariateSpline
+from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 
 from Constants import *
@@ -53,26 +54,34 @@ class EOSSpline:
 
     def __init__(self, rho, energy=None, smooth=0, rho_Sym=None, Sym=None, smooth_sym=0.5, pressure=None, energy_density=None):
         if energy_density is None:
-            self.spl = UnivariateSpline(rho, energy, s=smooth)
+            self.spl = UnivariateSpline(rho, energy)#, s=smooth)
+            
             self.density_spl = None
         else:
             self.spl = UnivariateSpline(rho, energy_density/rho, s=smooth)
             self.density_spl = UnivariateSpline(rho, energy_density, s=smooth)
+            
         self.dspl = self.spl.derivative(1)
         self.ddspl = self.spl.derivative(2)
         
         if rho_Sym is None:
             rho_Sym = rho
         if Sym is None:
-            self.SymSpl = UnivariateSpline(rho_Sym, np.zeros(rho_Sym.shape))
+            self.SymSpl = lambda rho: 0
+            self.dSymSpl = self.SymSpl
+            self.ddSymSpl = self.SymSpl
         else:
             self.SymSpl = UnivariateSpline(rho_Sym, Sym, s=smooth_sym)
-        self.dSymSpl = self.SymSpl.derivative(1)
-        self.ddSymSpl = self.SymSpl.derivative(2)
+            self.dSymSpl = self.SymSpl.derivative(1)
+            self.ddSymSpl = self.SymSpl.derivative(2)
         if pressure is None:
             self.SplPressure = None
         else:
             self.SplPressure = UnivariateSpline(rho, pressure, s=0)
+            if energy_density is not None:
+                self.sound = UnivariateSpline(energy_density, pressure, s=smooth)
+            else:
+                self.sound = None
         #plt.plot(rho, energy, 'ro')
         #plt.plot(0.16*np.linspace(0.1, 3, 100), self.spl(0.16*np.linspace(0.1, 3, 100)))
         #plt.plot(0.16*np.linspace(0.1, 3, 100), self.dSymSpl(0.16*np.linspace(0.1, 3, 100)))
@@ -97,10 +106,13 @@ class EOSSpline:
         return pressure
 
     def GetSpeedOfSound(self, rho, pfrac):
-        return (2*rho*(self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho)) 
-               + rho*rho*(self.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho))) \
-               /(self.GetEnergy(rho, pfrac) 
-               + (self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho))*rho)
+        if self.sound is not None:
+            return self.sound.derivative(1)(rho)
+        else:
+            return (2*rho*(self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho)) 
+                   + rho*rho*(self.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho))) \
+                   /(self.GetEnergy(rho, pfrac) 
+                   + (self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho))*rho)
 
     def GetAsymEnergy(self, rho):
         return self.SymSpl(rho)
