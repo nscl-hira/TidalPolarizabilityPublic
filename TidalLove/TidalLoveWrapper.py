@@ -39,7 +39,7 @@ class TidalLoveWrapper:
         mass, radius, lambda_, checkpoint_mass, checkpoint_radius = tidal.tidallove_individual(self.output.name, pc, self.checkpoint)
         return mass, radius, lambda_, checkpoint_mass, checkpoint_radius
 
-    def FindMaxMass(self, central_pressure0=30, disp=False, *args):
+    def FindMaxMass(self, central_pressure0=300, disp=False, *args):
         # try finding the maximum mass
         pc = np.nan
         try:
@@ -49,7 +49,7 @@ class TidalLoveWrapper:
             max_mass = np.nan
         return max_mass, pc
 
-    def FindMass14(self, central_pressure0=30, *args):
+    def FindMass14(self, central_pressure0=300, *args):
         try:
             pc = opt.newton(self._GetMass14, x0=central_pressure0, *args)
             mass, radius, lambda_, checkpoint_mass, checkpoint_radius = self.Calculate(pc)

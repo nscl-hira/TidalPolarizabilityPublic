@@ -27,6 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--Output", default="Result", help="Name of the CSV output (Default: Result)")
     parser.add_argument("-et", "--EOSType", default="EOS", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme (Default: EOS)")
     parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Density at which Skyrme takes over from crustal EOS (Default: 0.3)")
+    parser.add_argument("-pp", "--PolyTropeDensity", type=float, default=3, help="Density at which Skyrme EOS ends. (Default: 3)")
     parser.add_argument("-td", "--TranDensity", type=float, default=0.001472, help="Density at which Crustal EOS ends (Default: 0.001472)")
     parser.add_argument("-pd", "--PRCDensity", type=float, default=None, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
     parser.add_argument("-cs", "--CrustSmooth", type=float, default=0, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
@@ -51,7 +52,7 @@ if __name__ == "__main__":
     """
     def CalculateModel(name_and_eos):
         name = name_and_eos[0]    
-        eos_creator = EOSCreator(name_and_eos[1], TranDensity=args.TranDensity*rho0, SkyrmeDensity=args.SkyrmeDensity*rho0, PRCTransDensity=args.PRCDensity, CrustSmooth=args.CrustSmooth)
+        eos_creator = EOSCreator(name_and_eos[1], TranDensity=args.TranDensity*rho0, SkyrmeDensity=args.SkyrmeDensity*rho0, PolyTropeDensity=args.PolyTropeDensity*rho0, PRCTransDensity=args.PRCDensity, CrustSmooth=args.CrustSmooth)
         """
         Depending on the type of EOS, different calculation is performed
         if EOSType == EOS, it will calculate pressure at 7rho0 such that max mass = 2
@@ -68,12 +69,13 @@ if __name__ == "__main__":
                 eos_creator.PressureHigh = pressure_high
                 eos, _ = eos_creator.GetEOSType("EOS")
                 tidal_love = wrapper.TidalLoveWrapper(eos)
-                
+                tidal_love.checkpoint = 1e-10
+
                 global pc_max
                 max_mass, pc_max = tidal_love.FindMaxMass()
                 tidal_love.Close()
                 return max_mass - 2.
-            pressure_high = opt.newton(FixMaxMass, x0=600)
+            pressure_high = opt.newton(FixMaxMass, x0=800)
 
         eos_creator.PressureHigh = pressure_high
         eos, list_tran_density = eos_creator.GetEOSType(args.EOSType)

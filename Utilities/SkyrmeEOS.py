@@ -74,14 +74,14 @@ class EOSSpline:
             self.SymSpl = UnivariateSpline(rho_Sym, Sym, s=smooth_sym)
             self.dSymSpl = self.SymSpl.derivative(1)
             self.ddSymSpl = self.SymSpl.derivative(2)
+
+        self.sound = None
         if pressure is None:
             self.SplPressure = None
         else:
             self.SplPressure = UnivariateSpline(rho, pressure, s=0)
             if energy_density is not None:
                 self.sound = UnivariateSpline(energy_density, pressure, s=smooth)
-            else:
-                self.sound = None
         #plt.plot(rho, energy, 'ro')
         #plt.plot(0.16*np.linspace(0.1, 3, 100), self.spl(0.16*np.linspace(0.1, 3, 100)))
         #plt.plot(0.16*np.linspace(0.1, 3, 100), self.dSymSpl(0.16*np.linspace(0.1, 3, 100)))
