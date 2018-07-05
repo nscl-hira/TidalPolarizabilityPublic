@@ -3,23 +3,17 @@ color = itertools.cycle(('g', 'purple', 'r', 'black', 'orange'))
 import matplotlib.pyplot as plt
 import matplotlib.path as pltPath
 import matplotlib.patches as patches
-import autograd.numpy as np
+import numpy as np
 import pandas as pd
+from scipy.optimize import curve_fit
 
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
 
-def NumTrueAbovePercentage(list_, percentage):
-    num_elements = float(len(list_))
-    if float(np.count_nonzero(list_)/num_elements > percentage):
-        return True
-    return False 
+def power_law(x, a, b, c):
+    return a*np.power(x, b) + c
 
-def ContourToPatches(value, contour, **args):
-    contour = [[x, y] for x, y in zip(value, contour)]
-    path = pltPath.Path(contour)
-    return path, patches.PathPatch(path)
 
 def AddPressure(df):
     pressure = []
@@ -72,27 +66,36 @@ if __name__ == "__main__":
     plt.legend(loc='upper left')
     plt.show()
 
-    
+    # drop outliners which is found by hand
+    df.drop(['SkSC6', 'SkI1'], inplace=True)   
+
     ax = plt.subplot(122)
     df_with_p = AddPressure(df)
-    ax.plot(df_with_p['lambda(1.4)'], df_with_p['P(0.67rho0)'], 'ro', marker='o', markerfacecolor='w', color='b')
+    ax.plot(df_with_p['lambda(1.4)'], df_with_p['P(2rho0)'], 'ro', label=None, marker='o', markerfacecolor='w', color='b')
+
+    # fit a power law
+    popt, pcov = curve_fit(power_law, df_with_p['lambda(1.4)'], df_with_p['P(2rho0)'], method='lm')
+    xaxis = np.linspace(0, 1600, 100)
+    ax.plot(xaxis, power_law(xaxis, *popt), label=r'$fit: %f\Lambda^{%f}+%f$' % tuple(popt))
+
+    ax.legend(fontsize=25)
     ax.set_ylim([1e-2,3000])
     #ax.set_yscale('log')
     ax.set_xlabel(r'$Deformability\ \Lambda$')
-    ax.set_ylabel(r'$P(0.67\rho_{0})\ (MeV/fm^{3})$')
+    ax.set_ylabel(r'$P(2\rho_{0})\ (MeV/fm^{3})$')
     ax.set_xlim([60,1500])
     ax.set_xscale('log')
-    ax.set_ylim([0, 25])
+    ax.set_ylim([0, 60])
 
     ax = plt.subplot(121)
-    ax.plot(df_with_p['lambda(1.4)'], df_with_p['Sym(0.67rho0)'], 'ro', marker='o', markerfacecolor='w', color='b')
+    ax.plot(df_with_p['lambda(1.4)'], df_with_p['Sym(2rho0)'], 'ro', marker='o', markerfacecolor='w', color='b')
     ax.set_ylim([1e-2,3000])
     #ax.set_yscale('log')
     ax.set_xlabel(r'$Deformability\ \Lambda$')
-    ax.set_ylabel(r'$S(0.67\rho_{0})\ (MeV/fm^{3})$')
+    ax.set_ylabel(r'$S(2\rho_{0})\ (MeV/fm^{3})$')
     ax.set_xlim([60,1500])
     ax.set_ylim([20, 60])
     ax.set_xscale('log')
 
-    #df_with_p.to_csv('2rho0.csv')
+    df_with_p.to_csv('2rho0.csv')
     plt.show()

@@ -17,7 +17,7 @@ import SelectRadius as srad
 from Utilities.Constants import *
 
 if __name__ == "__main__":
-    df = pd.read_csv('Results/Skyrme_summary.csv', index_col=0)
+    df = pd.read_csv('Results/Skyrme_pd_0.7.csv', index_col=0)
     df.fillna(0, inplace=True)
 
     # Let's try to constrainted with Low energy points, then constraint with flow afterward
@@ -33,13 +33,13 @@ if __name__ == "__main__":
     PolPatchList = []
     interval = np.arange(12,14,0.5)
     for interval_min, interval_max in zip(interval[:-1], interval[1:]):
-        patch ,_ = srad.SelectRadius('Results/Skyrme_summary.csv', df, interval_min, interval_max)
+        patch ,_ = srad.SelectRadius('Results/Skyrme_pd_0.7.csv', df, interval_min, interval_max)
         PolPatchList.append(patch)
 
     interval = [(0, 400.), (400., 800.), (800., 1200)]
     Lambda_List = []
     for interval_min, interval_max in interval:
-        _, sub_data = spol.SelectPolarizability('Results/Skryme_summary.csv', df, interval_min, interval_max)
+        _, sub_data = spol.SelectPolarizability('Results/Skryme_pd_0.7.csv', df, interval_min, interval_max)
         Lambda_List.append(sub_data)
 
     LowDensityConstrainted.to_csv('Results/LowDensityConstrainted.csv', sep=',')
@@ -88,10 +88,10 @@ if __name__ == "__main__":
     """
 
     ax.set_xlim([0, 5])
-    ax.set_ylim([1, 1e3])
+    ax.set_ylim([mn, 250 + mn])
     ax.set_xlabel('$\\rho/\\rho_{0}$')
     ax.set_ylabel('E/A (MeV)')
-    ax.set_yscale('log')
+    #ax.set_yscale('log')
 
     plt.show()
 

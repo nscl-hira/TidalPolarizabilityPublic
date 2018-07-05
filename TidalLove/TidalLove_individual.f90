@@ -183,7 +183,7 @@ k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
            r= r + h                    ! radius of the star    
            e = cseval(ir-1,p,0,pres,dens,B,C,D)        ! corresponding density    
 
-           pmin = 0.60817d-14*mevfm3/p0            ! minimum pressure given by BPS
+        
 
            if (icheckpoint <= num_checkpoint) then
                pcheckpoint = checkpoint(icheckpoint)*mevfm3/p0
@@ -195,13 +195,8 @@ k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
                end if
            end if
 
-           if (icheckpoint > num_checkpoint) then
-               go to 20
-           end if
-
-           
            ! pmin = 1.0d-14                    ! change as needed...
-
+           pmin = 0.60817d-14*mevfm3/p0            ! minimum pressure given by BPS
 
            if (P .le. pmin) then
               go to 20
