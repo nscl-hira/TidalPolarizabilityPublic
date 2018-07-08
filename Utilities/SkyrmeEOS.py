@@ -184,11 +184,14 @@ class EOS:
 class PolyTrope(EOS):
 
 
-    def __init__(self, init_density, init_energy, init_pressure, final_density, final_pressure):
+    def __init__(self, init_density, init_energy, init_pressure, final_density, final_pressure, gamma=None):
         self.init_pressure = init_pressure
         self.init_energy = init_energy
         self.init_density = init_density
-        self.gamma = np.log(final_pressure/init_pressure)/np.log(final_density/init_density)
+        if gamma is None:
+            self.gamma = np.log(final_pressure/init_pressure)/np.log(final_density/init_density)
+        else:
+            self.gamma = gamma
         self.K = init_pressure/np.power(init_density, self.gamma)
 
     def GetEnergy(self, rho, pfrac):
@@ -203,6 +206,19 @@ class PolyTrope(EOS):
 
     def GetAsymEnergy(self, rho):
         return 0
+
+class ConstSpeed(EOS):
+    
+    def __init__(self, init_density, init_energy, init_pressure, speed_of_sound=0.95):
+        self.init_pressure = init_pressure
+        self.init_energy = init_energy
+        self.init_density = init_density
+        self.speed_of_sound = speed_of_sound
+        self.C1 = (init_pressure + init_energy*init_density)/((speed_of_sound + 1)*np.power(init_density, speed_of_sound + 1))
+        self.C2 = init_pressure - speed_of_sound*init_energy*init_density
+
+    def GetEnergy(self, rho, pfrac):
+        return self.C1*np.power(rho, self.speed_of_sound)  - self.C2/((self.speed_of_sound + 1)*rho)
 
 
 class FermiGas(EOS):
