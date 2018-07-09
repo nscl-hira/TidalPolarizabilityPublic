@@ -1,3 +1,5 @@
+#!/usr/bin/python -W ignore
+import argparse
 from pptx import Presentation
 from pptx.util import Inches
 import Image
@@ -5,18 +7,36 @@ import matplotlib.pyplot as plt
 
 from PlotEOS3 import EOSDrawer
 from MakeMovie import CreateGif
-from MakeSkyrmeFileBisection import LoadSkyrmeFile
+from MakeSkyrmeFileBisection import LoadSkyrmeFile, CalculatePolarizability
+from SelectPressure import AddPressure
+from SelectSpeedOfSound import AddCausailty
+from Utilities.Constants import *
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrme.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrme.csv)")
+parser.add_argument("-o", "--Output", default="Result", help="Name of the CSV output (Default: Result)")
+parser.add_argument("-et", "--EOSType", default="EOS", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme (Default: EOS)")
+parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Density at which Skyrme takes over from crustal EOS (Default: 0.3)")
+parser.add_argument("-pp", "--PolyTropeDensity", type=float, default=3, help="Density at which Skyrme EOS ends. (Default: 3)")
+parser.add_argument("-td", "--TranDensity", type=float, default=0.001472, help="Density at which Crustal EOS ends (Default: 0.001472)")
+parser.add_argument("-pd", "--PRCTransDensity", type=float, default=None, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
+parser.add_argument("-cs", "--CrustSmooth", type=float, default=0, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
+parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
+args = parser.parse_args()
+
+df = LoadSkyrmeFile(args.Input)
+argd = vars(args)
+argd['TranDensity'] = argd['TranDensity']*rho0
+argd['SkyrmeDensity'] = argd['SkyrmeDensity']*rho0
+argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
+
 # Calculate Polarizability to begin with
-#df = LoadSkyrmeFile('SkyrmeParameters/PawelSkyrme.csv')
-#df = CalculatePolarizability(df, PRCTransDensity=0.1, PolyTropeDensity=2.5*rho0)
-#df = AddPressure(df)
-#df = AddCausailty(df)
-df = LoadSkyrmeFile('test.csv')
-
-
+df = CalculatePolarizability(df, **argd)
+df = AddPressure(df)
+df = AddCausailty(df)
+#df = LoadSkyrmeFile('test.csv')
 
 prs = Presentation()
-
 title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
@@ -111,6 +131,8 @@ ax.plot(df_causal['lambda(1.4)'], df_causal['P(2rho0)'], 'ro', label='Causal', c
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['P(2rho0)'], 'ro', label='Acausal', color='r')
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$P(2\rho_{0})$')
+ax.set_xscale('log')
+ax.set_xlim([20, 900])
 plt.legend()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
@@ -126,6 +148,8 @@ ax.plot(df_causal['lambda(1.4)'], df_causal['P(1.5rho0)'], 'ro', label='Causal',
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['P(1.5rho0)'], 'ro', label='Acausal', color='r')
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$P(1.5\rho_{0})$')
+ax.set_xscale('log')
+ax.set_xlim([20, 900])
 plt.legend()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
@@ -141,6 +165,8 @@ ax.plot(df_causal['lambda(1.4)'], df_causal['P(0.67rho0)'], 'ro', label='Causal'
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['P(0.67rho0)'], 'ro', label='Acausal', color='r')
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$P(0.67\rho_{0})$')
+ax.set_xscale('log')
+ax.set_xlim([20, 900])
 plt.legend()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
@@ -160,6 +186,8 @@ shapes = slide.shapes
 shapes.title.text = 'Sym Term (2rho0) vs Lambda'
 ax.plot(df_causal['lambda(1.4)'], df_causal['Sym(2rho0)'], 'ro', label='Causal', color='b')
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['Sym(2rho0)'], 'ro', label='Acausal', color='r')
+ax.set_xscale('log')
+ax.set_xlim([20, 900])
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$Sym(2\rho_{0})$')
 plt.legend()
@@ -175,6 +203,8 @@ shapes = slide.shapes
 shapes.title.text = 'Sym Term (1.5rho0) vs Lambda'
 ax.plot(df_causal['lambda(1.4)'], df_causal['Sym(1.5rho0)'], 'ro', label='Causal', color='b')
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['Sym(1.5rho0)'], 'ro', label='Acausal', color='r')
+ax.set_xscale('log')
+ax.set_xlim([20, 900])
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$Sym(1.5\rho_{0})$')
 plt.legend()
@@ -190,6 +220,8 @@ shapes = slide.shapes
 shapes.title.text = 'Sym Term (0.67rho0) vs Lambda'
 ax.plot(df_causal['lambda(1.4)'], df_causal['Sym(0.67rho0)'], 'ro', label='Causal', color='b')
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['Sym(0.67rho0)'], 'ro', label='Acausal', color='r')
+ax.set_xscale('log')
+ax.set_xlim([20, 900])
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$Sym(0.67\rho_{0})$')
 plt.legend()

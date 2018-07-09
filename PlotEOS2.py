@@ -15,16 +15,16 @@ from itertools import izip
 
 if __name__ == "__main__":
 
-    df = pd.read_csv('Results/Skyrme_pd_0.7_pp_3.csv', index_col=0)
+    df = pd.read_csv('Results/Skyrme_pd_0.7_pp_2.5_mm_2.5.csv', index_col=0)
     df.fillna(0, inplace=True)
 
     def GetEnergyDensityVsPressure(eos_name):
         skyrme = sky.Skryme(df.loc[eos_name])
         #skyrme.ToCSV('AllSkyrmes/%s.csv' % eos_name, np.linspace(1e-14, 3*0.16, 100), 0)
-        eos_creator = EOSCreator(skyrme, PRCTransDensity=0.7)
+        eos_creator = EOSCreator(skyrme, PRCTransDensity=0.7, PolyTropeDensity=2.5*rho0)
         pressure_high = df['PolyHighP'].loc[eos_name]
         eos_creator.PressureHigh = pressure_high
-        eos, trans_dens = eos_creator.GetEOSType("EOS")
+        eos, trans_dens = eos_creator.GetEOSType("EOS2Poly")
     
         trans_dens = [7*rho0] + trans_dens + [1e-8]  
         pressure_list = []

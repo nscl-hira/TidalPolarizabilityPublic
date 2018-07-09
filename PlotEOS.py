@@ -16,7 +16,7 @@ from EOSCreator import EOSCreator
 
 
 if __name__ == "__main__":
-    df = pd.read_csv('Results/NoNeutronStar.csv', index_col=0)
+    df = pd.read_csv('Results/Skyrme_pd_0.7_pp_2.5_mm_2.5.csv', index_col=0)
     df.fillna(0, inplace=True)
  
     #Nuclear = sky.Skryme(df.loc['BSk1'])
