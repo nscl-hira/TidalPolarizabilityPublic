@@ -1,8 +1,8 @@
-#!/usr/bin/python -W ignore
+#!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
 import argparse
 from pptx import Presentation
 from pptx.util import Inches
-import Image
+from PIL import Image
 import matplotlib.pyplot as plt
 
 from Utilities.EOSDrawer import EOSDrawer

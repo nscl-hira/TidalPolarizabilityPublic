@@ -6,9 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
 
-import Utilities.Utilities as tul
-import Utilities.SkyrmeEOS as sky
-from Utilities.Constants import *
+import SkyrmeEOS as sky
+from Constants import *
 from EOSCreator import EOSCreator
 
 from itertools import izip

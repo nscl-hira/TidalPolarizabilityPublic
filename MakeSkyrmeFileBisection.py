@@ -1,4 +1,4 @@
-#!/usr/bin/python -W ignore
+#!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
 import math
 import sys
 import cPickle as pickle

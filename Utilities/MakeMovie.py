@@ -8,9 +8,9 @@ import pandas as pd
 import imageio
 import tempfile
 
-import Utilities.Utilities as utl
-import Utilities.SkyrmeEOS as sky 
-from Utilities.Constants import *
+import Utilities as utl
+import SkyrmeEOS as sky 
+from Constants import *
 
 def CreateGif(df_list, output_filename, func='GetAsymEnergy', ymin=0, ymax=100, color=['r', 'b']):
     # plot with different densities
