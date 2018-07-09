@@ -5,8 +5,8 @@ from pptx.util import Inches
 import Image
 import matplotlib.pyplot as plt
 
-from PlotEOS3 import EOSDrawer
-from MakeMovie import CreateGif
+from Utilities.EOSDrawer import EOSDrawer
+from Utilities.MakeMovie import CreateGif
 from MakeSkyrmeFileBisection import LoadSkyrmeFile, CalculatePolarizability
 from SelectPressure import AddPressure
 from SelectSpeedOfSound import AddCausailty

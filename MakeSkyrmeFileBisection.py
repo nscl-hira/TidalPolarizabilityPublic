@@ -19,7 +19,7 @@ import TidalLove.TidalLoveWrapper as wrapper
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
-from EOSCreator import EOSCreator
+from Utilities.EOSCreator import EOSCreator
 from SelectPressure import AddPressure
 
 OuterCrustDensity = 0.3e-3

@@ -9,7 +9,7 @@ from functools import partial
 import Utilities.Utilities as tul
 import Utilities.SkyrmeEOS as sky
 from Utilities.Constants import *
-from EOSCreator import EOSCreator
+from Utilities.EOSCreator import EOSCreator
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
 
 def ViolateCausality(eos_name, df):
