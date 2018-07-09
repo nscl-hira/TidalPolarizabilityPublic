@@ -61,7 +61,7 @@ def CalculateModel(name_and_eos, **kwargs):
     except ValueError:
         raise TimeoutError('abuse of timeout error')
 
-    tidal_love = wrapper.TidalLoveWrapper(eos, name)
+    tidal_love = wrapper.TidalLoveWrapper(eos)
     if(EOSType != "EOS"):
         max_mass, pc_max = tidal_love.FindMaxMass()
 

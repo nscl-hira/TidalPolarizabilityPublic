@@ -65,64 +65,6 @@ class EOSDrawer:
 
 
             
-"""
-def GetInformation(name_and_row, xname, yname):
-    eos_name = name_and_row[0]
-    row = name_and_row[1]
-    skyrme = sky.Skryme(row)
-    #skyrme.ToCSV('AllSkyrmes/%s.csv' % eos_name, np.linspace(1e-14, 3*0.16, 100), 0)
-    eos_creator = EOSCreator(skyrme, **row)
-    #pressure_high = df['PolyHighP'].loc[eos_name]
-    #eos_creator.PressureHigh = pressure_high
-    eos, trans_dens = eos_creator.GetEOSType("EOS2Poly")
-
-    trans_dens = [10*rho0] + trans_dens + [1e-9]  
-    
-    x_list = []
-    y_list = []
-    rho_list = []
-
-    for low_den, high_den in zip(trans_dens, trans_dens[1:]):
-        rho = np.linspace(low_den, high_den, 100)
-        rho_list.append(rho)
-        if xname == 'rho':
-            x_list.append(rho)
-        else:
-            x_list.append(getattr(eos, xname)(rho, 0))
-        if yname == 'rho':
-            y_list.append(rho)
-        else:
-            y_list.append(getattr(eos, yname)(rho, 0))
-    print('finishted %s' % eos_name)
-    return rho_list, x_list, y_list
-
-def DrawEOS(df, ax=plt.subplot(111), xname='GetEnergyDensity', yname='GetAutoGradPressure', xlim=None, ylim=None, color=['r', 'b', 'g', 'orange', 'b', 'pink'], **kwargs):
-    name_list = [(index, row) for index, row in df.iterrows()]
-    result = []
-    with ProcessPool() as pool:
-        future = pool.map(partial(GetInformation, xname=xname, yname=yname), name_list)
-        iterator = future.result()
-        while True:
-            try:
-                result.append(next(iterator))
-            except StopIteration:
-                break
-            except:
-                print sys.exc_info()[0]
-                #raise
-    first = True
-    for val in result:
-        for index, (rho, x, y) in enumerate(zip(val[0], val[1], val[2])):
-            ax.plot(x, y, color=color[index])
-
-    ax.set_ylabel(yname)
-    ax.set_xlabel(xname)
-    if xlim is not None:
-        ax.set_xlim(*xlim)
-    if ylim is not None:
-        ax.set_ylim(*ylim)
-    return ax
-"""
 if __name__ == "__main__":
 
     df = pd.read_csv('test.csv', index_col=0)

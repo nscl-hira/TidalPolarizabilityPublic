@@ -8,12 +8,12 @@ import autograd.numpy as np
 import scipy.optimize as optimize
 import pandas as pd
 import scipy.optimize as opt
-
-import TidalLove.TidalLoveWrapper as wrapper
 from scipy.interpolate import UnivariateSpline
-import Utilities.Utilities as utl
-import Utilities.SkyrmeEOS as sky 
-from Utilities.Constants import *
+
+from TidalLove import TidalLoveWrapper as wrapper
+import Utilities as utl
+import SkyrmeEOS as sky 
+from Constants import *
 from BetaEquilibrium import BetaEquilibrium
 
 
