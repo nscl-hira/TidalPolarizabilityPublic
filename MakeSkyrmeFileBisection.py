@@ -71,11 +71,7 @@ def CalculateModel(name_and_eos, **kwargs):
     tidal_love.checkpoint = np.append(eos.GetAutoGradPressure(np.array(list_tran_density + [OuterCrustDensity]), 0), [SurfacePressure])
     try:
         mass, radius, lambda_, pc14, checkpoint_mass, checkpoint_radius = tidal_love.FindMass(mass=1.4)
-<<<<<<< HEAD
         _, _, _, pc2, _, _ = tidal_love.FindMass(mass=2., central_pressure0=300)
-=======
-        _, _, _, pc2, _, _ = tidal_love.FindMass(mass=2., central_pressure0=600)
->>>>>>> e5ee13b3200f8e9b69d8ef52b6b3a02d19a15fe7
     except RuntimeError as error:
         mass = np.nan
         radius = np.nan 
