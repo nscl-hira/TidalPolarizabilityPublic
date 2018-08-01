@@ -19,6 +19,7 @@ def AddPressure(df):
     pressure = []
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
+        rho0 = eos.rho0
         pressure.append({'Model':index, 
                         'P(2rho0)':eos.GetAutoGradPressure(2*rho0, 0), 
                         'P(1.5rho0)':eos.GetAutoGradPressure(1.5*rho0, 0),

@@ -262,6 +262,11 @@ class Skryme(EOS):
         self.para = para
         self.a = para['t1']*(para['x1']+2) + para['t2']*(para['x2']+2)
         self.b = 0.5*(para['t2']*(2*para['x2']+1)-para['t1']*(2*para['x1']+1))
+        if 'rho0' in para:
+            self.rho0 = para['rho0']
+        else:
+            # default value is 0.16
+            self.rho0 = 0.16
 
     def __GetH(self, n, pfrac):
         return (2**(n-1))*(pfrac**n + (1-pfrac)**n)
@@ -297,7 +302,7 @@ class Skryme(EOS):
         energy = self.GetEnergy(rho, pfrac)
         energy_density = self.GetEnergyDensity(rho, pfrac)
         pressure = self.GetAutoGradPressure(rho, pfrac)
-        data = np.vstack((sym_energy, energy, energy_density, pressure, rho, rho/rho0)).T
+        data = np.vstack((sym_energy, energy, energy_density, pressure, rho, rho/self.rho0)).T
        
         with open(filename, 'w') as file_:
             file_.write('''({dashes}
@@ -337,6 +342,7 @@ def SummarizeSkyrme(df):
     #print('Model\tE0\tK0\tK\'\tJ\tL\tKsym\tQsym\tm*')
     for index, row in df.iterrows():
         sky = Skryme(row)
+        rho0 = sky.rho0
         E0 = sky.GetEnergy(rho0, 0.5)
         K0 = sky.GetAutoGradK(rho0, 0.5)
         Kprime = -sky.GetAutoGradQ(rho0, 0.5)

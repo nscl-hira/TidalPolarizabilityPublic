@@ -37,10 +37,15 @@ class EOSDrawer:
 
     def DrawEOS(self, df=None, ax=plt.subplot(111), xname='GetEnergyDensity', yname='GetAutoGradPressure', xlim=None, ylim=None, color=['r', 'b', 'g', 'orange', 'b', 'pink'], **kwargs):
 
-        rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 100, base=np.exp(1)), np.linspace(3.77e-4, 10*rho0, 900)])
+        rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 100, base=np.exp(1)), np.linspace(3.77e-4, 1.6, 900)])
         if df is None:
             df = self.df
         for index, row in df.iterrows():
+            if 'rho0' in row:
+                rho0 = row['rho0']
+            else:
+                rho0 = 0.16
+
             eos, trans_dens = self.EOSCreator[index].GetEOSType(row['EOSType'])
             trans_dens = [10*rho0] + trans_dens + [1e-9]
             for num, (low_den, high_den) in enumerate(zip(trans_dens, trans_dens[1:])):

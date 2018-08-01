@@ -14,6 +14,7 @@ from MakeSkyrmeFileBisection import LoadSkyrmeFile
 
 def ViolateCausality(eos_name, df):
     skyrme = sky.Skryme(df.loc[eos_name])
+    rho0 = skyrme.rho0
     #skyrme.ToCSV('AllSkyrmes/%s.csv' % eos_name, np.linspace(1e-14, 3*0.16, 100), 0)
     eos_creator = EOSCreator(skyrme, **df.loc[eos_name])
     #pressure_high = df['PolyHighP'].loc[eos_name]

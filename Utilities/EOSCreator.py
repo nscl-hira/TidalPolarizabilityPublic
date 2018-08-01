@@ -25,13 +25,13 @@ def FindCrustalTransDensity(Skryme):
     Please refer to equation 17 - 24 in the paper for details
     """
     
-    return -3.75e-4*Skryme.GetL(rho0) + 0.0963 # fm-3
+    return -3.75e-4*Skryme.GetL(Skryme.rho0) + 0.0963 # fm-3
 
 
 class EOSCreator:
 
 
-    def __init__(self, Skyrme, TranDensity=0.2355e-3, SkyrmeDensity=0.3*rho0, PolyTropeDensity=3*rho0, PressureHigh=1000, PRCTransDensity=None, CrustSmooth=0.0, **kwargs):
+    def __init__(self, Skyrme, TranDensity=0.2355e-3, SkyrmeDensity=0.3*0.16, PolyTropeDensity=3*0.16, PressureHigh=1000, PRCTransDensity=None, CrustSmooth=0.0, **kwargs):
         crust = pd.read_csv('Constraints/EOSCrustOutput.dat')
         self.crustEOS = sky.EOSSpline(crust['rho(fm-3)'], energy_density=crust['E(MeV/fm3)'], smooth=CrustSmooth, pressure=crust['P(MeV/fm3)'])
  

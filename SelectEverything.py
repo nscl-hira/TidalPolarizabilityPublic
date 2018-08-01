@@ -17,7 +17,7 @@ import SelectRadius as srad
 from Utilities.Constants import *
 
 if __name__ == "__main__":
-    df = pd.read_csv('Results/Skyrme_pd_0.7.csv', index_col=0)
+    df = pd.read_csv('Results/Skyrme_EOS2Poly.csv', index_col=0)
     df.fillna(0, inplace=True)
 
     # Let's try to constrainted with Low energy points, then constraint with flow afterward

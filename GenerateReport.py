@@ -13,7 +13,7 @@ from SelectSpeedOfSound import AddCausailty
 from Utilities.Constants import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrme.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrme.csv)")
+parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrmeNew.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrme.csv)")
 parser.add_argument("-o", "--Output", default="Result", help="Name of the CSV output (Default: Result)")
 parser.add_argument("-et", "--EOSType", default="EOS", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme (Default: EOS)")
 parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Density at which Skyrme takes over from crustal EOS (Default: 0.3)")
@@ -26,6 +26,7 @@ args = parser.parse_args()
 
 df = LoadSkyrmeFile(args.Input)
 argd = vars(args)
+rho0 = 0.16
 argd['TranDensity'] = argd['TranDensity']*rho0
 argd['SkyrmeDensity'] = argd['SkyrmeDensity']*rho0
 argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
@@ -96,7 +97,7 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'EOS Causal (blue) Acausal (red)'
-drawer.DrawEOS(df_causal, ax=ax, xlim=[1e-4, 1e4], ylim=[1e-4, 1e4], color=['b']*6)
+drawer.DrawEOS(df_causal, ax=ax, xlim=[1e-4, 1e4], ylim=[1e-4, 1e4], color=['g']*6)
 drawer.DrawEOS(df_acausal, ax=ax, xlim=[1e-4, 1e4], ylim=[1e-4, 1e4], color=['r']*6)
 ax.set_xscale('log')
 ax.set_yscale('log')
@@ -112,10 +113,12 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'Lambda vs radius'
-ax.plot(df_causal['R(1.4)'], df_causal['lambda(1.4)'], 'ro', label='Causal', color='b')
+ax.plot(df_causal['R(1.4)'], df_causal['lambda(1.4)'], 'ro', label='Causal', color='g')
 ax.plot(df_acausal['R(1.4)'], df_acausal['lambda(1.4)'], 'ro', label='Acausal', color='r')
 ax.set_xlabel('Neutron Star Radius (km)')
 ax.set_ylabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
+ax.set_xlim([9, 16])
+ax.set_ylim([-25, 1500])
 plt.legend()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
@@ -127,12 +130,13 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'Pressure (2rho0) vs Lambda'
-ax.plot(df_causal['lambda(1.4)'], df_causal['P(2rho0)'], 'ro', label='Causal', color='b')
+ax.plot(df_causal['lambda(1.4)'], df_causal['P(2rho0)'], 'ro', label='Causal', color='g')
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['P(2rho0)'], 'ro', label='Acausal', color='r')
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$P(2\rho_{0})$')
-ax.set_xscale('log')
-ax.set_xlim([20, 900])
+#ax.set_xscale('log')
+ax.set_xlim([0, 1600])
+ax.set_ylim([-20, 70])
 plt.legend()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
@@ -144,12 +148,13 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'Pressure (1.5rho0) vs Lambda'
-ax.plot(df_causal['lambda(1.4)'], df_causal['P(1.5rho0)'], 'ro', label='Causal', color='b')
+ax.plot(df_causal['lambda(1.4)'], df_causal['P(1.5rho0)'], 'ro', label='Causal', color='g')
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['P(1.5rho0)'], 'ro', label='Acausal', color='r')
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$P(1.5\rho_{0})$')
-ax.set_xscale('log')
-ax.set_xlim([20, 900])
+#ax.set_xscale('log')
+ax.set_xlim([0, 1600])
+ax.set_ylim([-20, 30])
 plt.legend()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
@@ -161,12 +166,13 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'Pressure (0.67rho0) vs Lambda'
-ax.plot(df_causal['lambda(1.4)'], df_causal['P(0.67rho0)'], 'ro', label='Causal', color='b')
+ax.plot(df_causal['lambda(1.4)'], df_causal['P(0.67rho0)'], 'ro', label='Causal', color='g')
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['P(0.67rho0)'], 'ro', label='Acausal', color='r')
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$P(0.67\rho_{0})$')
-ax.set_xscale('log')
-ax.set_xlim([20, 900])
+#ax.set_xscale('log')
+ax.set_xlim([0, 1600])
+ax.set_ylim([-1.1, 3.2])
 plt.legend()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
@@ -184,10 +190,11 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'Sym Term (2rho0) vs Lambda'
-ax.plot(df_causal['lambda(1.4)'], df_causal['Sym(2rho0)'], 'ro', label='Causal', color='b')
+ax.plot(df_causal['lambda(1.4)'], df_causal['Sym(2rho0)'], 'ro', label='Causal', color='g')
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['Sym(2rho0)'], 'ro', label='Acausal', color='r')
-ax.set_xscale('log')
-ax.set_xlim([20, 900])
+#ax.set_xscale('log')
+ax.set_xlim([0, 1600])
+ax.set_ylim([-26, 120])
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$Sym(2\rho_{0})$')
 plt.legend()
@@ -201,10 +208,11 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'Sym Term (1.5rho0) vs Lambda'
-ax.plot(df_causal['lambda(1.4)'], df_causal['Sym(1.5rho0)'], 'ro', label='Causal', color='b')
+ax.plot(df_causal['lambda(1.4)'], df_causal['Sym(1.5rho0)'], 'ro', label='Causal', color='g')
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['Sym(1.5rho0)'], 'ro', label='Acausal', color='r')
-ax.set_xscale('log')
-ax.set_xlim([20, 900])
+#ax.set_xscale('log')
+ax.set_xlim([0, 1600])
+ax.set_ylim([-5, 85])
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$Sym(1.5\rho_{0})$')
 plt.legend()
@@ -218,14 +226,16 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'Sym Term (0.67rho0) vs Lambda'
-ax.plot(df_causal['lambda(1.4)'], df_causal['Sym(0.67rho0)'], 'ro', label='Causal', color='b')
+ax.plot(df_causal['lambda(1.4)'], df_causal['Sym(0.67rho0)'], 'ro', label='Causal', color='g')
 ax.plot(df_acausal['lambda(1.4)'], df_acausal['Sym(0.67rho0)'], 'ro', label='Acausal', color='r')
-ax.set_xscale('log')
-ax.set_xlim([20, 900])
+#ax.set_xscale('log')
+ax.set_xlim([0, 1600])
+ax.set_ylim([10, 40])
 ax.set_xlabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
 ax.set_ylabel(r'$Sym(0.67\rho_{0})$')
 plt.legend()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
 plt.close()
-prs.save('test.pptx')
+prs.save('Report/%s.pptx' % args.Output)
+df.to_csv('Results/%s.csv' % args.Output, index=True)

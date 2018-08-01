@@ -23,7 +23,7 @@ params = {'figure.autolayout': True,
           #'font.family': 'stixgeneral', #'serif',
           #'font.serif': 'stix',
           'font.family': 'serif',
-          'font.serif': 'CMU Typewriter Text', 
+          'font.serif': 'cmr12', #CMU Typewriter Text', 
           #'text.usetex': True,
           #'mathtext.fontset': 'cm',
           'mathtext.rm': 'serif',
@@ -53,6 +53,7 @@ params = {'figure.autolayout': True,
           'ytick.major.pad': 10,
           'figure.facecolor': 'white'}
 pylab.rcParams.update(params)
+
 
 import numpy as np
 import SkyrmeEOS as sky

@@ -34,6 +34,7 @@ def BetaEquilibrium(SkyrmeEOS):
         return nuc_pressure + ele_pressure + mu_pressure
 
     rho = np.concatenate([np.linspace(1e-5, 0.09, 100), np.linspace(0.1,10,100)])
+    rho0 = SkyrmeEOS.rho0
     min_result = [optimize.minimize(lambda frac: GetEnergy(rho_*rho0, frac[0], frac[1]), [0.5, 0.5], bounds=[(1e-14, 1), (1e-14,1)], method='SLSQP', options={'disp':False}) for rho_ in rho]
 
     energy = [min_.fun for min_ in min_result]
