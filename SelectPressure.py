@@ -25,17 +25,19 @@ def AddPressure(df):
         else:
             eos = sky.Skryme(row)
             rho0 = eos.rho0
-
         pressure.append({'Model':index, 
                         'P(3rho0)':eos.GetAutoGradPressure(3*rho0, 0),
                         'P(2rho0)':eos.GetAutoGradPressure(2*rho0, 0), 
                         'P(1.5rho0)':eos.GetAutoGradPressure(1.5*rho0, 0),
+                        'P(rho0)':eos.GetAutoGradPressure(rho0, 0),
                         'P(0.67rho0)':eos.GetAutoGradPressure(0.67*rho0, 0),
                         'P_Sym(2rho0)':eos.GetAutoGradPressure(2*rho0, 0.5), 
                         'P_Sym(1.5rho0)':eos.GetAutoGradPressure(1.5*rho0, 0.5),
+                        'P_Sym(rho0)':eos.GetAutoGradPressure(rho0, 0.5),
                         'P_Sym(0.67rho0)':eos.GetAutoGradPressure(0.67*rho0, 0.5),
                         'Sym(2rho0)':eos.GetAsymEnergy(2*rho0),
                         'Sym(1.5rho0)':eos.GetAsymEnergy(1.5*rho0),
+                        'Sym(rho0)':eos.GetAsymEnergy(rho0),
                         'Sym(0.67rho0)':eos.GetAsymEnergy(0.67*rho0)})
 
         # try to convert the result to float if it returns an array of single element

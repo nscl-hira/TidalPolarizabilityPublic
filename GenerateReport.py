@@ -33,6 +33,7 @@ argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
 
 # Calculate Polarizability to begin with
 df = CalculatePolarizability(df, **argd)
+df.to_csv('test.csv')
 df = AddPressure(df)
 df = AddCausailty(df)
 #df = LoadSkyrmeFile('test.csv')

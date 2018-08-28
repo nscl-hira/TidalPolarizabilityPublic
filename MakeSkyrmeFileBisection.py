@@ -56,10 +56,14 @@ def CalculateModel(name_and_eos, **kwargs):
         mass, radius, lambda_, pc14, checkpoint_mass, checkpoint_radius = tidal_love.FindMass(mass=1.4)
         _, _, _, pc2, _, _ = tidal_love.FindMass(mass=2., central_pressure0=300)
     except RuntimeError as error:
+        tidal_love.Close()
         raise ValueError('Failed to find 1.4/2.0 solar mass properties for this EOS')
     if mass < 1e-4 or lambda_ < 1e-4:
+        tidal_love.Close()
         raise ValueError('Mass/Lambda = 0. Calculation failed')
-    tidal_love.Close()
+    if any(np.isnan([mass, radius, lambda_, pc14])) or any(np.isnan(checkpoint_mass)) or any(np.isnan(checkpoint_radius)):
+        tidal_love.Close()
+        raise ValueError('Some of the calculated values are nan.')
 
 
     """
@@ -128,9 +132,8 @@ def CalculatePolarizability(df, Output, **kwargs):
     data = pd.DataFrame.from_dict(data)
     data.set_index('Model', inplace=True)
     data = pd.concat([df, summary, data], axis=1)
-    data = pd.concat([df, data], axis=1)    
+    #data = pd.concat([df, data], axis=1)    
     data.dropna(axis=0, how='any', inplace=True)
-    print(data)
 
     return data
 
