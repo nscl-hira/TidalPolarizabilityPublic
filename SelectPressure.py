@@ -10,6 +10,7 @@ from scipy.optimize import curve_fit
 import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
+from Utilities.EOSCreator import EOSCreator
 
 def power_law(x, a, b, c):
     return a*np.power(x, b) + c
@@ -18,9 +19,15 @@ def power_law(x, a, b, c):
 def AddPressure(df):
     pressure = []
     for index, row in df.iterrows():
-        eos = sky.Skryme(row)
-        rho0 = eos.rho0
+        if row['EOSType'] == '3Poly':
+            eos = EOSCreator(row, **row).Get3Poly()[0]
+            rho0 = 0.16
+        else:
+            eos = sky.Skryme(row)
+            rho0 = eos.rho0
+
         pressure.append({'Model':index, 
+                        'P(3rho0)':eos.GetAutoGradPressure(3*rho0, 0),
                         'P(2rho0)':eos.GetAutoGradPressure(2*rho0, 0), 
                         'P(1.5rho0)':eos.GetAutoGradPressure(1.5*rho0, 0),
                         'P(0.67rho0)':eos.GetAutoGradPressure(0.67*rho0, 0),
@@ -30,6 +37,14 @@ def AddPressure(df):
                         'Sym(2rho0)':eos.GetAsymEnergy(2*rho0),
                         'Sym(1.5rho0)':eos.GetAsymEnergy(1.5*rho0),
                         'Sym(0.67rho0)':eos.GetAsymEnergy(0.67*rho0)})
+
+        # try to convert the result to float if it returns an array of single element
+        for key, val in pressure[-1].iteritems():
+            try:
+                val = np.asscalar(val)
+                pressure[-1][key] = val
+            except AttributeError:
+                continue
     data = pd.DataFrame.from_dict(pressure)
     data.set_index('Model', inplace=True)
     return pd.concat([df, data], axis=1)

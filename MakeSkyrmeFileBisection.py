@@ -23,7 +23,7 @@ from Utilities.EOSCreator import EOSCreator
 from SelectPressure import AddPressure
 
 OuterCrustDensity = 0.3e-3
-SurfacePressure = 1e-10
+SurfacePressure = 1e-8
 
 def LoadSkyrmeFile(filename):
     df = pd.read_csv(filename, index_col=0)
@@ -36,50 +36,35 @@ def CalculateModel(name_and_eos, **kwargs):
     name = name_and_eos[0]    
     EOSType = kwargs['EOSType']
     max_mass = kwargs['MaxMassRequested']
-
     eos_creator = EOSCreator(name_and_eos[1], **kwargs)
-    """
-    Depending on the type of EOS, different calculation is performed
-    if EOSType == EOS, it will calculate pressure at 7rho0 such that max mass = 2
-    and the corresponding central pressure
 
-    For all other EOS, it will just calculate max mass and 1.4 Neutron star
-    """
 
     """
     Prepare EOS
     """
-    pressure_high = 500.
-    pc_max = [0]
-    if(EOSType == "EOS"):
-        try:
-            pressure_high, pc_max = eos_creator.PrepareEOS(EOSType, max_mass=max_mass)
-        except ValueError:
-            raise TimeoutError('abuse of timeout error')
-    try:
-        eos, list_tran_density = eos_creator.GetEOSType(EOSType)
-    except ValueError:
-        raise TimeoutError('abuse of timeout error')
+    additional_para = eos_creator.PrepareEOS(EOSType, max_mass=max_mass)
+    eos, list_tran_density = eos_creator.GetEOSType(EOSType)
 
+
+    """
+    1.4 solar mass and 2.0 solar mass calculation
+    """
     tidal_love = wrapper.TidalLoveWrapper(eos)
-    if(EOSType != "EOS"):
-        max_mass, pc_max = tidal_love.FindMaxMass()
-
-    """
-    1.4 solar mass calculation
-    """
+    max_mass, pc_max = tidal_love.FindMaxMass()
     tidal_love.checkpoint = np.append(eos.GetAutoGradPressure(np.array(list_tran_density + [OuterCrustDensity]), 0), [SurfacePressure])
     try:
         mass, radius, lambda_, pc14, checkpoint_mass, checkpoint_radius = tidal_love.FindMass(mass=1.4)
         _, _, _, pc2, _, _ = tidal_love.FindMass(mass=2., central_pressure0=300)
     except RuntimeError as error:
-        mass = np.nan
-        radius = np.nan 
-        lambda_ = np.nan
-        pc14 = np.nan
-    if np.isnan(mass) or np.isnan(lambda_) or mass < 1e-4 or lambda_ < 1e-4:
-        raise TimeoutError('abuse of timeout error')
+        raise ValueError('Failed to find 1.4/2.0 solar mass properties for this EOS')
+    if mass < 1e-4 or lambda_ < 1e-4:
+        raise ValueError('Mass/Lambda = 0. Calculation failed')
     tidal_love.Close()
+
+
+    """
+    Write results to dict and return
+    """
     result = {'Model':name, 
               'R(1.4)':radius, 
               'lambda(1.4)':lambda_, 
@@ -87,14 +72,11 @@ def CalculateModel(name_and_eos, **kwargs):
               'PCentral2MOdot': pc2, 
               'PCentralMaxMass':pc_max, 
               'MaxMass': max_mass} 
-
-    if EOSType == "EOS" or EOSType == "EOS2Poly":
-        result['PolyHighP'] = pressure_high
-        result['SDToRTDRadius'] = checkpoint_radius[-3] - checkpoint_radius[-4]
-        result['RTDToRadius'] = radius - checkpoint_radius[-3]
-        result['OutCrustRad'] = radius - checkpoint_radius[-2]
-    
+    for index, radius in enumerate(checkpoint_radius):
+        result['RadiusCheckpoint%d' % index] = radius
     for key, val in kwargs.iteritems():
+        result[key] = val
+    for key, val in additional_para.iteritems():
         result[key] = val
 
     return result
@@ -105,14 +87,17 @@ def CalculatePolarizability(df, Output, **kwargs):
     summary = sky.SummarizeSkyrme(df)
     EOSType = kwargs['EOSType']
 
+    """
+    Tells ConsolePrinter which quantities to be printed in real time
+    """
     title = ['Model', 'R(1.4)', 'lambda(1.4)', 'PCentral']
-    if EOSType == 'EOS' or EOSType == 'EOS2Poly': 
-        title = title + ['SDToRTDRadius', 'RTDToRadius', 'OutCrustRad']
     printer = cp.ConsolePrinter(title)
     
     
-    name_list = [(index, sky.Skryme(row)) for index, row in df.iterrows()]
-
+    """
+    Create multiple pools for parallel computation
+    """
+    name_list = [(index, row) for index, row in df.iterrows()]
     result = []
     with ProcessPool() as pool:
         future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=60)
@@ -124,21 +109,28 @@ def CalculatePolarizability(df, Output, **kwargs):
                 printer.PrintContent(new_result)
             except StopIteration:
                 break
+            except ValueError:
+                pass
             except TimeoutError as error:
                 pass
-                #print("function took longer than %d seconds" % error.1])
             except ProcessExpired as error:
                 print("%s. Exit code: %d" % (error, error.exitcode))
             except Exception as error:
                 print("function raised %s" % error)
                 print(error.traceback)  # Python's traceback of remote process
+
             sys.stdout.flush()
 
+    """
+    Merge calculation data with Skyrme loaded data
+    """
     data = [val for val in result]
     data = pd.DataFrame.from_dict(data)
     data.set_index('Model', inplace=True)
     data = pd.concat([df, summary, data], axis=1)
+    data = pd.concat([df, data], axis=1)    
     data.dropna(axis=0, how='any', inplace=True)
+    print(data)
 
     return data
 

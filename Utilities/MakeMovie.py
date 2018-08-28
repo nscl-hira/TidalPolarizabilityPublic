@@ -12,23 +12,24 @@ import Utilities as utl
 import SkyrmeEOS as sky 
 from Constants import *
 
-def CreateGif(df_list, output_filename, func='GetAsymEnergy', ymin=0, ymax=100, color=['r', 'b']):
+def CreateGif(df_list, output_filename, densitylist, func='GetAsymEnergy', ymin=0, ymax=100, color=['r', 'b']):
     # plot with different densities
     if func == 'GetAsymEnergy':
         ytitle = 'Sym'
     else:
         ytitle = 'P'
-
+    rho0 = 0.16
     image_name = []
-    for density in np.linspace(0.1, 2.5, 100).tolist():
+    for density in densitylist:#np.linspace(0.1, 2.5, 100).tolist():
         fig, ax = plt.subplots(1, 1)
         pressure = []
         polarizability = []
         for num, df in enumerate(df_list):
             for index, row in df.iterrows():
-                eos = sky.Skryme(row)
-                pressure.append(getattr(eos, func)(density*rho0, 0))
-                polarizability.append(row['lambda(1.4)'])
+                if not row['ViolateCausality']:
+                    eos = sky.Skryme(row)
+                    pressure.append(getattr(eos, func)(density*rho0, 0))
+                    polarizability.append(row['lambda(1.4)'])
             ax.plot(polarizability, pressure, 'ro', marker='o', markerfacecolor='w', color=color[num])
         ax.set_ylim([1e-2,3000])
         #ax.set_yscale('log')
@@ -47,12 +48,16 @@ def CreateGif(df_list, output_filename, func='GetAsymEnergy', ymin=0, ymax=100, 
     images = []
     for filename in image_name:
         images.append(imageio.imread(filename))
-    imageio.mimsave(output_filename, images)
+    imageio.mimsave(output_filename, images, loop=1)
 
 if __name__ == "__main__":
-    df = pd.read_csv('Results/Skyrme_pd_0.7.csv', index_col=0)
+    df = pd.read_csv('Results/Newest.csv', index_col=0)
     df.fillna(0, inplace=True)
 
-    CreateGif([df], 'Sym.gif')
-    CreateGif([df], 'Pressure.gif', 'GetAutoGradPressure', 0, 50)
+    CreateGif([df], 'Sym_0_1.5.gif', np.linspace(0.1, 1.5, 50).tolist())
+    CreateGif([df], 'Pressure_0_1.5.gif', np.linspace(0.1, 1.5, 50).tolist(), 'GetAutoGradPressure', 0, 50)
+
+    CreateGif([df], 'Sym_1.5_2.5.gif', np.linspace(1.5, 2.5, 50).tolist())
+    CreateGif([df], 'Pressure_1.5_2.5.gif', np.linspace(1.5, 2.5, 50).tolist(), 'GetAutoGradPressure', 0, 50)
+
 

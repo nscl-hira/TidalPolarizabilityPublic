@@ -13,13 +13,13 @@ from SelectSpeedOfSound import AddCausailty
 from Utilities.Constants import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrmeNew.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrme.csv)")
+parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrmeNew.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrmeNew.csv)")
 parser.add_argument("-o", "--Output", default="Result", help="Name of the CSV output (Default: Result)")
 parser.add_argument("-et", "--EOSType", default="EOS", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme (Default: EOS)")
 parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Density at which Skyrme takes over from crustal EOS (Default: 0.3)")
 parser.add_argument("-pp", "--PolyTropeDensity", type=float, default=3, help="Density at which Skyrme EOS ends. (Default: 3)")
 parser.add_argument("-td", "--TranDensity", type=float, default=0.001472, help="Density at which Crustal EOS ends (Default: 0.001472)")
-parser.add_argument("-pd", "--PRCTransDensity", type=float, default=None, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
+parser.add_argument("-pd", "--PRCTransDensity", type=float, default=-1, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
 parser.add_argument("-cs", "--CrustSmooth", type=float, default=0, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
 parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
 args = parser.parse_args()
@@ -71,6 +71,7 @@ drawer.DrawEOS(ax=ax, xname='rho', yname='GetAutoGradPressure', xlim=[1e-8, 10*0
 ax.set_yscale('log')
 ax.set_xlabel(r'$\rho\ fm^{-3}$')
 ax.set_ylabel(r'$Pressure\ (MeV\ fm^{-3})$')
+#plt.show()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
 plt.close()

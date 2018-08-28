@@ -340,6 +340,13 @@ def SummarizeSkyrme(df):
     """
     summary_list = []
     #print('Model\tE0\tK0\tK\'\tJ\tL\tKsym\tQsym\tm*')
+
+    """
+    Check if it is skyrme first, if not then it will return an empty dataframe
+    """
+    if 'to' not in df.iloc[0]:
+        return pd.DataFrame()
+
     for index, row in df.iterrows():
         sky = Skryme(row)
         rho0 = sky.rho0

@@ -13,14 +13,14 @@ from Utilities.EOSCreator import EOSCreator
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
 
 def ViolateCausality(eos_name, df):
-    skyrme = sky.Skryme(df.loc[eos_name])
-    rho0 = skyrme.rho0
+    #skyrme = sky.Skryme(df.loc[eos_name])
+    rho0 = 0.16#skyrme.rho0
     #skyrme.ToCSV('AllSkyrmes/%s.csv' % eos_name, np.linspace(1e-14, 3*0.16, 100), 0)
-    eos_creator = EOSCreator(skyrme, **df.loc[eos_name])
+    eos_creator = EOSCreator(df.loc[eos_name], **df.loc[eos_name])
     #pressure_high = df['PolyHighP'].loc[eos_name]
     #eos_creator.PressureHigh = pressure_high
     try:
-        eos, _ = eos_creator.GetEOSType("EOS2Poly")
+        eos, _ = eos_creator.GetEOSType(df['EOSType'].iloc[0])
     except ValueError:
         print('%s | Cannot form EOS' % eos_name)
         return eos_name, True
@@ -61,8 +61,9 @@ def AddCausailty(df):
                 result.append(next(iterator))
             except StopIteration:
                 break
-            except:
-                print sys.exc_info()[0]
+            except Exception as error:
+                print("function raised %s" % error)
+                print(error.traceback)  # Python's traceback of remote process
                 #raise
     
     data = [{'Model': val[0], 'ViolateCausality': val[1]} for val in result]

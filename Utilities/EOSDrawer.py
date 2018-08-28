@@ -20,9 +20,9 @@ class Test:
 def GetEOSCreator(name_and_row):
     name = name_and_row[0]
     row = name_and_row[1]
-    eos = sky.Skryme(row)
-    creator = EOSCreator(eos, **row) 
-    test = Test(eos)
+    #eos = sky.Skryme(row)
+    creator = EOSCreator(row, **row) 
+    #test = Test(eos)
     print('finished %s' % name)
     return name, creator
 
