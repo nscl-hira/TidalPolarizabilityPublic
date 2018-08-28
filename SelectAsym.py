@@ -29,25 +29,29 @@ def SelectLowDensity(constraint_filename, df):
     constraints = pd.read_csv(constraint_filename)
     num_constraints = constraints.shape[0]
 
-    delete_model = []
+    AdditionalColumn = []
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
-        asym = eos.GetAsymEnergy(constraints['rho']*rho0)
+        asym = eos.GetAsymEnergy(constraints['rho']*eos.rho0)
         chi_square = chisqr(asym, constraints['S'], constraints['S_Error'])
         # only accept models with chisqr per deg. freedom < 3
         if chi_square/float(num_constraints) > 2:
-            delete_model.append(index)
+            AdditionalColumn.append({'Model': index, 'AgreeLowDensity':False})
+        else:
+            AdditionalColumn.append({'Model': index, 'AgreeLowDensity':True})
         #else:
         #    eos.ToCSV('AllSkyrmes/LowDensityConstrainted/%s.csv' % index, np.linspace(1e-14, 3*0.16, 100), 0)
-
-    return df.drop(delete_model), constraints
+    new_column = pd.DataFrame(AdditionalColumn)
+    new_column.set_index('Model', inplace=True)
+    return pd.concat([df, new_column], axis=1), constraints
     
 
 if __name__ == "__main__":
-    df = pd.read_csv('Results/Skyrme_EOS2Poly_FarroohAll.csv', index_col=0)
+    df = pd.read_csv('Results/Newest.csv', index_col=0)
     df.fillna(0, inplace=True)
  
     constrainted_df, constraints = SelectLowDensity('Constraints/LowEnergySym.csv', df)
+    constrainted_df = constrainted_df[constrainted_df['AgreeLowDensity'] == True]
     # save result to a file first
     constrainted_df.to_csv('SkyrmeParameters/SkyrmeConstraintedLowDensity.csv', sep=',')
 

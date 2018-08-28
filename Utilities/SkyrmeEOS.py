@@ -263,7 +263,7 @@ class Skryme(EOS):
         self.a = para['t1']*(para['x1']+2) + para['t2']*(para['x2']+2)
         self.b = 0.5*(para['t2']*(2*para['x2']+1)-para['t1']*(2*para['x1']+1))
         if 'rho0' in para:
-            self.rho0 = para['rho0'].values
+            self.rho0 = para['rho0']
         else:
             # default value is 0.16
             self.rho0 = 0.16

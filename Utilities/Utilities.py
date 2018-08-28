@@ -64,7 +64,7 @@ def GetContour(df, rho_min, rho_max):
     value = []
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
-        value.append(eos.GetEnergy(n*rho0, 0.))
+        value.append(eos.GetEnergy(n*eos.rho0, 0.))
     value = np.array(value)
     contour = np.concatenate([np.amax(value, axis=0), np.amin(value, axis=0)[::-1]]).flatten()
     values = np.array([n, n[::-1]]).flatten()
@@ -82,7 +82,7 @@ def PlotSkyrmeSymEnergy(df, ax, range_=[0,3], pfrac=0, label=None, **args):
         if not first:
             label = None
         first = False
-        ax.plot(n, eos.GetAsymEnergy(n*rho0), label=label, zorder=-32, **args)
+        ax.plot(n, eos.GetAsymEnergy(n*eos.rho0), label=label, zorder=-32, **args)
         
     ax.set_ylabel(r'$S(\rho) (MeV)}$')
     ax.set_xlabel(r'$Density\ \rho/\rho_{0}$')
@@ -93,7 +93,7 @@ def PlotSkyrmeEnergy(df, ax, range_=[0,3], pfrac=0, label=None, **args):
     first = True
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
-        energy = eos.GetEnergy(n*rho0, pfrac) - mn
+        energy = eos.GetEnergy(n*eos.rho0, pfrac) - mn
         if not first:
             label = None
         first = False
@@ -107,7 +107,7 @@ def PlotSkyrmePressure(df, ax, range_=[0,3], pfrac=0, label=None, **args):
     first = True
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
-        pressure = eos.GetAutoGradPressure(n*rho0, pfrac)
+        pressure = eos.GetAutoGradPressure(n*eos.rho0, pfrac)
         if not first:
             label = None
         first = False
@@ -165,7 +165,8 @@ def PlotLambdaRadius(mass, radius, lambda_, ax, **args):
     return ax
     
 def PlotMaster(df, constrainted_df_list, labels, color_list=('royalblue', 'g', 'orange'), pfrac=0):
-    ax1 = plt.subplot(121)
+    fig = plt.figure(figsize=(18,11))
+    ax1 = fig.add_subplot(121)
     
 
     # also plot all for comparison for symmetry term
@@ -190,7 +191,7 @@ def PlotMaster(df, constrainted_df_list, labels, color_list=('royalblue', 'g', '
     ax1.set_yticks(major_ticks)
     ax1.set_yticks(minor_ticks, minor=True)
     
-    ax2 = plt.subplot(122)
+    ax2 = fig.add_subplot(122)
     # plot background as comparison
     ax2 = PlotSkyrmePressure(df, ax2, pfrac=pfrac, color='lawngreen', range_=[1e-1,5])
     color = itertools.cycle(color_list)
