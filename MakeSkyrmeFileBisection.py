@@ -45,13 +45,29 @@ def CalculateModel(name_and_eos, **kwargs):
     additional_para = eos_creator.PrepareEOS(EOSType, max_mass=max_mass)
     eos, list_tran_density = eos_creator.GetEOSType(EOSType)
 
+    # insert surface density
+    list_tran_density.append(OuterCrustDensity)
+
+    """
+    Bill asked for what happens at rho0 and 2rho0
+    """
+    rho0 = 0.16
+    list_tran_density.append(rho0)
+    list_tran_density.append(2.*rho0)
+
+    """
+    list of transition density must be in desending order...
+    Need to sort it
+    """
+    list_tran_density.sort(reverse=True)
+
 
     """
     1.4 solar mass and 2.0 solar mass calculation
     """
-    tidal_love = wrapper.TidalLoveWrapper(eos)
+    tidal_love = wrapper.TidalLoveWrapper(eos, 'EOS_%s' % name)
     max_mass, pc_max = tidal_love.FindMaxMass()
-    tidal_love.checkpoint = np.append(eos.GetAutoGradPressure(np.array(list_tran_density + [OuterCrustDensity]), 0), [SurfacePressure])
+    tidal_love.checkpoint = np.append(eos.GetAutoGradPressure(np.array(list_tran_density), 0), [SurfacePressure])
     try:
         mass, radius, lambda_, pc14, checkpoint_mass, checkpoint_radius = tidal_love.FindMass(mass=1.4)
         _, _, _, pc2, _, _ = tidal_love.FindMass(mass=2., central_pressure0=300)
@@ -76,8 +92,9 @@ def CalculateModel(name_and_eos, **kwargs):
               'PCentral2MOdot': pc2, 
               'PCentralMaxMass':pc_max, 
               'MaxMass': max_mass} 
-    for index, radius in enumerate(checkpoint_radius):
+    for den, (index, radius) in zip(list_tran_density, enumerate(checkpoint_radius)):
         result['RadiusCheckpoint%d' % index] = radius
+        result['DensityCheckpoint%d' % index] = den
     for key, val in kwargs.iteritems():
         result[key] = val
     for key, val in additional_para.iteritems():
@@ -113,7 +130,7 @@ def CalculatePolarizability(df, Output, **kwargs):
                 printer.PrintContent(new_result)
             except StopIteration:
                 break
-            except ValueError:
+            except ValueError as e:
                 pass
             except TimeoutError as error:
                 pass
