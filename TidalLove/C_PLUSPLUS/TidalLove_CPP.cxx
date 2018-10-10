@@ -44,14 +44,13 @@ SEOS EOSFromFile(const std::string& t_filename)
             std::cerr << " Cannot read line " << line << "\n";
             continue;
         }
-	if(!first_line)
+    if(!first_line)
         {
-            // make sure that pressure is increasing 
-	    if(pres*MEVFM3/TOPA > pressure.back())
-	    {
-            	energy_density.push_back(edensity*MEVFM3/TOJM3);
-            	pressure.push_back(pres*MEVFM3/TOPA);
-	    }
+        if(pres*MEVFM3/TOPA > pressure.back())
+        {
+                energy_density.push_back(edensity*MEVFM3/TOJM3);
+                pressure.push_back(pres*MEVFM3/TOPA);
+        }
         }
         else
         {
@@ -163,13 +162,13 @@ public:
         if(P < 1e-15)
             throw std::invalid_argument("Pressure is now negative");
 
-        if(P < checkpoint_pressure_[checkpoint_index] && 
-           checkpoint_index < checkpoint_pressure_.size())
-        {
-            mass_.push_back(state[1]);
-            radius_.push_back(R);
-            ++checkpoint_index;
-        }
+        if(checkpoint_index < checkpoint_pressure_.size())
+            if(P < checkpoint_pressure_[checkpoint_index])
+            {
+                mass_.push_back(state[1]);
+                radius_.push_back(R);
+                ++checkpoint_index;
+            }
     }
 
 private:
@@ -179,6 +178,30 @@ private:
     std::vector<double>& radius_;
     double& R;
     bool verbose_;
+};
+
+struct CheckpointSaveAll
+{
+public:
+    CheckpointSaveAll(std::vector<double>& t_mass, std::vector<double>& t_radius, std::vector<double>& t_pressure) :
+        mass_(t_mass), radius_(t_radius), pressure_(t_pressure){};
+
+    void operator()(const state_type &state, double r)
+    {
+        double P = state[0]/MEVFM3*TOPA;
+        double R = r*TOKM;
+
+        mass_.push_back(state[1]);
+        pressure_.push_back(P);
+        radius_.push_back(R);
+
+        if(P < 1e-10)
+            throw std::invalid_argument("Pressure is now negative");
+    }
+private:
+    std::vector<double>& mass_;
+    std::vector<double>& radius_;
+    std::vector<double>& pressure_;
 };
 
 typedef std::vector<double> list;
@@ -218,55 +241,92 @@ np::ndarray wrap_to_ndarray(const list& t_list)
 
 std::tuple<double, double, double, list, list> TidalLove_individual(const std::string& t_EOS_filename,
                                                                     double t_pc,
-                                                                    int t_num_checkpoint, // number of checkpoints. Actually not needed but I need to keep it consistance with fortran
-                                                                    std::vector<double> t_checkpoints)
+                                                                    std::vector<double> t_checkpoints,
+                                                                    double t_abs_err = 1.0e-5,
+                                                                    double t_rel_err = 1.0e-5,
+                                                                    double t_init_step = 1.0e-6)
 {
-	/*
-	Input: filename of the EOS, central pressure, number of checkpoints pressure, the checkpoint array
-	Return: mass, radius, lambda, mass in checkpoins and radius in checkpoints
-	*/
+    /*
+    Input: filename of the EOS, central pressure, number of checkpoints pressure, the checkpoint array
+    Return: mass, radius, lambda, mass in checkpoins and radius in checkpoints
+    */
 
-	state_type state{t_pc*MEVFM3/TOPA, 0, 2}; // initial y is always 2
-	auto eos = EOSFromFile(t_EOS_filename);
-        TOV_eq<SEOS> tov(eos);
+    state_type state{t_pc*MEVFM3/TOPA, 0, 2}; // initial y is always 2
+    auto eos = EOSFromFile(t_EOS_filename);
+    TOV_eq<SEOS> tov(eos);
 
-	list mass, radius;
-        double R;
-	CheckpointState observer(t_checkpoints, mass, radius, R, true);
+    list mass, radius;
+    double R;
+    CheckpointState observer(t_checkpoints, mass, radius, R);
 
-	try
-        {
-            using namespace boost::numeric::odeint;
-            integrate_adaptive( make_controlled<error_stepper_type>( 1.0e-10 , 1.0e-7 ) , 
-                                tov , 
-                                state , 
-                                1e-5 ,    // initial radius (cannot be 0 as it is singular there 
-                                200.0 ,   // final radius (anything that is ridicuously large will work. This will break when surface is reached
-                                0.00001,  // initial step size (for reference only. It will be adaptively changed
-                                observer );
-        }
-        catch( const std::invalid_argument& e)
-        {}
+    try
+    {
+        using namespace boost::numeric::odeint;
+        integrate_adaptive( make_controlled<error_stepper_type>( t_abs_err , t_rel_err ) , 
+                            tov , 
+                            state , 
+                            1e-5 ,    // initial radius (cannot be 0 as it is singular there 
+                            200.0 ,   // final radius (anything that is ridicuously large will work. This will break when surface is reached
+                            t_init_step,  // initial step size (for reference only. It will be adaptively changed
+                            observer );
+    }
+    catch( const std::invalid_argument& e)
+    {}
 
 
-        double r = R/TOKM;
-        double k2 = tov.GetK2(state, r);
-        double lambda = 2*k2*pow(r*TOKM*1e3, 5)/(3*G);
-        double dimlambda = lambda/pow(G, 4)/pow(state[1]*MODOT, 5)*pow(C, 10);
+    double r = R/TOKM;
+    double k2 = tov.GetK2(state, r);
+    double lambda = 2*k2*pow(r*TOKM*1e3, 5)/(3*G);
+    double dimlambda = lambda/pow(G, 4)/pow(state[1]*MODOT, 5)*pow(C, 10);
 
-	return std::make_tuple(state[1], R, dimlambda, mass, radius);
+    return std::make_tuple(state[1], R, dimlambda, mass, radius);
 }
 
+std::tuple<list, list, list> TidalLove_analysis(const std::string& t_EOS_filename,
+                                                double t_pc)
+{
+    state_type state{t_pc*MEVFM3/TOPA, 0, 2}; // initial y is always 2
+    auto eos = EOSFromFile(t_EOS_filename);
+    TOV_eq<SEOS> tov(eos);
 
+    list mass, radius, pressure;
+    CheckpointSaveAll observer(mass, radius, pressure);
+    try
+    {
+        using namespace boost::numeric::odeint;
+        integrate_adaptive( make_controlled<error_stepper_type>( 1.0e-10 , 1.0e-7 ) , 
+                            tov , 
+                            state , 
+                            1e-5 ,    // initial radius (cannot be 0 as it is singular there 
+                            200.0 ,   // final radius (anything that is ridicuously large will work. This will break when surface is reached
+                            0.00001,  // initial step size (for reference only. It will be adaptively changed
+                            observer );
+    }
+    catch( const std::invalid_argument& e)
+    {}
+
+    return std::make_tuple(mass, radius, pressure);
+}
+
+p::tuple wrap_TidalLove_analysis(const std::string& t_EOS_filename, double t_pc)
+{
+    auto result = TidalLove_analysis(t_EOS_filename, t_pc);
+    auto mass = std::get<0>(result);
+    auto radius = std::get<1>(result);
+    auto pressure = std::get<2>(result);
+    return p::make_tuple(wrap_to_ndarray(mass), wrap_to_ndarray(radius), wrap_to_ndarray(pressure));
+}
 
 p::tuple wrap_TidalLove_individual(const std::string& t_EOS_filename,
                                    double t_pc, 
-                                   int t_num_checkpoint,
-                                   np::ndarray const & array)
+                                   np::ndarray const & array,
+                                   double t_abs_err = 1.0e-5,
+                                   double t_rel_err = 1.0e-5,
+                                   double t_init_step = 1.0e-5)
 {
     
     auto checkpoint = wrap_from_ndarray(array);
-    auto result = TidalLove_individual(t_EOS_filename, t_pc, t_num_checkpoint, checkpoint);
+    auto result = TidalLove_individual(t_EOS_filename, t_pc, checkpoint, t_abs_err, t_rel_err, t_init_step);
     
     // convert mass and radius into python array
     auto M = std::get<0>(result);
@@ -278,10 +338,13 @@ p::tuple wrap_TidalLove_individual(const std::string& t_EOS_filename,
     return p::make_tuple(M, R, dimlambda, wrap_to_ndarray(mass), wrap_to_ndarray(radius));
 }
  
-BOOST_PYTHON_MODULE(TidalLove)
+BOOST_PYTHON_FUNCTION_OVERLOADS(wrap_TidalLove_individual_overloads, wrap_TidalLove_individual, 3, 6)
+
+BOOST_PYTHON_MODULE(TidalLove_CPP)
 {
     np::initialize(); // have to put this in any module that uses Boost.NumPy
-    p::def("TidalLove_individual", wrap_TidalLove_individual);
+    p::def("tidallove_individual", wrap_TidalLove_individual, wrap_TidalLove_individual_overloads());
+    p::def("tidallove_analysis", wrap_TidalLove_analysis);
 }                                         
 
 /*int main(int argv, char** argc)

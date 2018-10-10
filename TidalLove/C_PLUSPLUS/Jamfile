@@ -1,0 +1,32 @@
+# Copyright Stefan Seefeld 2016.
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
+
+import python ;
+
+# Adjust the following if Boost.Python isn't installed in a default location
+lib boost_numpy27
+  :
+  : <search>/projects/hira/tsangc/boost/lib/
+    <include>/projects/hira/tsangc/boost/include
+    ;
+
+project numpy
+  : requirements
+    <include>/projects/hira/tsangc/boost/include/
+    <library>boost_numpy27
+    <location>.
+    <optimization>speed 
+    <inlining>full 
+    ;
+
+exe simple : simple.cpp boost_numpy27 /python//python ;
+exe dtype : dtype.cpp boost_numpy27 /python//python ;
+exe ndarray : ndarray.cpp /python//python ;
+exe fromdata : fromdata.cpp /python//python ;
+exe ufunc : ufunc.cpp /python//python ;
+exe wrap : wrap.cpp /python//python ;
+python-extension TidalLove_CPP : TidalLove_CPP.cxx ;
+
+python-extension gaussian : gaussian.cpp ;

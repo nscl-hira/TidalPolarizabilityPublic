@@ -32,7 +32,11 @@ class EOSCreator:
 
 
     def __init__(self, row, **kwargs):#TranDensity=0.2355e-3, SkyrmeDensity=0.3*0.16, PolyTropeDensity=3*0.16, PressureHigh=1000, PRCTransDensity=None, CrustSmooth=0.0, **kwargs):
-        crust = pd.read_csv('Constraints/EOSCrustOutput.dat')
+        if 'CrustFileName' in kwargs:
+            crust_file_name = kwargs['CrustFileName']
+        else:
+            crust_file_name = 'Constraints/EOSCrustOutput.dat'
+        crust = pd.read_csv(crust_file_name)#'Constraints/EOSCrustOutput.dat')
         self.crustEOS = sky.EOSSpline(crust['rho(fm-3)'], energy_density=crust['E(MeV/fm3)'], smooth=kwargs['CrustSmooth'], pressure=crust['P(MeV/fm3)'])
         self.kwargs = kwargs
         self.row = row
@@ -160,7 +164,7 @@ class EOSCreator:
         poly2 = sky.ConstSpeed(self.SoundHighDensity,
                                poly1.GetEnergy(self.SoundHighDensity, 0),
                                poly1.GetAutoGradPressure(self.SoundHighDensity, 0),
-                               speed_of_sound=0.95)
+                               speed_of_sound=0.8)
 
         # ONLY PSEUDOEOS TAKES ENERGY DENSITY! ALL OTHER EOS USES ENERGY
         pseudo = sky.PseudoEOS(TranDensity, 
@@ -184,7 +188,7 @@ class EOSCreator:
     I can do this with EOS because the upper limit of polytrope is a free parameter
     """
     def PrepareEOS(self, Type='EOS', max_mass=2):
-        if Type == 'EOS' or Type == '3Poly':
+        if Type == 'EOS':# or Type == '3Poly':
             pc_max = [0]
             def FixMaxMass(pressure):
                 self.PressureHigh = pressure
@@ -212,11 +216,11 @@ class EOSCreator:
                                   1, 1, gamma=14)
             # find where speed of sound = 95% c
             try:
-                self.SoundHighDensity = opt.newton(lambda x: poly1.GetSpeedOfSound(x, 0) - 0.95*0.95, x0=PolyTropeDensity)   
+                self.SoundHighDensity = opt.newton(lambda x: poly1.GetSpeedOfSound(x, 0) - 0.8*0.8, x0=PolyTropeDensity)   
                 if self.SoundHighDensity < PolyTropeDensity:
                     self.SoundHighDensity = PolyTropeDensity
             except RuntimeError:
-                raise ValueError('Cannot find density corresponds to 0.95c. This can be an indication that the starting energy/pressure is negative')
+                raise ValueError('Cannot find density corresponds to 0.8c. This can be an indication that the starting energy/pressure is negative')
             return {'SoundHighDensity': self.SoundHighDensity}
 
         else:

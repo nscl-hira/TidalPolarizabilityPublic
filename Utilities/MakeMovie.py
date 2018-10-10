@@ -26,10 +26,9 @@ def CreateGif(df_list, output_filename, densitylist, func='GetAsymEnergy', ymin=
         polarizability = []
         for num, df in enumerate(df_list):
             for index, row in df.iterrows():
-                if not row['ViolateCausality']:
-                    eos = sky.Skryme(row)
-                    pressure.append(getattr(eos, func)(density*rho0, 0))
-                    polarizability.append(row['lambda(1.4)'])
+                eos = sky.Skryme(row)
+                pressure.append(getattr(eos, func)(density*rho0, 0))
+                polarizability.append(row['lambda(1.4)'])
             ax.plot(polarizability, pressure, 'ro', marker='o', markerfacecolor='w', color=color[num])
         ax.set_ylim([1e-2,3000])
         #ax.set_yscale('log')

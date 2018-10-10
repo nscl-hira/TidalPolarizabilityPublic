@@ -52,6 +52,8 @@ class EOSDrawer:
                 rho = np.linspace(low_den, high_den, 100)
                 if xname == 'rho':
                     x = rho
+                elif xname == 'rho/rho0':
+                    x = rho/rho0
                 else:
                     x = getattr(eos, xname)(rho, 0)
                 if yname == 'rho':

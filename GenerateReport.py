@@ -1,4 +1,5 @@
 #!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
+import numpy as np
 import argparse
 from pptx import Presentation
 from pptx.util import Inches
@@ -12,6 +13,7 @@ from SelectPressure import AddPressure
 from SelectAsym import SelectLowDensity
 from SelectSpeedOfSound import AddCausailty
 from Utilities.Constants import *
+from Utilities.SkyrmeEOS import Skryme
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrmeNew.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrmeNew.csv)")
@@ -23,9 +25,10 @@ parser.add_argument("-td", "--TranDensity", type=float, default=0.001472, help="
 parser.add_argument("-pd", "--PRCTransDensity", type=float, default=-1, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
 parser.add_argument("-cs", "--CrustSmooth", type=float, default=0, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
 parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
+parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
 args = parser.parse_args()
 
-df = LoadSkyrmeFile(args.Input)
+df_orig = LoadSkyrmeFile(args.Input)
 argd = vars(args)
 rho0 = 0.16
 argd['TranDensity'] = argd['TranDensity']*rho0
@@ -33,7 +36,7 @@ argd['SkyrmeDensity'] = argd['SkyrmeDensity']*rho0
 argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
 
 # Calculate Polarizability to begin with
-df = CalculatePolarizability(df, **argd)
+df = CalculatePolarizability(df_orig, **argd)
 df.to_csv('test.csv')
 df = AddPressure(df)
 df = AddCausailty(df)
@@ -70,9 +73,32 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'EOS Pressure vs rho' 
-drawer.DrawEOS(ax=ax, xname='rho', yname='GetAutoGradPressure', xlim=[1e-8, 10*0.16], ylim=[1e-4, 1e4])
+drawer.DrawEOS(ax=ax, xname='rho/rho0', yname='GetAutoGradPressure', xlim=[1e-8, 6], ylim=[1e-4, 1e4])
 ax.set_yscale('log')
-ax.set_xlabel(r'$\rho\ fm^{-3}$')
+ax.set_xlabel(r'$\rho/\rho_{0}$')
+ax.set_ylabel(r'$Pressure\ (MeV\ fm^{-3})$')
+#plt.show()
+plt.savefig(figname)
+slide.shapes.add_picture(figname, left, top, height=height, width=width)
+plt.close()
+
+figname = 'Report/RejectedEOS.png'
+ax = plt.subplot(111)
+title_only_slide_layout = prs.slide_layouts[5]
+slide = prs.slides.add_slide(title_only_slide_layout)
+shapes = slide.shapes
+shapes.title.text = 'EOS Pressure vs rho for EOS not calculated' 
+rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 100, base=np.exp(1)), np.linspace(3.77e-4, 1.6, 900)])
+for index, row in df_orig.loc[df_orig.index.difference(df.index)].iterrows():#  df_orig[~df.index.values.tolist()]:
+    eos = Skryme(row)
+    x = eos.GetEnergyDensity(rho, 0)
+    y = eos.GetAutoGradPressure(rho, 0)
+    ax.plot(x, y)
+ax.set_xlim([1e-2, 1e4])
+ax.set_ylim([1e-4, 1e4])
+ax.set_xscale('log')
+ax.set_yscale('log')
+ax.set_xlabel(r'$Energy\ Density\ (MeV\ fm^{-3})$')
 ax.set_ylabel(r'$Pressure\ (MeV\ fm^{-3})$')
 #plt.show()
 plt.savefig(figname)
@@ -190,11 +216,8 @@ plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
 plt.close()
 
-"""
-CreateGif([df_causal, df_acausal], 'Report/Sym.gif')
-CreateGif([df_causal, df_acausal], 'Report/Pressure.gif', 'GetAutoGradPressure', 0, 50)
-prs.save('test.pptx')
-"""
+CreateGif([df_causal, df_acausal], 'Report/Sym.gif', np.linspace(0.1, 2.5, 10).tolist(), color=['r', 'r'])
+CreateGif([df_causal, df_acausal], 'Report/Pressure.gif', np.linspace(0.1, 2.5, 10).tolist(), 'GetAutoGradPressure', 0, 50, color=['r', 'r'])
 
 figname = 'Report/sym_lambda.png'
 ax = plt.subplot(111)

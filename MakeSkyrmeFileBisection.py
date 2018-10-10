@@ -120,8 +120,8 @@ def CalculatePolarizability(df, Output, **kwargs):
     """
     name_list = [(index, row) for index, row in df.iterrows()]
     result = []
-    with ProcessPool() as pool:
-        future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=60)
+    with ProcessPool(25) as pool:
+        future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
         iterator = future.result()
         while True:
             try:
@@ -165,6 +165,7 @@ if __name__ == "__main__":
     parser.add_argument("-pd", "--PRCTransDensity", type=float, default=None, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
     parser.add_argument("-cs", "--CrustSmooth", type=float, default=0, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
     parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
+    parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
     args = parser.parse_args()
 
     df = LoadSkyrmeFile(args.Input)
