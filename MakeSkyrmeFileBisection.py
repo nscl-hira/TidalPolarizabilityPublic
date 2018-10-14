@@ -36,14 +36,14 @@ def CalculateModel(name_and_eos, **kwargs):
     name = name_and_eos[0]    
     EOSType = kwargs['EOSType']
     max_mass = kwargs['MaxMassRequested']
-    eos_creator = EOSCreator(name_and_eos[1], **kwargs)
+    eos_creator = EOSCreator(name_and_eos[1])
 
 
     """
     Prepare EOS
     """
-    additional_para = eos_creator.PrepareEOS(EOSType, max_mass=max_mass)
-    eos, list_tran_density = eos_creator.GetEOSType(EOSType)
+    kwargs = eos_creator.PrepareEOS(**kwargs)
+    eos, list_tran_density = eos_creator.GetEOSType(**kwargs)
 
     # insert surface density
     list_tran_density.append(OuterCrustDensity)
@@ -65,21 +65,18 @@ def CalculateModel(name_and_eos, **kwargs):
     """
     1.4 solar mass and 2.0 solar mass calculation
     """
-    tidal_love = wrapper.TidalLoveWrapper(eos, 'EOS_%s' % name)
-    max_mass, pc_max = tidal_love.FindMaxMass()
-    tidal_love.checkpoint = np.append(eos.GetAutoGradPressure(np.array(list_tran_density), 0), [SurfacePressure])
-    try:
-        mass, radius, lambda_, pc14, checkpoint_mass, checkpoint_radius = tidal_love.FindMass(mass=1.4)
-        _, _, _, pc2, _, _ = tidal_love.FindMass(mass=2., central_pressure0=300)
-    except RuntimeError as error:
-        tidal_love.Close()
-        raise ValueError('Failed to find 1.4/2.0 solar mass properties for this EOS')
-    if mass < 1e-4 or lambda_ < 1e-4:
-        tidal_love.Close()
-        raise ValueError('Mass/Lambda = 0. Calculation failed')
-    if any(np.isnan([mass, radius, lambda_, pc14])) or any(np.isnan(checkpoint_mass)) or any(np.isnan(checkpoint_radius)):
-        tidal_love.Close()
-        raise ValueError('Some of the calculated values are nan.')
+    with wrapper.TidalLoveWrapper(eos, 'EOS_%s' % name) as tidal_love:
+        pc_max, _, _, _, _, _ = tidal_love.FindMaxMass()
+        tidal_love.checkpoint = np.append(eos.GetPressure(np.array(list_tran_density), 0), [SurfacePressure])
+        try:
+            pc14, mass, radius, lambda_, checkpoint_mass, checkpoint_radius = tidal_love.FindMass(mass=1.4)
+            pc2, _, _, _, _, _ = tidal_love.FindMass(mass=2., central_pressure0=300)
+        except RuntimeError as error:
+            raise ValueError('Failed to find 1.4/2.0 solar mass properties for this EOS')
+        #if mass < 1e-4 or lambda_ < 1e-4:
+        #    raise ValueError('Mass/Lambda = 0. Calculation failed')
+        if any(np.isnan([mass, radius, lambda_, pc14])) or any(np.isnan(checkpoint_mass)) or any(np.isnan(checkpoint_radius)):
+            raise ValueError('Some of the calculated values are nan.')
 
 
     """
@@ -96,8 +93,6 @@ def CalculateModel(name_and_eos, **kwargs):
         result['RadiusCheckpoint%d' % index] = radius
         result['DensityCheckpoint%d' % index] = den
     for key, val in kwargs.iteritems():
-        result[key] = val
-    for key, val in additional_para.iteritems():
         result[key] = val
 
     return result
@@ -120,6 +115,7 @@ def CalculatePolarizability(df, Output, **kwargs):
     """
     name_list = [(index, row) for index, row in df.iterrows()]
     result = []
+    CalculateModel(name_list[0], **kwargs)
     with ProcessPool(25) as pool:
         future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
         iterator = future.result()

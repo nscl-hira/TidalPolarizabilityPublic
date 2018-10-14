@@ -54,9 +54,9 @@ if __name__ == "__main__":
     df.fillna(0, inplace=True)
 
     CreateGif([df], 'Sym_0_1.5.gif', np.linspace(0.1, 1.5, 50).tolist())
-    CreateGif([df], 'Pressure_0_1.5.gif', np.linspace(0.1, 1.5, 50).tolist(), 'GetAutoGradPressure', 0, 50)
+    CreateGif([df], 'Pressure_0_1.5.gif', np.linspace(0.1, 1.5, 50).tolist(), 'GetPressure', 0, 50)
 
     CreateGif([df], 'Sym_1.5_2.5.gif', np.linspace(1.5, 2.5, 50).tolist())
-    CreateGif([df], 'Pressure_1.5_2.5.gif', np.linspace(1.5, 2.5, 50).tolist(), 'GetAutoGradPressure', 0, 50)
+    CreateGif([df], 'Pressure_1.5_2.5.gif', np.linspace(1.5, 2.5, 50).tolist(), 'GetPressure', 0, 50)
 
 

@@ -17,6 +17,7 @@ def ContourToPatches(value, contour, **args):
     return path, patches.PathPatch(path, **args)
 
 if __name__ == "__main__":
+    rho0 = 0.16
     constraints = pd.read_csv('Constraints/KaonSymMat.csv')
     density = np.array(constraints['rho/rho0'].tolist())
     pressure = np.array(constraints['P(MeV/fm3)'].tolist())
@@ -32,7 +33,9 @@ if __name__ == "__main__":
 
     P_sym_soft = rho0*density*density*egrad(SymEnergy, 0)(density, F_soft)
     P_sym_stiff = rho0*density*density*egrad(SymEnergy, 0)(density, F_stiff)
-    P_sym_fig1 = eos_spline.GetAutoGradPressure(density*rho0, 0)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': P_sym_soft}).to_csv('SoftSym.csv', sep='\t', index=False)
+    pd.DataFrame({'rho/rho0': density, 'P(MeV/fm3)': P_sym_stiff}).to_csv('StiffSym.csv', sep='\t', index=False)
+    P_sym_fig1 = eos_spline.GetPressure(density*rho0, 0)
 
     _, sym_patch_soft = ContourToPatches(density, pressure + 1.5*P_sym_soft, alpha=0.5, color='red', label='soft')
     _, sym_patch_stiff = ContourToPatches(density, pressure + 1.5*P_sym_stiff, alpha=0.5, color='blue', label='stiff')

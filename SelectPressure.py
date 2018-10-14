@@ -26,15 +26,15 @@ def AddPressure(df):
             eos = sky.Skryme(row)
             rho0 = eos.rho0
         pressure.append({'Model':index, 
-                        'P(3rho0)':eos.GetAutoGradPressure(3*rho0, 0),
-                        'P(2rho0)':eos.GetAutoGradPressure(2*rho0, 0), 
-                        'P(1.5rho0)':eos.GetAutoGradPressure(1.5*rho0, 0),
-                        'P(rho0)':eos.GetAutoGradPressure(rho0, 0),
-                        'P(0.67rho0)':eos.GetAutoGradPressure(0.67*rho0, 0),
-                        'P_Sym(2rho0)':eos.GetAutoGradPressure(2*rho0, 0.5), 
-                        'P_Sym(1.5rho0)':eos.GetAutoGradPressure(1.5*rho0, 0.5),
-                        'P_Sym(rho0)':eos.GetAutoGradPressure(rho0, 0.5),
-                        'P_Sym(0.67rho0)':eos.GetAutoGradPressure(0.67*rho0, 0.5),
+                        'P(3rho0)':eos.GetPressure(3*rho0, 0),
+                        'P(2rho0)':eos.GetPressure(2*rho0, 0), 
+                        'P(1.5rho0)':eos.GetPressure(1.5*rho0, 0),
+                        'P(rho0)':eos.GetPressure(rho0, 0),
+                        'P(0.67rho0)':eos.GetPressure(0.67*rho0, 0),
+                        'P_Sym(2rho0)':eos.GetPressure(2*rho0, 0.5), 
+                        'P_Sym(1.5rho0)':eos.GetPressure(1.5*rho0, 0.5),
+                        'P_Sym(rho0)':eos.GetPressure(rho0, 0.5),
+                        'P_Sym(0.67rho0)':eos.GetPressure(0.67*rho0, 0.5),
                         'Sym(2rho0)':eos.GetAsymEnergy(2*rho0),
                         'Sym(1.5rho0)':eos.GetAsymEnergy(1.5*rho0),
                         'Sym(rho0)':eos.GetAsymEnergy(rho0),
@@ -59,7 +59,7 @@ def SelectPressure(df, p_min, p_max, **args):
     inside_list = []
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
-        pressure = eos.GetAutoGradPressure(2*rho0, 0)
+        pressure = eos.GetPressure(2*rho0, 0)
         if pressure > p_min and pressure < p_max:
             inside_list.append(index)
     df_selected = df.ix[inside_list]

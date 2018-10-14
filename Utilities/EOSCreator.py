@@ -31,59 +31,101 @@ def FindCrustalTransDensity(Skryme):
 class EOSCreator:
 
 
-    def __init__(self, row, **kwargs):#TranDensity=0.2355e-3, SkyrmeDensity=0.3*0.16, PolyTropeDensity=3*0.16, PressureHigh=1000, PRCTransDensity=None, CrustSmooth=0.0, **kwargs):
-        if 'CrustFileName' in kwargs:
-            crust_file_name = kwargs['CrustFileName']
-        else:
-            crust_file_name = 'Constraints/EOSCrustOutput.dat'
-        crust = pd.read_csv(crust_file_name)#'Constraints/EOSCrustOutput.dat')
-        self.crustEOS = sky.EOSSpline(crust['rho(fm-3)'], energy_density=crust['E(MeV/fm3)'], smooth=kwargs['CrustSmooth'], pressure=crust['P(MeV/fm3)'])
-        self.kwargs = kwargs
-        self.row = row
-        if 'PolyHighP' in kwargs:
-            self.PressureHigh = kwargs['PolyHighP']
-        else:
-            self.PressureHigh = None
-        if 'SoundHighDensity' in kwargs:
-            self.SoundHighDensity = kwargs['SoundHighDensity']
- 
-        # we assume that skyrme is included if a parameter named t0 is present
-        if 't0' in row:
-            Skyrme = sky.Skryme(row)
-            self.Skyrme = Skyrme
-            self.BENuclear = BetaEquilibrium(self.Skyrme)
-        #self.BENuclear = Skyrme
-        # if PRCTransDensity is larger than 0, we will use this value and overrwrite all custom TranDensity and SkyrmeDensity
-        if kwargs['PRCTransDensity'] > 0: 
-            self.kwargs['TranDensity'] = kwargs['PRCTransDensity']*FindCrustalTransDensity(Skyrme)
-            self.kwargs['SkyrmeDensity'] = FindCrustalTransDensity(Skyrme)
+    def __init__(self, row):
+        self.Skyrme = sky.Skryme(row)
+        self.BENuclear = BetaEquilibrium(self.Skyrme)
 
-    def GetCrust(self):
-        return self.crustEOS, [self.kwargs['SkyrmeDensity'], self.kwargs['self.TranDensity']]
+    def PrepareEOS(self, **kwargs):
+        EOSType = kwargs['EOSType']
+        if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoCrust":
+            if 'PolyTropeDensity' not in kwargs:
+                kwargs['PolyTropeDensity'] = 3*0.16
+        # List for creating crustal EoS
+        if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoPolyTrope":
+            if 'CrustSmooth' not in kwargs:
+                kwargs['CrustSmooth'] = 0.
+            if 'CrustFileName' not in kwargs:
+                kwargs['CrustFileName'] = 'Constraints/EOSCrustOutput.dat' 
+            crust = pd.read_csv(kwargs['CrustFileName'])
+            self.crustEOS = sky.EOSSpline(crust['rho(fm-3)'], 
+                                          energy_density=crust['E(MeV/fm3)'], 
+                                          smooth=kwargs['CrustSmooth'], 
+                                          pressure=crust['P(MeV/fm3)'])
+            if kwargs['PRCTransDensity'] > 0:
+                kwargs['TranDensity'] = kwargs['PRCTransDensity']*FindCrustalTransDensity(self.Skyrme)
+                kwargs['SkyrmeDensity'] = FindCrustalTransDensity(self.Skyrme)
+            elif 'TranDensity' not in kwargs or 'SkyrmeDensity' not in kwargs:
+                print('Cannot proceed without transition density information for crustal EoS')
+            
+        if EOSType == '3Poly':
+            if 'Pressure1' not in kwargs:
+                kwargs['Pressure1'] = 10
+            if 'Pressure2' not in kwargs:
+                kwargs['Pressure2'] = 50
 
-    def Get3Poly(self):
-        TranDensity = self.kwargs['TranDensity']
-        Pressure1 = self.row['Pressure1']
+        # Needs to fix maximum mass for the equation of state
+        if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'EOSNoCrust':
+            if not 'PressureHigh' in kwargs:
+                if not 'MaxMassRequested' in kwargs:
+                    kwargs['MaxMassRequested'] = 2.
+
+                def FixMaxMass(pressure):
+                    eos, _ = self.GetEOSType(PressureHigh=pressure, **kwargs)
+                    with wrapper.TidalLoveWrapper(eos) as tidal_love:
+                        pc, max_m, _, _, _, _ = tidal_love.FindMaxMass()
+                        if np.isnan(max_m):
+                            raise ValueError('Mass maximization failed')
+                    return max_m - kwargs['MaxMassRequested']
+
+                kwargs['PressureHigh'] = opt.newton(FixMaxMass, x0=500)
+
+        # Set speed of sound 
+        if EOSType == 'EOS2Poly':
+            if 'SoundSpeed' not in kwargs:
+                kwargs['SoundSpeed'] = 0.8
+            if 'SoundHighDensity' not in kwargs:
+                PolyTropeDensity = kwargs['PolyTropeDensity']
+                poly1 = sky.PolyTrope(PolyTropeDensity, 
+                                      self.BENuclear.GetEnergy(kwargs['PolyTropeDensity'], 0), 
+                                      self.BENuclear.GetPressure(kwargs['PolyTropeDensity'], 0), 
+                                      1, 1, gamma=14)
+                # find where speed of sound = 95% c
+                try:
+                    SoundHighDensity = opt.newton(lambda x: poly1.GetSpeedOfSound(x, 0) 
+                                                  - kwargs['SoundSpeed']*kwargs['SoundSpeed'], 
+                                                       x0=PolyTropeDensity)   
+                    if SoundHighDensity < PolyTropeDensity:
+                        SoundHighDensity = PolyTropeDensity
+                except RuntimeError:
+                    raise ValueError('Cannot find density corresponds to 0.8c. This can be an indication that the starting energy/pressure is negative')
+                kwargs['SoundHighDensity'] = SoundHighDensity
+        return kwargs
+
+
+    def GetCrust(self, **kwargs):
+        return self.crustEOS, []
+
+    def Get3Poly(self, **kwargs):
+        TranDensity = kwargs['TranDensity']
+        Pressure1 = kwargs['Pressure1']
+        Pressure2 = kwargs['Pressure2']
+        Pressure3 = kwargs['PressureHigh']
+
         rho1 = 0.67*0.16
-        Pressure2 = self.row['Pressure2']
         rho2 = 3*0.16
-        if self.PressureHigh is None:
-            Pressure3 = self.row['Pressure3']
-        else:
-            Pressure3 = self.PressureHigh
         rho3 = 7*rho1
 
         poly1 = sky.PolyTrope(TranDensity,
                               self.crustEOS.GetEnergy(TranDensity, 0), 
-                              self.crustEOS.GetAutoGradPressure(TranDensity, 0),
+                              self.crustEOS.GetPressure(TranDensity, 0),
                               rho1, Pressure1)
         poly2 = sky.PolyTrope( rho1,
                                poly1.GetEnergy(rho1, 0),
-                               poly1.GetAutoGradPressure(rho1, 0),
+                               poly1.GetPressure(rho1, 0),
                                rho2, Pressure2)
         poly3 = sky.PolyTrope( rho2,
                                poly2.GetEnergy(rho2, 0),
-                               poly2.GetAutoGradPressure(rho2, 0),
+                               poly2.GetPressure(rho2, 0),
                                rho3, Pressure3)
         eos = sky.EOSConnect([(-1, TranDensity), 
                               (TranDensity, rho1), 
@@ -93,27 +135,38 @@ class EOSCreator:
 
         return eos, [rho2, rho1, TranDensity]
        
+    def GetEOSNoCrust(self, **kwargs):
+        PolyTropeDensity = kwargs['PolyTropeDensity']
+        PressureHigh = kwargs['PressureHigh']
+
+        poly = sky.PolyTrope(PolyTropeDensity, 
+                             self.BENuclear.GetEnergy(PolyTropeDensity, 0), 
+                             self.BENuclear.GetPressure(PolyTropeDensity, 0), 
+                             7*self.Skyrme.rho0, PressureHigh)
+        
+        #return sky.EOSConnect([(0, 10)], [BENuclear])
+        eos = sky.EOSConnect([(-1, PolyTropeDensity), 
+                              (PolyTropeDensity, 100)], 
+                             [self.Skyrme, poly])
+        return eos, [PolyTropeDensity]
 
 
-    def GetEOS(self):
+    def GetEOS(self, **kwargs):
         # ONLY PSEUDOEOS TAKES ENERGY DENSITY! ALL OTHER EOS USES ENERGY
-        TranDensity = self.kwargs['TranDensity']
-        SkyrmeDensity = self.kwargs['SkyrmeDensity'] 
-        PolyTropeDensity = self.kwargs['PolyTropeDensity']
-        if self.PressureHigh is None:
-            PressureHigh = self.kwargs['PressureHigh']
-        else:
-            PressureHigh = self.PressureHigh
+        TranDensity = kwargs['TranDensity']
+        SkyrmeDensity = kwargs['SkyrmeDensity'] 
+        PolyTropeDensity = kwargs['PolyTropeDensity']
+        PressureHigh = kwargs['PressureHigh']
 
         pseudo = sky.PseudoEOS(TranDensity, 
                                self.crustEOS.GetEnergyDensity(TranDensity, 0), 
-                               self.crustEOS.GetAutoGradPressure(TranDensity, 0), 
+                               self.crustEOS.GetPressure(TranDensity, 0), 
                                SkyrmeDensity, 
                                self.BENuclear.GetEnergyDensity(SkyrmeDensity, 0), 
-                               self.BENuclear.GetAutoGradPressure(SkyrmeDensity, 0))
+                               self.BENuclear.GetPressure(SkyrmeDensity, 0))
         poly = sky.PolyTrope(PolyTropeDensity, 
                              self.BENuclear.GetEnergy(PolyTropeDensity, 0), 
-                             self.BENuclear.GetAutoGradPressure(PolyTropeDensity, 0), 
+                             self.BENuclear.GetPressure(PolyTropeDensity, 0), 
                              7*self.Skyrme.rho0, PressureHigh)
         
         #return sky.EOSConnect([(0, 10)], [BENuclear])
@@ -124,110 +177,66 @@ class EOSCreator:
                              [self.crustEOS, pseudo, self.BENuclear, poly])
         return eos, [PolyTropeDensity, SkyrmeDensity, TranDensity]
 
-    def GetEOSNoPolyTrope(self):
+    def GetEOSNoPolyTrope(self, **kwargs):
         # ONLY PSEUDOEOS TAKES ENERGY DENSITY! ALL OTHER EOS USES ENERGY
-        TranDensity = self.kwargs['TranDensity']
-        SkyrmeDensity = self.kwargs['SkyrmeDensity'] 
+        TranDensity = kwargs['TranDensity']
+        SkyrmeDensity = kwargs['SkyrmeDensity'] 
 
 
         pseudo = sky.PseudoEOS(TranDensity, 
                                self.crustEOS.GetEnergyDensity(TranDensity, 0), 
-                               self.crustEOS.GetAutoGradPressure(TranDensity, 0), 
+                               self.crustEOS.GetPressure(TranDensity, 0), 
                                SkyrmeDensity, 
                                self.BENuclear.GetEnergyDensity(SkyrmeDensity, 0), 
-                               self.BENuclear.GetAutoGradPressure(SkyrmeDensity, 0))
+                               self.BENuclear.GetPressure(SkyrmeDensity, 0))
         eos = sky.EOSConnect([(-1, TranDensity), 
                               (TranDensity, SkyrmeDensity), 
                               (SkyrmeDensity, 100)], 
                              [self.crustEOS, pseudo, self.BENuclear])
         return eos, [SkyrmeDensity, TranDensity]
 
-    def GetBESkyrme(self):
-        TranDensity = self.kwargs['TranDensity']
-        SkyrmeDensity = self.kwargs['SkyrmeDensity']
+    def GetBESkyrme(self, **kwargs):
+        TranDensity = kwargs['TranDensity']
+        SkyrmeDensity = kwargs['SkyrmeDensity']
         return self.BENuclear, [SkyrmeDensity, TranDensity]
 
-    def GetOnlySkyrme(self):
-        TranDensity = self.kwargs['TranDensity']
-        SkyrmeDensity = self.kwargs['SkyrmeDensity']
-        return self.Skyrme, [SkyrmeDensity, TranDensity]
+    def GetOnlySkyrme(self, **kwargs):
+        TranDensity = kwargs['TranDensity']
+        SkyrmeDensity = kwargs['SkyrmeDensity']
+        return self.Skyrme, []
 
-    def GetEOS2Poly(self):
-        TranDensity = self.kwargs['TranDensity']
-        SkyrmeDensity = self.kwargs['SkyrmeDensity'] 
-        PolyTropeDensity = self.kwargs['PolyTropeDensity']
+    def GetEOS2Poly(self, **kwargs):
+        TranDensity = kwargs['TranDensity']
+        SkyrmeDensity = kwargs['SkyrmeDensity'] 
+        PolyTropeDensity = kwargs['PolyTropeDensity']
+        SoundHighDensity = kwargs['SoundHighDensity']
 
         poly1 = sky.PolyTrope(PolyTropeDensity, 
                               self.BENuclear.GetEnergy(PolyTropeDensity, 0), 
-                              self.BENuclear.GetAutoGradPressure(PolyTropeDensity, 0), 
+                              self.BENuclear.GetPressure(PolyTropeDensity, 0), 
                               1, 1, gamma=14)
-        poly2 = sky.ConstSpeed(self.SoundHighDensity,
-                               poly1.GetEnergy(self.SoundHighDensity, 0),
-                               poly1.GetAutoGradPressure(self.SoundHighDensity, 0),
+        poly2 = sky.ConstSpeed(SoundHighDensity,
+                               poly1.GetEnergy(SoundHighDensity, 0),
+                               poly1.GetPressure(SoundHighDensity, 0),
                                speed_of_sound=0.8)
 
         # ONLY PSEUDOEOS TAKES ENERGY DENSITY! ALL OTHER EOS USES ENERGY
         pseudo = sky.PseudoEOS(TranDensity, 
                                self.crustEOS.GetEnergyDensity(TranDensity, 0), 
-                               self.crustEOS.GetAutoGradPressure(TranDensity, 0), 
+                               self.crustEOS.GetPressure(TranDensity, 0), 
                                SkyrmeDensity, 
                                self.BENuclear.GetEnergyDensity(SkyrmeDensity, 0), 
-                               self.BENuclear.GetAutoGradPressure(SkyrmeDensity, 0))
+                               self.BENuclear.GetPressure(SkyrmeDensity, 0))
         
         eos = sky.EOSConnect([(-1, TranDensity), 
                               (TranDensity, SkyrmeDensity), 
                               (SkyrmeDensity, PolyTropeDensity), 
-                              (PolyTropeDensity, self.SoundHighDensity), (self.SoundHighDensity, 100)],
+                              (PolyTropeDensity, SoundHighDensity), (SoundHighDensity, 100)],
                               [self.crustEOS, pseudo, self.BENuclear, poly1, poly2])
-        return eos, [self.SoundHighDensity, PolyTropeDensity, SkyrmeDensity, TranDensity]
+        return eos, [SoundHighDensity, PolyTropeDensity, SkyrmeDensity, TranDensity]
 
  
-    """
-    max_mass is there to fix the max mass of NS possible for Type=EOS
-    It will be ignored for all other options
-    I can do this with EOS because the upper limit of polytrope is a free parameter
-    """
-    def PrepareEOS(self, Type='EOS', max_mass=2):
-        if Type == 'EOS':# or Type == '3Poly':
-            pc_max = [0]
-            def FixMaxMass(pressure):
-                self.PressureHigh = pressure
-                eos, _ = self.GetEOSType(Type)
-                tidal_love = wrapper.TidalLoveWrapper(eos)
-
-                calculated_max_mass, pc = tidal_love.FindMaxMass()
-                if np.isnan(calculated_max_mass):
-                    raise ValueError('Mass maximization failed')
-                pc_max[0] = pc
-                tidal_love.Close()
-                return calculated_max_mass - max_mass
-            pressure_high = opt.newton(FixMaxMass, x0=500)
-            self.PressureHigh = pressure_high
-            return {'PolyHighP': pressure_high}
-
-        elif Type == 'EOS2Poly':
-            TranDensity = self.kwargs['TranDensity']
-            SkyrmeDensity = self.kwargs['SkyrmeDensity'] 
-            PolyTropeDensity = self.kwargs['PolyTropeDensity']
-
-            poly1 = sky.PolyTrope(PolyTropeDensity, 
-                                  self.BENuclear.GetEnergy(PolyTropeDensity, 0), 
-                                  self.BENuclear.GetAutoGradPressure(PolyTropeDensity, 0), 
-                                  1, 1, gamma=14)
-            # find where speed of sound = 95% c
-            try:
-                self.SoundHighDensity = opt.newton(lambda x: poly1.GetSpeedOfSound(x, 0) - 0.8*0.8, x0=PolyTropeDensity)   
-                if self.SoundHighDensity < PolyTropeDensity:
-                    self.SoundHighDensity = PolyTropeDensity
-            except RuntimeError:
-                raise ValueError('Cannot find density corresponds to 0.8c. This can be an indication that the starting energy/pressure is negative')
-            return {'SoundHighDensity': self.SoundHighDensity}
-
-        else:
-            return {}
-            
-
-    def GetEOSType(self, Type='EOS'):
+    def GetEOSType(self, EOSType='EOS', **kwargs):
         """
         Avaliable choices are:
         EOS
@@ -235,18 +244,20 @@ class EOSCreator:
         BESkyrme
         OnlySkyrme
         """
-        if Type == "EOS":
-            return self.GetEOS()
-        elif Type == "EOS2Poly":
-            return self.GetEOS2Poly()
-        elif Type == "EOSNoPolyTrope": 
-            return self.GetEOSNoPolyTrope()
-        elif Type == "BESkyrme":
-            return self.GetBESkyrme()
-        elif Type == '3Poly':
-            return self.Get3Poly()
+        if EOSType == "EOS":
+            return self.GetEOS(**kwargs)
+        elif EOSType == "EOS2Poly":
+            return self.GetEOS2Poly(**kwargs)
+        elif EOSType == "EOSNoPolyTrope": 
+            return self.GetEOSNoPolyTrope(**kwargs)
+        elif EOSType == "BESkyrme":
+            return self.GetBESkyrme(**kwargs)
+        elif EOSType == '3Poly':
+            return self.Get3Poly(**kwargs)
+        elif EOSType == 'EOSNoCrust':
+            return self.GetEOSNoCrust(**kwargs)
         else: 
-            return self.GetOnlySkyrme()
+            return self.GetOnlySkyrme(**kwargs)
             
 
 
@@ -254,8 +265,8 @@ if __name__ == "__main__":
     df = pd.read_csv('Results/Skyrme_summary.csv', index_col=0)
     df.fillna(0, inplace=True)
  
-    Nuclear = sky.Skryme(df.loc['LNS'])
-    eos_connect = EOSCreator(Nuclear, SkyrmeDensity=0.3*rho0).GetEOS()
+    Nuclear = sky.Skryme(df.loc['BSK10'])
+    eos_connect = EOSCreator(Nuclear).GetEOSType('EOSNoCrust')
     rho = np.linspace(0,10,500)
 
     """
@@ -268,8 +279,8 @@ if __name__ == "__main__":
     """
     
     rho = np.concatenate([np.linspace(1e-12, 3.76e-4, 1000), np.linspace(3.77e-4, 2, 9000)])
-    plt.plot(rho, eos_connect.GetAutoGradPressure(rho, 0.), label='spline')
-    plt.plot(rho, Nuclear.GetAutoGradPressure(rho, 0.), label='LNS')
+    plt.plot(rho, eos_connect.GetPressure(rho, 0.), label='spline')
+    plt.plot(rho, Nuclear.GetPressure(rho, 0.), label='LNS')
     plt.ylabel(r'$Pressure (MeV/fm^{3})$')
     plt.xlabel(r'$\rho/\rho_{0}$')
     plt.legend()
@@ -279,8 +290,8 @@ if __name__ == "__main__":
     plt.yscale('log')
     plt.show()
 
-    plt.plot(eos_connect.GetEnergyDensity(rho, 0), eos_connect.GetAutoGradPressure(rho, 0.), label='spline', color='b')
-    plt.plot(Nuclear.GetEnergyDensity(rho, 0), Nuclear.GetAutoGradPressure(rho, 0.), label='LNS')
+    plt.plot(eos_connect.GetEnergyDensity(rho, 0), eos_connect.GetPressure(rho, 0.), label='spline', color='b')
+    plt.plot(Nuclear.GetEnergyDensity(rho, 0), Nuclear.GetPressure(rho, 0.), label='LNS')
     plt.ylabel(r'$Pressure (MeV/fm^{3})$')
     plt.xlabel(r'$Energy density (MeV/fm^{3})$')
     plt.legend()
@@ -290,10 +301,10 @@ if __name__ == "__main__":
     plt.yscale('log')
     plt.show()
 
-    spl = UnivariateSpline(eos_connect.GetEnergyDensity(rho, 0), eos_connect.GetAutoGradPressure(rho, 0.), s=0)
+    spl = UnivariateSpline(eos_connect.GetEnergyDensity(rho, 0), eos_connect.GetPressure(rho, 0.), s=0)
     connect_d = spl.derivative(1)
 
-    spl = UnivariateSpline(Nuclear.GetEnergyDensity(rho, 0), Nuclear.GetAutoGradPressure(rho, 0.), s=0)
+    spl = UnivariateSpline(Nuclear.GetEnergyDensity(rho, 0), Nuclear.GetPressure(rho, 0.), s=0)
     nuclear_d = spl.derivative(1)
 
     plt.plot(eos_connect.GetEnergyDensity(rho, 0), np.sqrt(connect_d(eos_connect.GetEnergyDensity(rho, 0))), 'ro', label='connected EOS', color='b')

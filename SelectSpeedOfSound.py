@@ -16,11 +16,12 @@ def ViolateCausality(eos_name, df):
     #skyrme = sky.Skryme(df.loc[eos_name])
     rho0 = 0.16#skyrme.rho0
     #skyrme.ToCSV('AllSkyrmes/%s.csv' % eos_name, np.linspace(1e-14, 3*0.16, 100), 0)
-    eos_creator = EOSCreator(df.loc[eos_name], **df.loc[eos_name])
+    eos_creator = EOSCreator(df.loc[eos_name])
+    kwargs = eos_creator.PrepareEOS(**df.loc[eos_name])
     #pressure_high = df['PolyHighP'].loc[eos_name]
     #eos_creator.PressureHigh = pressure_high
     try:
-        eos, _ = eos_creator.GetEOSType(df['EOSType'].iloc[0])
+        eos, _ = eos_creator.GetEOSType(**kwargs)
     except ValueError:
         print('%s | Cannot form EOS' % eos_name)
         return eos_name, True
@@ -29,12 +30,14 @@ def ViolateCausality(eos_name, df):
     # Get density corresponding to the high pressure point so we can plot things easier
     max_pressure = df['PCentral2MOdot'].loc[eos_name]
     def GetDensityFromPressure(rho):
-        pressure =  eos.GetAutoGradPressure(rho, 0) - max_pressure
+        pressure =  eos.GetPressure(rho, 0) - max_pressure
         return pressure
-    density = opt.newton(GetDensityFromPressure, x0=7*0.16)
+    density = opt.newton(GetDensityFromPressure, x0=4*0.16)
+    if np.isnan(density):
+        density = 7*0.16
 
     rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 100, base=np.exp(1)), np.linspace(3.77e-4, density, 900)])
-    pressure = eos.GetAutoGradPressure(rho, 0)
+    pressure = eos.GetPressure(rho, 0)
     sound = np.array(eos.GetSpeedOfSound(rho, 0))
 
     if all(sound <= 1) and all(sound >=0):
@@ -46,8 +49,8 @@ def ViolateCausality(eos_name, df):
     else:
         index = np.argmax(sound > 1)
         den = rho[index]
-        print('%s | %r | %10.3f | %10.3f | %10.3f' % (eos_name, True, den/rho0, eos.GetAutoGradPressure(den, 0), density/rho0))
-        return eos_name, True
+        print('%s | %r | %10.3f | %10.3f | %10.3f' % (eos_name, True, den/rho0, eos.GetPressure(den, 0), density/rho0))
+        return eos_name, False #Debugging purposes. Shoudl be True. Please change this back 
 
 
 def AddCausailty(df):

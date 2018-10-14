@@ -107,7 +107,7 @@ def PlotSkyrmePressure(df, ax, range_=[0,3], pfrac=0, label=None, **args):
     first = True
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
-        pressure = eos.GetAutoGradPressure(n*eos.rho0, pfrac)
+        pressure = eos.GetPressure(n*eos.rho0, pfrac)
         if not first:
             label = None
         first = False
@@ -125,7 +125,7 @@ def PlotSkyrmePressureEnergy(df, ax, range_=[0,3], pfrac=0, label=None, **args):
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
         energy = (eos.GetEnergy(n, pfrac) + mn)*(n)
-        pressure = eos.GetAutoGradPressure(n, pfrac)
+        pressure = eos.GetPressure(n, pfrac)
         if not first:
             label = None
         first = False

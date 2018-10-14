@@ -30,7 +30,7 @@ def SelectFlowSym(constraint_filename, df, accept_percentage=0.8, xmin=2, xmax=4
     n = np.linspace(xmin, xmax, 1000)
     for index, row in df.iterrows():
         eos = sky.Skryme(row)
-        pressure = eos.GetAutoGradPressure(n*rho0, 0.5)
+        pressure = eos.GetPressure(n*rho0, 0.5)
         inside = path.contains_points(np.array([n, pressure]).T)
         if NumTrueAbovePercentage(inside, accept_percentage):
             inside_list.append(index)
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             label = None
         
         eos_spline = sky.EOSSpline(rho*rho0, Nuclear.GetEnergy(rho*rho0, pfrac=0.5), 0, additional_constraints_fig1['rho/rho0']*rho0, additional_constraints_fig1['P(MeV/fm3)'], 0.5)
-        ax2.plot(rho, eos_spline.GetAutoGradPressure(rho*rho0, 0.0), color='black', linewidth=5, label=label)
+        ax2.plot(rho, eos_spline.GetPressure(rho*rho0, 0.0), color='black', linewidth=5, label=label)
 
     _, patch_soft = SelectFlow('Constraints/FlowAsymSoft.csv', df, 0.8,
                                linewidth=5, edgecolor='navy', alpha=1,
@@ -116,7 +116,7 @@ if __name__ == "__main__":
                                     linewidth=5, edgecolor='orange', alpha=1,
                                     hatch='/', lw=2, zorder=10, fill=False, label='Kaon+Asy_fig1')
     eos_spline = sky.EOSSpline(additional_constraints_fig1['rho/rho0']*rho0, additional_constraints_fig1['P(MeV/fm3)'], 0.5)
-    print('P_digitized(0.67rho0): %f\nP_digitized(1.5rho0): %f\nP_digitized(2rho0): %f' % (eos_spline.GetAutoGradPressure(0.67*0.16, 0), eos_spline.GetAutoGradPressure(1.5*0.16, 0), eos_spline.GetAutoGradPressure(2*0.16, 0)))
+    print('P_digitized(0.67rho0): %f\nP_digitized(1.5rho0): %f\nP_digitized(2rho0): %f' % (eos_spline.GetPressure(0.67*0.16, 0), eos_spline.GetPressure(1.5*0.16, 0), eos_spline.GetPressure(2*0.16, 0)))
     ax2.add_patch(patch_soft)
     ax2.add_patch(patch_stiff)
     ax2.add_patch(patch_soft_kaon)

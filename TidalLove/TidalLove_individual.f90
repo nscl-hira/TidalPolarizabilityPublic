@@ -196,7 +196,7 @@ k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
            end if
 
            ! pmin = 1.0d-14                    ! change as needed...
-           pmin = 0.60817d-14*mevfm3/p0            ! minimum pressure given by BPS
+           pmin = 0.60817d-8*mevfm3/p0            ! minimum pressure given by BPS
 
            if (P .le. pmin) then
               go to 20

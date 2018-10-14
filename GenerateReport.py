@@ -23,7 +23,7 @@ parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Den
 parser.add_argument("-pp", "--PolyTropeDensity", type=float, default=3, help="Density at which Skyrme EOS ends. (Default: 3)")
 parser.add_argument("-td", "--TranDensity", type=float, default=0.001472, help="Density at which Crustal EOS ends (Default: 0.001472)")
 parser.add_argument("-pd", "--PRCTransDensity", type=float, default=-1, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
-parser.add_argument("-cs", "--CrustSmooth", type=float, default=0, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
+parser.add_argument("-cs", "--CrustSmooth", type=float, default=0., help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
 parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
 parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
 args = parser.parse_args()
@@ -73,7 +73,7 @@ title_only_slide_layout = prs.slide_layouts[5]
 slide = prs.slides.add_slide(title_only_slide_layout)
 shapes = slide.shapes
 shapes.title.text = 'EOS Pressure vs rho' 
-drawer.DrawEOS(ax=ax, xname='rho/rho0', yname='GetAutoGradPressure', xlim=[1e-8, 6], ylim=[1e-4, 1e4])
+drawer.DrawEOS(ax=ax, xname='rho/rho0', yname='GetPressure', xlim=[1e-8, 6], ylim=[1e-4, 1e4])
 ax.set_yscale('log')
 ax.set_xlabel(r'$\rho/\rho_{0}$')
 ax.set_ylabel(r'$Pressure\ (MeV\ fm^{-3})$')
@@ -92,7 +92,7 @@ rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 100, base=np.ex
 for index, row in df_orig.loc[df_orig.index.difference(df.index)].iterrows():#  df_orig[~df.index.values.tolist()]:
     eos = Skryme(row)
     x = eos.GetEnergyDensity(rho, 0)
-    y = eos.GetAutoGradPressure(rho, 0)
+    y = eos.GetPressure(rho, 0)
     ax.plot(x, y)
 ax.set_xlim([1e-2, 1e4])
 ax.set_ylim([1e-4, 1e4])
@@ -217,7 +217,7 @@ slide.shapes.add_picture(figname, left, top, height=height, width=width)
 plt.close()
 
 CreateGif([df_causal, df_acausal], 'Report/Sym.gif', np.linspace(0.1, 2.5, 10).tolist(), color=['r', 'r'])
-CreateGif([df_causal, df_acausal], 'Report/Pressure.gif', np.linspace(0.1, 2.5, 10).tolist(), 'GetAutoGradPressure', 0, 50, color=['r', 'r'])
+CreateGif([df_causal, df_acausal], 'Report/Pressure.gif', np.linspace(0.1, 2.5, 10).tolist(), 'GetPressure', 0, 50, color=['r', 'r'])
 
 figname = 'Report/sym_lambda.png'
 ax = plt.subplot(111)
