@@ -24,7 +24,7 @@ class TidalLoveWrapper:
             self.output = open(name, 'w')
         eos.ToFileStream(self.output)
         self.ans = ()
-        self.checkpoint = []
+        self.checkpoint = [0.1]
 
     def __enter__(self):
         return self
