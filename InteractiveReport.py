@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
 from Utilities.EOSDrawer import EOSDrawer 
+from StudyNSComposition import PressureComposition
 
 def DrawEOS(row, ax, xlim=[1e-2, 1e4], ylim=[1e-4, 1e4], **kwargs):
     drawer.DrawEOS(df=row, ax=ax, xlim=xlim, ylim=ylim, **kwargs)
@@ -15,24 +16,39 @@ def DrawEOS(row, ax, xlim=[1e-2, 1e4], ylim=[1e-4, 1e4], **kwargs):
     if 'yname' in kwargs:
         ax.set_ylabel(kwargs['yname'])
 
+def AnalysisEOS(name):
+    mass, radius, pressure
 
-def update_annot(ind):
-    new_ax[0].clear()
-    new_ax[1].clear()
-    new_ax[2].clear()
-    DrawEOS(df.ix[[df.index.values[ind['ind'][0] + 1]]], new_ax[0])
-    DrawEOS(df.ix[[df.index.values[ind['ind'][0] + 1]]], new_ax[1], xname='rho/rho0', yname='GetPressure', xlim=[1e-8, 6], ylim=[1e-4, 1e4])
-    DrawEOS(df.ix[[df.index.values[ind['ind'][0] + 1]]], new_ax[2], xname='rho', yname='GetEnergyDensity', xlim=[1e-8, 10*0.16], ylim=[1e-2, 1e4])
+def update_energy(names):
+    energy_ax.clear()
+    DrawEOS(df.ix[names], energy_ax)
+    energy_ax.set_title(" ".join(names))
 
+def HighlightPoints(names):
+    hover_x = [df['R(1.4)'].ix[names]]
+    hover_y = [df['lambda(1.4)'].ix[names]]
+    highlight.set_offsets(np.c_[hover_x, hover_y])
+
+def HighlightLine(names):
+    temp = drawer.DrawEOS(df.ix[[names]], ax=pressure_ax, color=['grey']*6)
+    highlight_line.set_data(temp[names][0].get_data())
+    pressure_ax.lines.remove(temp[names][0])
+    
+
+def update_annot(ind, names):
     pos = sc.get_offsets()[ind["ind"][0]]
     annot.xy = pos
-    text = "{}, {}".format(" ".join(list(map(str,ind["ind"]))), 
-                           " ".join([df.index.values[n+1] for n in ind["ind"]]))
-    hover_x = [df['R(1.4)'].iloc[n+1] for n in ind["ind"]]
-    hover_y = [df['lambda(1.4)'].iloc[n+1] for n in ind["ind"]]
-    highlight.set_offsets(np.c_[hover_x, hover_y])
+    text = "{}".format(" ".join(names))
     annot.set_text(text)
     annot.get_bbox_patch().set_alpha(0.4)
+    HighlightPoints(names) 
+
+def update_annot_lines(name, line, ind):
+    x, y = line.get_data()
+    annot_lines.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
+    text = "{}".format(" ".join(name))
+    annot_lines.set_text(text)
+    annot_lines.get_bbox_patch().set_alpha(0.4)
 
 
 def hover(event):
@@ -40,27 +56,95 @@ def hover(event):
     if event.inaxes == ax:
         cont, ind = sc.contains(event)
         if cont:
-            update_annot(ind)
+            names = [df.index.values[ind['ind'][0]]]
+            update_energy(names)
+            update_annot(ind, names)
             annot.set_visible(True)
             highlight.set_visible(True)
-            for n_fig in new_fig:
-                n_fig.canvas.draw_idle()
+            energy_fig.canvas.draw_idle()
             fig.canvas.draw_idle()
         else:
             if vis:
                 annot.set_visible(False)
                 highlight.set_visible(False)
-                for n_fig in new_fig:
-                    n_fig.canvas.draw_idle()
+                energy_fig.canvas.draw_idle()
                 fig.canvas.draw_idle()
 
+
+def hover_lines(event):
+    vis = annot_lines.get_visible()
+    if event.inaxes == pressure_ax:
+        for names, lines in line_list.iteritems():
+            for line in lines:
+                cont, ind = line.contains(event)
+                if cont:
+                    update_annot_lines([names], line, ind)
+                    update_energy([names])
+                    HighlightPoints([names])
+                    HighlightLine(names)
+
+                    highlight.set_visible(True)
+                    highlight_line.set_visible(True)
+                    annot_lines.set_visible(True)
+                    pressure_fig.canvas.draw_idle()
+                    energy_fig.canvas.draw_idle()
+                    fig.canvas.draw_idle()
+                    break
+                else:
+                    if vis:
+                        annot_lines.set_visible(False)
+                        highlight.set_visible(False)
+                        highlight_line.set_visible(False)
+                        energy_fig.canvas.draw_idle()
+                        fig.canvas.draw_idle() 
+                        pressure_fig.canvas.draw_idle()
+            else:
+                continue
+            break
+
+def onclick(event):
+    if event.inaxes == ax:
+        cont, ind = sc.contains(event)
+        if cont:
+            names = [df.index.values[ind['ind'][0]]]
+            fig, ax2 = plt.subplots()
+            PressureComposition(ax2, names[0], 'Results/test2.csv') 
+            plt.show()
+
+def onclick_lines(event):
+    if event.inaxes == pressure_ax:
+        for names, lines in line_list.iteritems():
+            for line in lines:
+                cont, ind = line.contains(event)
+                if cont:
+                    fig, ax2 = plt.subplots()
+                    PressureComposition(ax2, names, 'Results/test2.csv') 
+                    plt.show()
+
 if __name__ == '__main__':
-    df = LoadSkyrmeFile('Results/test.csv')
+    df = LoadSkyrmeFile('Results/test2.csv')
     drawer = EOSDrawer(df)
+
+    pressure_fig, pressure_ax = plt.subplots()
+    line_list = drawer.DrawEOS(ax=pressure_ax, xname='rho/rho0', yname='GetPressure', xlim=[1e-8, 6], ylim=[1e-2, 1e3])
+    pressure_ax.set_yscale('log')
+    pressure_ax.set_xlabel(r'$\rho/\rho_{0}$')
+
+    highlight_line = drawer.DrawEOS(df=df.iloc[[0]], ax=pressure_ax, xname='rho/rho0', yname='GetPressure', color=['grey']*6, zorder=10)
+    highlight_line = highlight_line[df.index.values[0]][0]
+    highlight_line.set_visible(False)
     
+
+    annot_lines = pressure_ax.annotate("", xy=(0,0), xytext=(20,20),textcoords="offset points",
+                        bbox=dict(boxstyle="round", fc="w"),
+                        arrowprops=dict(arrowstyle="->"))
+    annot_lines.set_visible(False)
+    pressure_fig.canvas.mpl_connect("motion_notify_event", hover_lines)
+    pressure_fig.canvas.mpl_connect("button_press_event", onclick_lines)
+
     fig, ax = plt.subplots()
     sc = ax.scatter(df['R(1.4)'], df['lambda(1.4)'], marker='o')
-    ax.set_xlim([9, 16])
+    ax.set_xlim([7, 16])
     ax.set_ylim([0, 1500])
     
     annot = ax.annotate("", xy=(0,0), xytext=(20,20),textcoords="offset points",
@@ -72,15 +156,9 @@ if __name__ == '__main__':
     highlight = ax.scatter(hover_x, hover_y, facecolor=None, edgecolor='r')
     highlight.set_visible(False)
     
-    new_fig, new_ax = [], []
-    for i in range(0, 3):
-        f, a = plt.subplots()
-        new_fig.append(f)
-        new_ax.append(a)
-    
-    DrawEOS(df.ix[[df.index.values[0]]], new_ax[0])
-    DrawEOS(df.ix[[df.index.values[0]]], new_ax[1], xname='rho/rho0', yname='GetPressure', xlim=[1e-8, 6], ylim=[1e-4, 1e4])
-    DrawEOS(df.ix[[df.index.values[0]]], new_ax[2], xname='rho', yname='GetEnergyDensity', xlim=[1e-8, 10*0.16], ylim=[1e-2, 1e4])
+    energy_fig, energy_ax = plt.subplots()
+    DrawEOS(df.ix[[df.index.values[0]]], energy_ax)
     
     fig.canvas.mpl_connect("motion_notify_event", hover)
+    fig.canvas.mpl_connect("button_press_event", onclick)
     plt.show()

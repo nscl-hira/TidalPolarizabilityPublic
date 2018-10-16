@@ -11,11 +11,14 @@ from MakeSkyrmeFileBisection import LoadSkyrmeFile
 import Utilities as ult
 from Utilities.EOSCreator import EOSCreator
 
-def PressureComposition(eos_name, filename):
-    df = LoadSkyrmeFile('Results/NoCrust.csv')
+def PressureComposition(ax, eos_name, filename):
+    df = LoadSkyrmeFile(filename)
     row = df.loc[eos_name]
-    creator = EOSCreator(row, **row)#SkyrmeDensity = 1, TranDensity=1, CrustSmooth=0, PRCTransDensity=-1, **row)
-    eos, trans_dens = creator.GetEOSType(row['EOSType'])
+    creator = EOSCreator(row)#SkyrmeDensity = 1, TranDensity=1, CrustSmooth=0, PRCTransDensity=-1, **row)
+    kwargs = creator.PrepareEOS(**row)    
+
+    eos, trans_dens = creator.GetEOSType(**row)
+    
     rho0 = 0.16
 
     trans_dens = [10*rho0] + trans_dens + [1e-9]
@@ -43,13 +46,14 @@ def PressureComposition(eos_name, filename):
         radius = data_subrange['radius']
         pressure = data_subrange['pressure']
         mass = data_subrange['mass']
-        plt.plot(radius, pressure, color=color[num], label=labels[-num-1])
-    plt.legend()
-    plt.xlabel('r (km)')
-    plt.ylabel('P (MeV/c)')
+        ax.plot(radius, pressure, color=color[num], label=labels[-num-1])
+    ax.legend()
+    ax.set_xlabel('r (km)')
+    ax.set_ylabel('P (MeV/c)')
     
 if __name__ == '__main__':
-    PressureComposition('SLy8', 'Results/Newest.csv')
+    fig, ax = plt.subplots()
+    PressureComposition(ax, 'SLy8', 'Results/Newest.csv')
     #PressureComposition('MSkA', 'Results/Newest_AACrust.csv')
     #plt.yscale('log')
     plt.show()

@@ -19,6 +19,7 @@ def GetEOS(name_and_row):
     creator = EOSCreator(row)
     kwargs = creator.PrepareEOS(**row) 
     eos, trans_dens = creator.GetEOSType(**kwargs)
+    eos.ToFile('AllSkyrmes/EOS_%s.txt' % name)
     print('finished %s' % name)
     return name, eos, trans_dens
 
@@ -33,12 +34,16 @@ class EOSDrawer:
 
     def DrawEOS(self, df=None, ax=None, xname='GetEnergyDensity', yname='GetPressure', xlim=None, ylim=None, color=['r', 'b', 'g', 'orange', 'b', 'pink'], **kwargs):
 
+        # dict containing lines and its name
+        index_list = {}
+
         if ax is None:
             ax = plt.subplot(111)
         rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 10, base=np.exp(1)), np.linspace(3.77e-4, 1.6, 90)])
         if df is None:
             df = self.df
         for index, row in df.iterrows():
+            index_list[index] = []
             if 'rho0' in row:
                 rho0 = row['rho0']
             else:
@@ -58,14 +63,16 @@ class EOSDrawer:
                     y = rho
                 else:
                     y = getattr(eos, yname)(rho, 0)
-                ax.plot(x, y, color=color[num])
+                line, = ax.plot(x, y, color=color[num], **kwargs)
+                index_list[index].append(line)
+
         ax.set_ylabel(yname)
         ax.set_xlabel(xname)
         if xlim is not None:
             ax.set_xlim(*xlim)
         if ylim is not None:
             ax.set_ylim(*ylim)
-
+        return index_list
 
 
 """        
