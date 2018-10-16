@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
+from tqdm import tqdm
 
 import Utilities.Utilities as tul
 import Utilities.SkyrmeEOS as sky
@@ -23,8 +24,8 @@ def ViolateCausality(eos_name, df):
     try:
         eos, _ = eos_creator.GetEOSType(**kwargs)
     except ValueError:
-        print('%s | Cannot form EOS' % eos_name)
-        return eos_name, True
+        #print('%s | Cannot form EOS' % eos_name)
+        return eos_name, True, False
     
 
     # Get density corresponding to the high pressure point so we can plot things easier
@@ -41,35 +42,38 @@ def ViolateCausality(eos_name, df):
     sound = np.array(eos.GetSpeedOfSound(rho, 0))
 
     if all(sound <= 1) and all(sound >=0):
-        print('%s | %r | %10.3f' % (eos_name, False, density/rho0))
-        return eos_name, False
+        #print('%s | %r | %10.3f' % (eos_name, False, density/rho0))
+        return eos_name, False, False
     elif any(sound <=0):
-        print('%s | %r | Neg. sound' % (eos_name, True))
-        return eos_name, True
+        #print('%s | %r | Neg. sound' % (eos_name, True))
+        return eos_name, True, True
     else:
         index = np.argmax(sound > 1)
         den = rho[index]
-        print('%s | %r | %10.3f | %10.3f | %10.3f' % (eos_name, True, den/rho0, eos.GetPressure(den, 0), density/rho0))
-        return eos_name, False #Debugging purposes. Shoudl be True. Please change this back 
+        #print('%s | %r | %10.3f | %10.3f | %10.3f' % (eos_name, True, den/rho0, eos.GetPressure(den, 0), density/rho0))
+        return eos_name, True, False
 
 
 def AddCausailty(df):
     name_list = [index for index, row in df.iterrows()]
     result = []
-    with ProcessPool() as pool:
-        future = pool.map(partial(ViolateCausality, df=df), name_list)
-        iterator = future.result()
-        while True:
-            try:
-                result.append(next(iterator))
-            except StopIteration:
-                break
-            except Exception as error:
-                print("function raised %s" % error)
-                print(error.traceback)  # Python's traceback of remote process
-                #raise
+    with tqdm(total = len(name_list), ncol=100) as pbar:
+        with ProcessPool() as pool:
+            future = pool.map(partial(ViolateCausality, df=df), name_list)
+            iterator = future.result()
+            while True:
+                try:
+                    result.append(next(iterator))
+                    pbar.update(1)
+                except StopIteration:
+                    break
+                except Exception as error:
+                    pbar.update(1)
+                    print("function raised %s" % error)
+                    print(error.traceback)  # Python's traceback of remote process
+                    #raise
     
-    data = [{'Model': val[0], 'ViolateCausality': val[1]} for val in result]
+    data = [{'Model': val[0], 'ViolateCausality': val[1], 'NegSound': val[2]} for val in result]
     data = pd.DataFrame.from_dict(data)
     data.set_index('Model', inplace=True)
     df = pd.concat([df, data], axis=1)

@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
+from tqdm import tqdm
 
 import SkyrmeEOS as sky
 from Constants import *
@@ -20,7 +21,7 @@ def GetEOS(name_and_row):
     kwargs = creator.PrepareEOS(**row) 
     eos, trans_dens = creator.GetEOSType(**kwargs)
     eos.ToFile('AllSkyrmes/EOS_%s.txt' % name)
-    print('finished %s' % name)
+    #print('finished %s' % name)
     return name, eos, trans_dens
 
 class EOSDrawer:
@@ -29,10 +30,13 @@ class EOSDrawer:
     def __init__(self, df):
         self.df = df
         name_list = [(index, row) for index, row in df.iterrows()]
-        result = ProcessingPool().map(GetEOS, name_list)
-        self.EOS = {val[0]: (val[1], val[2]) for val in result}
+        result = ProcessingPool().imap(GetEOS, name_list)
+        self.EOS = {}
+        print('Preparing EOS in progress:')
+        for val in tqdm(result, total=len(name_list), unit='EOS', ncols=100):
+            self.EOS[val[0]] = (val[1], val[2])
 
-    def DrawEOS(self, df=None, ax=None, xname='GetEnergyDensity', yname='GetPressure', xlim=None, ylim=None, color=['r', 'b', 'g', 'orange', 'b', 'pink'], **kwargs):
+    def DrawEOS(self, df=None, ax=None, xname='GetEnergyDensity', yname='GetPressure', xlim=None, ylim=None, color=['r', 'b', 'g', 'orange', 'b', 'pink'], labels=[], **kwargs):
 
         # dict containing lines and its name
         index_list = {}
@@ -42,6 +46,7 @@ class EOSDrawer:
         rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 10, base=np.exp(1)), np.linspace(3.77e-4, 1.6, 90)])
         if df is None:
             df = self.df
+        first = True
         for index, row in df.iterrows():
             index_list[index] = []
             if 'rho0' in row:
@@ -63,11 +68,15 @@ class EOSDrawer:
                     y = rho
                 else:
                     y = getattr(eos, yname)(rho, 0)
-                line, = ax.plot(x, y, color=color[num], **kwargs)
+                label=None
+                if len(labels) > 0 and first:
+                    label = labels[num]
+                line, = ax.plot(x, y, color=color[num], label=label, **kwargs)
                 index_list[index].append(line)
+            first = False
 
-        ax.set_ylabel(yname)
-        ax.set_xlabel(xname)
+        #ax.set_ylabel(yname)
+        #ax.set_xlabel(xname)
         if xlim is not None:
             ax.set_xlim(*xlim)
         if ylim is not None:

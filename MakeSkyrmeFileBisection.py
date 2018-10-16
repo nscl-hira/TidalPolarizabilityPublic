@@ -99,7 +99,7 @@ def CalculateModel(name_and_eos, **kwargs):
 
 
 
-def CalculatePolarizability(df, Output, **kwargs):
+def CalculatePolarizability(df, Output, PBar=False, **kwargs):
     summary = sky.SummarizeSkyrme(df)
     EOSType = kwargs['EOSType']
 
@@ -107,7 +107,10 @@ def CalculatePolarizability(df, Output, **kwargs):
     Tells ConsolePrinter which quantities to be printed in real time
     """
     title = ['Model', 'R(1.4)', 'lambda(1.4)', 'PCentral']
-    printer = cp.ConsolePrinter(title)
+    if PBar:
+        printer = cp.ConsolePBar(title, total=df.shape[0])
+    else:
+        printer = cp.ConsolePrinter(title, total=df.shape[0])
     
     
     """
@@ -126,18 +129,21 @@ def CalculatePolarizability(df, Output, **kwargs):
                 printer.PrintContent(new_result)
             except StopIteration:
                 break
-            except ValueError as e:
+            except ValueError as error:
+                printer.PrintError(error)
                 pass
             except TimeoutError as error:
+                printer.PrintError(error)
                 pass
             except ProcessExpired as error:
+                printer.PrintError(error)
                 print("%s. Exit code: %d" % (error, error.exitcode))
             except Exception as error:
+                printer.PrintError(error)
                 print("function raised %s" % error)
                 print(error.traceback)  # Python's traceback of remote process
 
-            sys.stdout.flush()
-
+    printer.Close()            
     """
     Merge calculation data with Skyrme loaded data
     """

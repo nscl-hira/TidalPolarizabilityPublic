@@ -1,6 +1,9 @@
+import sys
+from tqdm import tqdm
+
 class ConsolePrinter:
 
-    def __init__(self, header_list = None):
+    def __init__(self, header_list = None, **kwargs):
         self.header_list = header_list
         if header_list is not None:
             self.PrintHeader()
@@ -28,3 +31,24 @@ class ConsolePrinter:
             except ValueError:
                 line = line + ' {:^13} |'.format(val)
         print(line)
+        sys.stdout.flush()
+
+    def PrintError(self, value):
+        pass
+
+    def Close(self):
+        pass
+
+class ConsolePBar:
+
+    def __init__(self, header_list=None, total=0):
+        self.pbar = tqdm(total=total, ncol=100)
+
+    def PrintContent(self, value):
+        self.pbar.update(1)
+
+    def PrintError(self, value):
+        self.PrintContent(value)
+
+    def Close(self):
+        self.pbar.close()

@@ -26,6 +26,7 @@ parser.add_argument("-pd", "--PRCTransDensity", type=float, default=-1, help="En
 parser.add_argument("-cs", "--CrustSmooth", type=float, default=0., help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
 parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
 parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
+parser.add_argument("--PBar", dest='PBar', action='store_true', help="Enable if you don't need to display everything during calculation, just a progress bar")
 args = parser.parse_args()
 
 df_orig = LoadSkyrmeFile(args.Input)
