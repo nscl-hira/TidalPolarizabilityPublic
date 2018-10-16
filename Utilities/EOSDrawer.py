@@ -20,7 +20,7 @@ def GetEOS(name_and_row):
     creator = EOSCreator(row)
     kwargs = creator.PrepareEOS(**row) 
     eos, trans_dens = creator.GetEOSType(**kwargs)
-    eos.ToFile('AllSkyrmes/EOS_%s.txt' % name)
+    #eos.ToFile('AllSkyrmes/EOS_%s.txt' % name)
     #print('finished %s' % name)
     return name, eos, trans_dens
 

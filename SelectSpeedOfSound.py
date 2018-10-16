@@ -33,7 +33,10 @@ def ViolateCausality(eos_name, df):
     def GetDensityFromPressure(rho):
         pressure =  eos.GetPressure(rho, 0) - max_pressure
         return pressure
-    density = opt.newton(GetDensityFromPressure, x0=4*0.16)
+    try:
+        density = opt.newton(GetDensityFromPressure, x0=4*0.16)
+    except Exception as e:
+        density = 7*0.16
     if np.isnan(density):
         density = 7*0.16
 
@@ -57,7 +60,7 @@ def ViolateCausality(eos_name, df):
 def AddCausailty(df):
     name_list = [index for index, row in df.iterrows()]
     result = []
-    with tqdm(total = len(name_list), ncol=100) as pbar:
+    with tqdm(total = len(name_list), ncols=100) as pbar:
         with ProcessPool() as pool:
             future = pool.map(partial(ViolateCausality, df=df), name_list)
             iterator = future.result()
