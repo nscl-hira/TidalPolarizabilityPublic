@@ -42,7 +42,7 @@ class ConsolePrinter:
 class ConsolePBar:
 
     def __init__(self, header_list=None, total=0):
-        self.pbar = tqdm(total=total, ncol=100)
+        self.pbar = tqdm(total=total, ncols=100)
 
     def PrintContent(self, value):
         self.pbar.update(1)

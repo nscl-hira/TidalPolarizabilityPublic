@@ -58,7 +58,7 @@ class TidalLoveWrapper:
                             x0=central_pressure0, *args)
         except RuntimeError as error:
             pc = np.nan
-            self.ans = [np.nan for ans in self.ans]
+            self.ans = tuple([np.nan for ans in self.ans])
         return (pc,) + self.ans 
 
     def Close(self):
