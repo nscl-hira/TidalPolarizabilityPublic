@@ -1,6 +1,7 @@
 images/
 Results/
 Report/
+Plots/PFrac/
 int_talks/
 references/
 *.pyc
