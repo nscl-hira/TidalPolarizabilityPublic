@@ -20,9 +20,8 @@ def GetEOS(name_and_row):
     creator = EOSCreator(row)
     kwargs = creator.PrepareEOS(**row) 
     eos, trans_dens = creator.GetEOSType(**kwargs)
-    eos.ToFile('AllSkyrmes/EOS_%s.txt' % name)
     #print('finished %s' % name)
-    return name, eos, trans_dens
+    return name, eos, trans_dens, creator.rho, creator.pfrac, creator.mufrac
 
 class EOSDrawer:
 
@@ -34,7 +33,10 @@ class EOSDrawer:
         self.EOS = {}
         print('Preparing EOS in progress:')
         for val in tqdm(result, total=len(name_list), unit='EOS', ncols=100):
-            self.EOS[val[0]] = (val[1], val[2])
+            self.EOS[val[0]] = val[1::]
+
+    def ParticleFraction(self, name):
+        return tuple(self.EOS[name][2::])
 
     def DrawEOS(self, df=None, ax=None, xname='GetEnergyDensity', yname='GetPressure', xlim=None, ylim=None, color=['r', 'b', 'g', 'orange', 'b', 'pink'], labels=[], **kwargs):
 
@@ -54,7 +56,7 @@ class EOSDrawer:
             else:
                 rho0 = 0.16
 
-            eos, trans_dens = self.EOS[index]
+            eos, trans_dens, _, _, _ = self.EOS[index]
             trans_dens = [10*rho0] + trans_dens + [1e-9]
             for num, (low_den, high_den) in enumerate(zip(trans_dens, trans_dens[1:])):
                 rho = np.linspace(low_den, high_den, 100)

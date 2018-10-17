@@ -1,0 +1,7 @@
+images/
+Results/
+Report/
+int_talks/
+references/
+*.pyc
+__pycache__

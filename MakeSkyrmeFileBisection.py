@@ -65,7 +65,7 @@ def CalculateModel(name_and_eos, **kwargs):
     """
     1.4 solar mass and 2.0 solar mass calculation
     """
-    with wrapper.TidalLoveWrapper(eos, 'EOS_%s' % name) as tidal_love:
+    with wrapper.TidalLoveWrapper(eos) as tidal_love:
         pc_max, _, _, _, _, _ = tidal_love.FindMaxMass()
         tidal_love.checkpoint = np.append(eos.GetPressure(np.array(list_tran_density), 0), [SurfacePressure])
         try:

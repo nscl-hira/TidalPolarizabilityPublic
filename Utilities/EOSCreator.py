@@ -33,7 +33,7 @@ class EOSCreator:
 
     def __init__(self, row):
         self.Skyrme = sky.Skryme(row)
-        self.BENuclear = BetaEquilibrium(self.Skyrme)
+        self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.Skyrme)
 
     def PrepareEOS(self, **kwargs):
         EOSType = kwargs['EOSType']
