@@ -51,18 +51,18 @@ def DrawConstraints(ax):
     ax.add_patch(copy(KaonSoft_patch))
     ax.add_patch(copy(KaonStiff_patch))
 
-    ax.text(4., 10., 'Soft', color='r')
-    ax.text(0.8, 20, 'Stiff', color='darkblue')
+    ax.text(4., 40., 'Soft', color='r')
+    ax.text(0.8, 100, 'Stiff', color='darkblue')
     
-    leg = ax.legend(loc='lower right', fontsize=15)
+    leg = ax.legend(loc='lower right')
     leg.legendHandles[1].set_color('black')
     leg.legendHandles[2].set_color('black')
     ax.set_yscale('log')
     ax.set_xlabel(r'Density $(\rho/\rho_{0})$')
-    ax.set_ylabel(r'Pressure $(MeV\ fm^{-3})$')
+    ax.set_ylabel(r'Pressure $(MeV\ fm^{-3})$', y=0.60)
     ax.set_xlim([0, 6])
     ax.set_ylim([1e-2, 1e3])
-    ax.set_yticks([0.1,1,10,100])
+    ax.set_xticks([0,1,2,3,4,5])
 
 
 def DrawEoS(ax):
@@ -81,15 +81,21 @@ def DrawEoS(ax):
     ax.set_ylabel(r'Pressure $(MeV\ fm^{-3})$')
     ax.set_xlim([0, 6])
     ax.set_ylim([1e-2, 1e3])
-    ax.set_yticks([0.1,1,10,100])
+    ax.set_xticks([0,1,2,3,4,5])
 
-    ax.legend(loc='lower right', fontsize=15)
+    ax.legend(loc='lower right')
 
 
 if __name__ == "__main__":
 
+    fig, ax = plt.subplots()
+    DrawConstraints(ax)
+    plt.show()
+    fig, ax = plt.subplots()
+    DrawEoS(ax)
+    plt.show()
 
-    fig, ax = plt.subplots(2, 1, sharex=True, sharey=True, figsize=(10, 8))
+    fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(16, 8))
     DrawConstraints(ax[0])
     DrawEoS(ax[1])
     
@@ -98,13 +104,13 @@ if __name__ == "__main__":
         a.set_ylabel('')
         a.set_xlabel('')
         
-    fig.subplots_adjust(hspace=0.)
-    plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+    fig.subplots_adjust(wspace=0.)
+    plt.setp([a.get_yticklabels() for a in fig.axes[1:]], visible=False)
 
     fig.add_subplot(111, frameon=False)
     plt.tick_params(labelcolor='none', top='off', bottom='off', left='off', right='off')
     plt.grid(False)
     plt.xlabel(r'Density $(\rho/\rho_{0})$')
-    plt.ylabel(r'Pressure $(MeV\ fm^{-3})$', labelpad=20)
+    plt.ylabel(r'Pressure $(MeV\ fm^{-3})$', labelpad=20, y=0.55)
 
     plt.show()
