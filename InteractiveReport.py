@@ -115,7 +115,7 @@ def hover_lines(event):
                 continue
             break
 
-filename = 'Results/Orig_mm2.17.csv'
+filename = 'Results/EOSNoPolyTrope.csv'
 
 def onclick(event):
     if event.inaxes == ax:
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     drawer = EOSDrawer(df)
 
     pressure_fig, pressure_ax = plt.subplots()
-    line_list = drawer.DrawEOS(ax=pressure_ax, xname='rho/rho0', yname='GetPressure', xlim=[1e-8, 6], ylim=[1e-2, 1e3], zorder=1)
+    line_list = drawer.DrawEOS(ax=pressure_ax, xname='rho/rho0', yname='GetPressure', xlim=[1e-8, 6.], ylim=[1e-2, 1e3], zorder=1)
     pressure_ax.set_yscale('log')
     pressure_ax.set_xlabel(r'$\rho/\rho_{0}$')
 

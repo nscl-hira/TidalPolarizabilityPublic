@@ -183,8 +183,8 @@ private:
 struct CheckpointSaveAll
 {
 public:
-    CheckpointSaveAll(std::vector<double>& t_mass, std::vector<double>& t_radius, std::vector<double>& t_pressure) :
-        mass_(t_mass), radius_(t_radius), pressure_(t_pressure){};
+    CheckpointSaveAll(std::vector<double>& t_mass, std::vector<double>& t_radius, std::vector<double>& t_pressure, std::vector<double>& t_y) :
+        mass_(t_mass), radius_(t_radius), pressure_(t_pressure), y_(t_y){};
 
     void operator()(const state_type &state, double r)
     {
@@ -195,6 +195,23 @@ public:
         pressure_.push_back(P);
         radius_.push_back(R);
 
+        R = r;
+        double M = state[1];
+        double yR = state[2];
+        double Rs = 2*M;
+        double Rs_R = Rs/R;
+        double Rs_R2 = Rs_R*Rs_R;
+
+        double part1 = 1./20.*pow(Rs_R, 5)*pow(1 - Rs_R, 2)*(2 - yR + (yR - 1)*Rs_R);
+        double part2 = Rs_R*(6. -3.*yR + 3.*Rs*(5*yR - 8.)/(2.*R));
+        double part3 = 1./4.*Rs_R*Rs_R2*(26. - 22.*yR + (Rs_R)*(3*yR - 2) + Rs_R2*(1 + yR));
+        double part4 = 3*(1 - Rs_R)*(1 - Rs_R)*(2 - yR + (yR - 1)*Rs_R)*log(1 - Rs_R);
+        double k2 = part1/(part2 + part3 + part4);
+        double lambda = 2*k2*pow(r*TOKM*1e3, 5)/(3*G);
+        double dimlambda = lambda/pow(G, 4)/pow(state[1]*MODOT, 5)*pow(C, 10);
+
+        y_.push_back(dimlambda);
+
         if(P < 1e-10)
             throw std::invalid_argument("Pressure is now negative");
     }
@@ -202,6 +219,7 @@ private:
     std::vector<double>& mass_;
     std::vector<double>& radius_;
     std::vector<double>& pressure_;
+    std::vector<double>& y_;
 };
 
 typedef std::vector<double> list;
@@ -282,15 +300,15 @@ std::tuple<double, double, double, list, list> TidalLove_individual(const std::s
     return std::make_tuple(state[1], R, dimlambda, mass, radius);
 }
 
-std::tuple<list, list, list> TidalLove_analysis(const std::string& t_EOS_filename,
+std::tuple<list, list, list, list> TidalLove_analysis(const std::string& t_EOS_filename,
                                                 double t_pc)
 {
     state_type state{t_pc*MEVFM3/TOPA, 0, 2}; // initial y is always 2
     auto eos = EOSFromFile(t_EOS_filename);
     TOV_eq<SEOS> tov(eos);
 
-    list mass, radius, pressure;
-    CheckpointSaveAll observer(mass, radius, pressure);
+    list mass, radius, pressure, y;
+    CheckpointSaveAll observer(mass, radius, pressure, y);
     try
     {
         using namespace boost::numeric::odeint;
@@ -305,7 +323,7 @@ std::tuple<list, list, list> TidalLove_analysis(const std::string& t_EOS_filenam
     catch( const std::invalid_argument& e)
     {}
 
-    return std::make_tuple(mass, radius, pressure);
+    return std::make_tuple(mass, radius, pressure, y);
 }
 
 p::tuple wrap_TidalLove_analysis(const std::string& t_EOS_filename, double t_pc)
@@ -314,7 +332,8 @@ p::tuple wrap_TidalLove_analysis(const std::string& t_EOS_filename, double t_pc)
     auto mass = std::get<0>(result);
     auto radius = std::get<1>(result);
     auto pressure = std::get<2>(result);
-    return p::make_tuple(wrap_to_ndarray(mass), wrap_to_ndarray(radius), wrap_to_ndarray(pressure));
+    auto y = std::get<3>(result);
+    return p::make_tuple(wrap_to_ndarray(mass), wrap_to_ndarray(radius), wrap_to_ndarray(pressure), wrap_to_ndarray(y));
 }
 
 p::tuple wrap_TidalLove_individual(const std::string& t_EOS_filename,

@@ -5,137 +5,127 @@ running config_fc
 unifing config_fc, config, build_clib, build_ext, build commands --fcompiler options
 running build_src
 build_src
-building extension "TidalLove_individual" sources
+building extension "TidalLove_analysis" sources
 f2py options: []
-f2py:> /tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individualmodule.c
-creating /tmp/tmpoL_O9v/src.linux-x86_64-2.7
+f2py:> /tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysismodule.c
+creating /tmp/tmpn3BBZ9/src.linux-x86_64-2.7
 Reading fortran codes...
-	Reading file 'TidalLove_individual.f90' (format:free)
+	Reading file 'TidalLove_analysis.f90' (format:free)
 Post-processing...
-	Block: TidalLove_individual
-			Block: tidallove_individual
+	Block: TidalLove_analysis
+			Block: tidallove_analysis
 			Block: csplin
 			Block: cseval
 Post-processing (stage 2)...
 Building modules...
-	Building module "TidalLove_individual"...
-		Constructing wrapper function "tidallove_individual"...
-		  mass_out,radius_out,lambda_out,checkpoint_mass,checkpoint_radius = tidallove_individual(eos_filename,pc,checkpoint,[num_checkpoint])
+	Building module "TidalLove_analysis"...
+		Constructing wrapper function "tidallove_analysis"...
+		  checkpoint_mass,checkpoint_radius,checkpoint_pressure,checkpoint_lambda = tidallove_analysis(eos_filename,pc)
 		Constructing wrapper function "csplin"...
 		  csplin(x,y,b,c,d,[n])
 		Creating wrapper for Fortran function "cseval"("cseval")...
 		Constructing wrapper function "cseval"...
 		  cseval = cseval(u,ideriv,x,y,b,c,d,[n])
-	Wrote C/API module "TidalLove_individual" to file "/tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individualmodule.c"
-	Fortran 77 wrappers are saved to "/tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individual-f2pywrappers.f"
-  adding '/tmp/tmpoL_O9v/src.linux-x86_64-2.7/fortranobject.c' to sources.
-  adding '/tmp/tmpoL_O9v/src.linux-x86_64-2.7' to include_dirs.
-copying /user/tsangc/.local/lib/python2.7/site-packages/numpy/f2py/src/fortranobject.c -> /tmp/tmpoL_O9v/src.linux-x86_64-2.7
-copying /user/tsangc/.local/lib/python2.7/site-packages/numpy/f2py/src/fortranobject.h -> /tmp/tmpoL_O9v/src.linux-x86_64-2.7
-  adding '/tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individual-f2pywrappers.f' to sources.
+	Wrote C/API module "TidalLove_analysis" to file "/tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysismodule.c"
+	Fortran 77 wrappers are saved to "/tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysis-f2pywrappers.f"
+  adding '/tmp/tmpn3BBZ9/src.linux-x86_64-2.7/fortranobject.c' to sources.
+  adding '/tmp/tmpn3BBZ9/src.linux-x86_64-2.7' to include_dirs.
+copying /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/f2py/src/fortranobject.c -> /tmp/tmpn3BBZ9/src.linux-x86_64-2.7
+copying /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/f2py/src/fortranobject.h -> /tmp/tmpn3BBZ9/src.linux-x86_64-2.7
+  adding '/tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysis-f2pywrappers.f' to sources.
 build_src: building npy-pkg config files
 running build_ext
 customize UnixCCompiler
 customize UnixCCompiler using build_ext
-get_default_fcompiler: matching types: '['gnu95', 'intel', 'lahey', 'pg', 'absoft', 'nag', 'vast', 'compaq', 'intele', 'intelem', 'gnu', 'g95', 'pathf95', 'nagfor']'
 customize Gnu95FCompiler
 Found executable /usr/bin/gfortran-4.9
 Found executable /usr/bin/gfortran
 customize Gnu95FCompiler
 customize Gnu95FCompiler using build_ext
-building 'TidalLove_individual' extension
+building 'TidalLove_analysis' extension
 compiling C sources
-C compiler: /usr/bin/gcc-4.9 -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -fno-strict-aliasing -D_FORTIFY_SOURCE=2 -g -fstack-protector-strong -Wformat -Werror=format-security -fPIC
+C compiler: /usr/bin/gcc-4.9 -fno-strict-aliasing -g -O2 -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -fPIC
 
-creating /tmp/tmpoL_O9v/tmp
-creating /tmp/tmpoL_O9v/tmp/tmpoL_O9v
-creating /tmp/tmpoL_O9v/tmp/tmpoL_O9v/src.linux-x86_64-2.7
-compile options: '-I/tmp/tmpoL_O9v/src.linux-x86_64-2.7 -I/user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include -I/usr/include/python2.7 -c'
-gcc-4.9: /tmp/tmpoL_O9v/src.linux-x86_64-2.7/fortranobject.c
-In file included from /user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include/numpy/ndarraytypes.h:1816:0,
-                 from /user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include/numpy/ndarrayobject.h:18,
-                 from /user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include/numpy/arrayobject.h:4,
-                 from /tmp/tmpoL_O9v/src.linux-x86_64-2.7/fortranobject.h:13,
-                 from /tmp/tmpoL_O9v/src.linux-x86_64-2.7/fortranobject.c:2:
-/user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
+creating /tmp/tmpn3BBZ9/tmp
+creating /tmp/tmpn3BBZ9/tmp/tmpn3BBZ9
+creating /tmp/tmpn3BBZ9/tmp/tmpn3BBZ9/src.linux-x86_64-2.7
+compile options: '-I/tmp/tmpn3BBZ9/src.linux-x86_64-2.7 -I/mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include -I/mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/include/python2.7 -c'
+gcc-4.9: /tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysismodule.c
+In file included from /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include/numpy/ndarraytypes.h:1811:0,
+                 from /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include/numpy/ndarrayobject.h:18,
+                 from /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include/numpy/arrayobject.h:4,
+                 from /tmp/tmpn3BBZ9/src.linux-x86_64-2.7/fortranobject.h:13,
+                 from /tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysismodule.c:19:
+/mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
  #warning "Using deprecated NumPy API, disable it by " \
   ^
-gcc-4.9: /tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individualmodule.c
-In file included from /user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include/numpy/ndarraytypes.h:1816:0,
-                 from /user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include/numpy/ndarrayobject.h:18,
-                 from /user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include/numpy/arrayobject.h:4,
-                 from /tmp/tmpoL_O9v/src.linux-x86_64-2.7/fortranobject.h:13,
-                 from /tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individualmodule.c:16:
-/user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
- #warning "Using deprecated NumPy API, disable it by " \
-  ^
-/tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individualmodule.c:216:12: warning: ‘f2py_size’ defined but not used [-Wunused-function]
+/tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysismodule.c:219:12: warning: ‘f2py_size’ defined but not used [-Wunused-function]
  static int f2py_size(PyArrayObject* var, ...)
             ^
+gcc-4.9: /tmp/tmpn3BBZ9/src.linux-x86_64-2.7/fortranobject.c
+In file included from /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include/numpy/ndarraytypes.h:1811:0,
+                 from /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include/numpy/ndarrayobject.h:18,
+                 from /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include/numpy/arrayobject.h:4,
+                 from /tmp/tmpn3BBZ9/src.linux-x86_64-2.7/fortranobject.h:13,
+                 from /tmp/tmpn3BBZ9/src.linux-x86_64-2.7/fortranobject.c:2:
+/mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
+ #warning "Using deprecated NumPy API, disable it by " \
+  ^
 compiling Fortran sources
 Fortran f77 compiler: /usr/bin/gfortran-4.9 -Wall -g -ffixed-form -fno-second-underscore -fPIC -O3 -funroll-loops
 Fortran f90 compiler: /usr/bin/gfortran-4.9 -Wall -g -fno-second-underscore -fPIC -O3 -funroll-loops
 Fortran fix compiler: /usr/bin/gfortran-4.9 -Wall -g -ffixed-form -fno-second-underscore -Wall -g -fno-second-underscore -fPIC -O3 -funroll-loops
-compile options: '-I/tmp/tmpoL_O9v/src.linux-x86_64-2.7 -I/user/tsangc/.local/lib/python2.7/site-packages/numpy/core/include -I/usr/include/python2.7 -c'
-gfortran-4.9:f90: TidalLove_individual.f90
-TidalLove_individual.f90:394.8:
+compile options: '-I/tmp/tmpn3BBZ9/src.linux-x86_64-2.7 -I/mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib/python2.7/site-packages/numpy/core/include -I/mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/include/python2.7 -c'
+gfortran-4.9:f90: TidalLove_analysis.f90
+TidalLove_analysis.f90:407.8:
 
     1001 FORMAT('-X IS NOT IN ASCENDING ORDER IN CSPLIN CALL')
         1
 Warning: Label 1001 at (1) defined but not used
-TidalLove_individual.f90:393.8:
+TidalLove_analysis.f90:406.8:
 
     1000 FORMAT('-N < 2 IN CSPLIN CALL--',I10)
         1
 Warning: Label 1000 at (1) defined but not used
-TidalLove_individual.f90:332.5:
+TidalLove_analysis.f90:345.5:
 
     5 IF ( N .EQ. 2 ) GO TO 50
      1
 Warning: Label 5 at (1) defined but not used
-TidalLove_individual.f90:463.8:
+TidalLove_analysis.f90:476.8:
 
     1000 FORMAT('-IDERIV IS INVALID IN CSEVAL CALL--', I10)
         1
 Warning: Label 1000 at (1) defined but not used
-TidalLove_individual.f90:190.46:
+TidalLove_analysis.f90:182.33:
 
-               checkpoint_mass(icheckpoint) = m
-                                              1
+           checkpoint_mass(im) = m
+                                 1
 Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
-TidalLove_individual.f90:191.48:
+TidalLove_analysis.f90:183.35:
 
-               checkpoint_radius(icheckpoint) = r*r0
-                                                1
+           checkpoint_radius(im) = r*r0
+                                   1
 Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
-TidalLove_individual.f90:264.15:
+TidalLove_analysis.f90:184.37:
 
-    mass_out = m
-               1
+           checkpoint_pressure(im) = P*p0/mevfm3
+                                     1
 Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
-TidalLove_individual.f90:265.17:
+TidalLove_analysis.f90:206.35:
 
-    radius_out = r*r0
-                 1
+           checkpoint_lambda(im) = dimlambda
+                                   1
 Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
-TidalLove_individual.f90:266.17:
-
-    lambda_out = dimlambda
-                 1
-Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
-TidalLove_individual.f90:21.19:
+TidalLove_analysis.f90:19.19:
 
     CHARACTER :: CR = CHAR(13)
                    1
 Warning: Unused variable 'cr' declared at (1)
-TidalLove_individual.f90: In function ‘cseval’:
-TidalLove_individual.f90:434:0: warning: control reaches end of non-void function [-Wreturn-type]
+TidalLove_analysis.f90: In function ‘cseval’:
+TidalLove_analysis.f90:447:0: warning: control reaches end of non-void function [-Wreturn-type]
      RETURN
  ^
-TidalLove_individual.f90: In function ‘tidallove_individual’:
-TidalLove_individual.f90:266:0: warning: ‘dimlambda’ may be used uninitialized in this function [-Wmaybe-uninitialized]
-     lambda_out = dimlambda
- ^
-gfortran-4.9:f77: /tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individual-f2pywrappers.f
-/usr/bin/gfortran-4.9 -Wall -g -Wall -g -shared /tmp/tmpoL_O9v/tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individualmodule.o /tmp/tmpoL_O9v/tmp/tmpoL_O9v/src.linux-x86_64-2.7/fortranobject.o /tmp/tmpoL_O9v/TidalLove_individual.o /tmp/tmpoL_O9v/tmp/tmpoL_O9v/src.linux-x86_64-2.7/TidalLove_individual-f2pywrappers.o -L/usr/lib/gcc/x86_64-linux-gnu/4.9 -L/usr/lib/gcc/x86_64-linux-gnu/4.9 -lgfortran -o ./TidalLove_individual.so
-Removing build directory /tmp/tmpoL_O9v
+gfortran-4.9:f77: /tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysis-f2pywrappers.f
+/usr/bin/gfortran-4.9 -Wall -g -Wall -g -shared /tmp/tmpn3BBZ9/tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysismodule.o /tmp/tmpn3BBZ9/tmp/tmpn3BBZ9/src.linux-x86_64-2.7/fortranobject.o /tmp/tmpn3BBZ9/TidalLove_analysis.o /tmp/tmpn3BBZ9/tmp/tmpn3BBZ9/src.linux-x86_64-2.7/TidalLove_analysis-f2pywrappers.o -L/mnt/analysis/hira/tsangc/anaconda2/envs/Tidal/lib -lpython2.7 -lgfortran -o ./TidalLove_analysis.so
+Removing build directory /tmp/tmpn3BBZ9

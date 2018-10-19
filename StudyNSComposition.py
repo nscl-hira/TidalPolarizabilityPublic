@@ -1,5 +1,5 @@
 from decimal import Decimal
-from TidalLove import TidalLove_CPP as tidal
+from TidalLove import TidalLove_analysis as tidal
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as optimize
@@ -36,16 +36,17 @@ def PressureComposition(ax, eos_name, filename):
             file_.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))
     file_.flush()
     
-    mass, radius, pressure = tidal.tidallove_analysis(file_.name, 81.)
-    data = pd.DataFrame.from_dict({'mass':mass, 'radius':radius, 'pressure':pressure})
+    mass, radius, pressure, y = tidal.tidallove_analysis(file_.name, row['PCentral'])
+    data = pd.DataFrame.from_dict({'mass':mass, 'radius':radius, 'pressure':pressure, 'y':y})
     color = ['r', 'b', 'g', 'orange', 'b', 'pink']
     labels = ['', 'Crustal EOS', 'Electron gas', 'Skyrme'] + ['']*(len(trans_dens) - 4)
-    data = data[data['pressure'] > 1e-8]
+    data = data[data['pressure'] > 1e-9]
     for num, trans_den in enumerate(trans_pressure):
         data_subrange = data[data['pressure'] < trans_den]
         radius = data_subrange['radius']
         pressure = data_subrange['pressure']
         mass = data_subrange['mass']
+        y = data_subrange['y']
         ax.plot(radius, pressure, color=color[num], label=labels[-num-1])
     ax.legend()
     ax.set_xlabel('r (km)')
