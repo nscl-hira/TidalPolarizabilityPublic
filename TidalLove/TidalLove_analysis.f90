@@ -13,12 +13,13 @@
 !        May 1, 2018, Bloomington, IN, USA.
     !-----------------------------------------------------------------------!
 subroutine TidalLove_analysis(EOS_filename, pc, checkpoint_mass, &
-                              checkpoint_radius, checkpoint_pressure, checkpoint_lambda)
+                              checkpoint_radius, checkpoint_pressure, checkpoint_lambda, im)
     implicit real*8 (a-h,k-z)    !Assign letters for reals and integers
 
     CHARACTER :: CR = CHAR(13)
     character(len=*),intent(in) :: EOS_filename
     
+    integer, intent(out) :: im
     real, intent(in) :: pc
     parameter(ipnts=1000000)    !The dimension of array for general output
     !Here (a-h,k-z) = reals, (i,j) = integers         

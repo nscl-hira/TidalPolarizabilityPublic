@@ -115,15 +115,16 @@ def hover_lines(event):
                 continue
             break
 
-filename = 'Results/EOSNoPolyTrope.csv'
+filename = 'Results/ABrown.csv'
 
 def onclick(event):
     if event.inaxes == ax:
         cont, ind = sc.contains(event)
         if cont:
             names = [df.index.values[ind['ind'][0]]]
-            fig, ax2 = plt.subplots()
-            PressureComposition(ax2, names[0], filename) 
+            fig, ax2 = plt.subplots(1, 3, figsize=(18, 8))
+            eos, trans_dens, _, _, _ = drawer.EOS[names[0]]
+            PressureComposition(ax2, eos, trans_dens, names[0], filename) 
             plt.show()
 
 def onclick_lines(event):
@@ -132,9 +133,15 @@ def onclick_lines(event):
             for line in lines:
                 cont, ind = line.contains(event)
                 if cont:
-                    fig, ax2 = plt.subplots()
-                    PressureComposition(ax2, names, filename) 
-                    plt.show()
+                    fig, ax2 = plt.subplots(1, 3, figsize=(18, 8))
+                    eos, trans_dens, _, _, _ = drawer.EOS[names]
+                    PressureComposition(ax2, eos, trans_dens, names, filename) 
+                    break
+            else:
+                continue
+            break
+    plt.show()
+          
 
 if __name__ == '__main__':
     df = LoadSkyrmeFile(filename)

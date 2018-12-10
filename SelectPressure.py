@@ -26,19 +26,31 @@ def AddPressure(df):
             eos = sky.Skryme(row)
             rho0 = eos.rho0
         pressure.append({'Model':index, 
+                        'P(4rho0)':eos.GetPressure(4*rho0, 0),
+                        'P(3.5rho0)':eos.GetPressure(3.5*rho0, 0),
                         'P(3rho0)':eos.GetPressure(3*rho0, 0),
                         'P(2rho0)':eos.GetPressure(2*rho0, 0), 
                         'P(1.5rho0)':eos.GetPressure(1.5*rho0, 0),
                         'P(rho0)':eos.GetPressure(rho0, 0),
                         'P(0.67rho0)':eos.GetPressure(0.67*rho0, 0),
+                        'P_Sym(4rho0)':eos.GetPressure(4*rho0, 0.5),
+                        'P_Sym(3.5rho0)':eos.GetPressure(3.5*rho0, 0.5), 
+                        'P_Sym(3rho0)':eos.GetPressure(3*rho0, 0.5),
                         'P_Sym(2rho0)':eos.GetPressure(2*rho0, 0.5), 
                         'P_Sym(1.5rho0)':eos.GetPressure(1.5*rho0, 0.5),
                         'P_Sym(rho0)':eos.GetPressure(rho0, 0.5),
                         'P_Sym(0.67rho0)':eos.GetPressure(0.67*rho0, 0.5),
+                        'Sym(4rho0)':eos.GetAsymEnergy(4*rho0),
+                        'Sym(3.5rho0)':eos.GetAsymEnergy(3.5*rho0),
+                        'Sym(3rho0)':eos.GetAsymEnergy(3*rho0),
                         'Sym(2rho0)':eos.GetAsymEnergy(2*rho0),
                         'Sym(1.5rho0)':eos.GetAsymEnergy(1.5*rho0),
                         'Sym(rho0)':eos.GetAsymEnergy(rho0),
-                        'Sym(0.67rho0)':eos.GetAsymEnergy(0.67*rho0)})
+                        'Sym(0.67rho0)':eos.GetAsymEnergy(0.67*rho0),
+                        'L(2rho0)':eos.GetL(2*rho0),
+                        'L(1.5rho0)':eos.GetL(1.5*rho0),
+                        'L(rho0)':eos.GetL(rho0),
+                        'L(0.67rho0)':eos.GetL(0.67*rho0)})
 
         # try to convert the result to float if it returns an array of single element
         for key, val in pressure[-1].iteritems():

@@ -1,4 +1,5 @@
 from decimal import Decimal
+import tempfile
 import types
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad
@@ -54,7 +55,7 @@ class EOS:
         # the last 2 column (n and eps) is actually not used in the program
         # therefore eps column will always be zero
         n = np.concatenate([np.logspace(np.log(1e-10), np.log(3.76e-4), 2000, base=np.exp(1)), 
-                            np.linspace(3.77e-4, 10, 18000)])
+                            np.linspace(3.77e-4, 10*0.16, 18000)])
         energy = (self.GetEnergyDensity(n, 0.))
         pressure = self.GetPressure(n, 0.) 
         for density, e, p in zip(n, energy, pressure):
@@ -390,7 +391,7 @@ def SummarizeSkyrme(df):
     """
     Check if it is skyrme first, if not then it will return an empty dataframe
     """
-    if 'to' not in df.iloc[0]:
+    if 't0' not in df.iloc[0]:
         return pd.DataFrame()
 
     for index, row in df.iterrows():
@@ -404,8 +405,10 @@ def SummarizeSkyrme(df):
         Ksym = sky.GetKsym(rho0)
         Qsym = sky.GetQsym(rho0)
         eff_m = sky.GetEffectiveMass(rho0, 0.5)
+        m_n = sky.GetEffectiveMass(rho0, 0.)
+        m_p = sky.GetEffectiveMass(rho0, 1)
         #print('%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f' % (index, E0, K0, Kprime, J, L, Ksym, Qsym, eff_m))
-        summary_dict = {'Model':index, 'E0':E0, 'K0':K0, 'K\'':Kprime, 'J':J, 'L':L, 'Ksym':Ksym, 'Qsym':Qsym, 'm*':eff_m}
+        summary_dict = {'Model':index, 'E0':E0, 'K0':K0, 'K\'':Kprime, 'J':J, 'L':L, 'Ksym':Ksym, 'Qsym':Qsym, 'm*':eff_m, 'm_n': m_n, 'm_p': m_p}
         summary_list.append(summary_dict)
 
     df = pd.DataFrame.from_dict(summary_list)

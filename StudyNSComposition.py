@@ -2,56 +2,71 @@ from decimal import Decimal
 from TidalLove import TidalLove_analysis as tidal
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.optimize as optimize
+import scipy.optimize as opt
 import pandas as pd
 import tempfile
 import math
+import time
 
-from MakeSkyrmeFileBisection import LoadSkyrmeFile
-import Utilities as ult
-from Utilities.EOSCreator import EOSCreator
 
-def PressureComposition(ax, eos_name, filename):
+def LoadSkyrmeFile(filename):
+    df = pd.read_csv(filename, index_col=0)
+    return df.fillna(0)
+
+def PressureComposition(ax, eos, trans_dens, eos_name, filename):
     df = LoadSkyrmeFile(filename)
     row = df.loc[eos_name]
-    creator = EOSCreator(row)#SkyrmeDensity = 1, TranDensity=1, CrustSmooth=0, PRCTransDensity=-1, **row)
-    kwargs = creator.PrepareEOS(**row)    
-
-    eos, trans_dens = creator.GetEOSType(**row)
-    
     rho0 = 0.16
 
     trans_dens = [10*rho0] + trans_dens + [1e-9]
     trans_dens = np.array(trans_dens)
     trans_pressure = eos.GetPressure(trans_dens, 0)
 
-    file_ = tempfile.NamedTemporaryFile()
-    file_.write("asfd\nasdf\nasdf\nasdf\n")
-    n = np.concatenate([np.logspace(np.log(1e-10), np.log(3.76e-4), 2000, base=np.exp(1)), np.linspace(3.77e-4, 10, 18000)])
-    #n = np.linspace(1e-12, 10, 20000) 
-    energy = (eos.GetEnergyDensity(n, 0.))
-    pressure = eos.GetPressure(n, 0.) 
-    for density, e, p in zip(n, energy, pressure):
-        if(not math.isnan(e) and not math.isnan(p)):
-            file_.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))
-    file_.flush()
-    
-    mass, radius, pressure, y = tidal.tidallove_analysis(file_.name, row['PCentral'])
-    data = pd.DataFrame.from_dict({'mass':mass, 'radius':radius, 'pressure':pressure, 'y':y})
+    start = time.time()
+    for file_ in eos.ToTempFile():
+        mass, radius, pressure, y, size = tidal.tidallove_analysis(file_.name, row['PCentral'])
+
+    radius = radius[0:size - 1]
+    num = radius.shape[0]
+    it = np.linspace(0, 0.9*(num-1), 60, dtype=np.int).tolist()
+    it = it + np.linspace(0.9*(num-1), num-1, 40, dtype=np.int).tolist()
+    mass = mass[it]
+    radius = radius[it]
+    pressure = pressure[it]
+    y = y[it]
+
+    density = []
+    for pre in pressure:
+        try:
+            if pre < 5:
+                density.append(opt.newton(lambda rho: eos.GetPressure(rho, 0) - pre, x0=pre, maxiter=100))
+            else:
+                density.append(opt.newton(lambda rho: eos.GetPressure(rho, 0) - pre, x0=5*0.16, maxiter=100))
+        except Exception as error:
+            density.append(0)
+
+    data = pd.DataFrame.from_dict({'mass':mass, 'radius':radius, 'pressure':pressure, 'y':y, 'density':density})
     color = ['r', 'b', 'g', 'orange', 'b', 'pink']
     labels = ['', 'Crustal EOS', 'Electron gas', 'Skyrme'] + ['']*(len(trans_dens) - 4)
     data = data[data['pressure'] > 1e-9]
     for num, trans_den in enumerate(trans_pressure):
         data_subrange = data[data['pressure'] < trans_den]
-        radius = data_subrange['radius']
-        pressure = data_subrange['pressure']
-        mass = data_subrange['mass']
-        y = data_subrange['y']
-        ax.plot(radius, pressure, color=color[num], label=labels[-num-1])
-    ax.legend()
-    ax.set_xlabel('r (km)')
-    ax.set_ylabel('P (MeV/c)')
-    
+        ax[0].plot(data_subrange['radius'], data_subrange['pressure'], color=color[num], label=labels[-num-1], marker='o')
+        ax[1].plot(data_subrange['radius'], data_subrange['mass'], color=color[num], label=labels[-num-1], marker='o')
+        ax[2].plot(data_subrange['radius'], data_subrange['density'], color=color[num], label=labels[-num-1], marker='o')
+
+    ax[0].set_ylabel('Pressure (MeV/fm3)')
+    ax[1].set_ylabel('Mass (solar mass)')
+    ax[2].set_ylabel('Density (MeV/fm3)')
+    for axis in ax:
+        axis.set_yscale('log')
+
+
+    for axis in ax:
+        axis.set_xlabel('r (km)')
+        axis.legend()
+
+        
 if __name__ == '__main__':
     fig, ax = plt.subplots()
     PressureComposition(ax, 'SLy8', 'Results/Newest.csv')

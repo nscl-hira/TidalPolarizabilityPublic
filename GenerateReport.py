@@ -12,6 +12,7 @@ from MakeSkyrmeFileBisection import LoadSkyrmeFile, CalculatePolarizability
 from SelectPressure import AddPressure
 from SelectAsym import SelectLowDensity
 from SelectSpeedOfSound import AddCausailty
+from SelectSymPressure import SelectSymPressure
 from Utilities.Constants import *
 from Utilities.SkyrmeEOS import Skryme
 
@@ -38,10 +39,10 @@ argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
 
 # Calculate Polarizability to begin with
 df = CalculatePolarizability(df_orig, **argd)
-df.to_csv('test.csv')
 df = AddPressure(df)
 df = AddCausailty(df)
 df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
+df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
 #df = LoadSkyrmeFile('test.csv')
 
 prs = Presentation()
@@ -153,7 +154,7 @@ ax.plot(df_acausal['R(1.4)'], df_acausal['lambda(1.4)'], 'ro', label='Acausal', 
 ax.plot(df_causal_sat_asym['R(1.4)'], df_causal_sat_asym['lambda(1.4)'], 'ro', label='Satisfy Asym', color='b')
 ax.set_xlabel('Neutron Star Radius (km)')
 ax.set_ylabel(r'$Tidal\ \ Deformability\ \ \Lambda$')
-ax.set_xlim([9, 16])
+ax.set_xlim([7, 16])
 ax.set_ylim([-25, 1500])
 plt.legend()
 plt.savefig(figname)
@@ -217,8 +218,8 @@ plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
 plt.close()
 
-CreateGif([df_causal, df_acausal], 'Report/Sym.gif', np.linspace(0.1, 2.5, 10).tolist(), color=['r', 'r'])
-CreateGif([df_causal, df_acausal], 'Report/Pressure.gif', np.linspace(0.1, 2.5, 10).tolist(), 'GetPressure', 0, 50, color=['r', 'r'])
+#CreateGif([df_causal, df_acausal], 'Report/Sym.gif', np.linspace(0.1, 2.5, 10).tolist(), color=['r', 'r'])
+#CreateGif([df_causal, df_acausal], 'Report/Pressure.gif', np.linspace(0.1, 2.5, 10).tolist(), 'GetPressure', 0, 50, color=['r', 'r'])
 
 figname = 'Report/sym_lambda.png'
 ax = plt.subplot(111)

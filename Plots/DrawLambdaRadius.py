@@ -70,19 +70,20 @@ if __name__ == '__main__':
     df = LoadSkyrmeFile('Results/Orig_mm2.17.csv')
 
     # draw from bottom layer to the top
-    DrawLooseLIGO(ax, color='aqua', alpha=0.5, fill=True)
-    DrawTightLIGO(ax, color='blue', fill=False, linewidth='3')
+    #DrawLooseLIGO(ax, color='aqua', alpha=0.5, fill=True)
+    DrawTightLIGO(ax, color='aqua', alpha=0.5, fill=True)
     annala = DrawAnnala(ax, color='b', label='Annala et. al.', zorder=12, linewidth='3')
     no_crust = DrawNoCrust(ax, color='b', label='Skyrme without crust', zorder=13, linestyle='--', linewidth=3)
-    fsu_gold = DrawFSUGold(ax, marker='s', color='r', facecolor='white', zorder=11, label='RMF based EoS', linewidth=3, s=200)
+    fsu_gold = DrawFSUGold(ax, marker='s', color='r', facecolor='white', zorder=11, label='RMF based EoS', linewidth=3, s=250)
     all_data = DrawOurData(df, ax, marker='o', color='magenta', facecolor='white', zorder=10, linewidth=3, s=250, label='Skyrme based EoS')
-    agree_low_den = DrawOurData(df[df['AgreeLowDensity'] == True], ax, marker='o', color='black', facecolor='white', zorder=10, linewidth=3, s=250, label='')
+    #agree_low_den = DrawOurData(df[df['AgreeLowDensity'] == True], ax, marker='o', color='black', facecolor='white', zorder=10, linewidth=3, s=250, label='')
 
     ax.set_xlim([8, 15])
     ax.set_ylim([0, 1300])
     ax.set_xlabel('Neutron Star Radius (km)')
     ax.set_ylabel(r'Tidal Deformability $\Lambda$')
-    legend = ax.legend([annala[0], no_crust[0], fsu_gold, all_data], ['Annala et. al.', 'Skyrme without crust', 'RMF based EoS', 'Skyrme based EoS'], loc='upper left', fontsize=25, handler_map={all_data: data_handler()})
+    #legend = ax.legend([annala[0], no_crust[0], fsu_gold, all_data], ['Annala et. al.', 'Skyrme without crust', 'RMF based EoS', 'Skyrme based EoS'], loc='upper left', fontsize=25, handler_map={all_data: data_handler()})
+    legend = ax.legend(loc='upper left', fontsize=25)
     # align marker color to text color
     for text, handle, label in zip(legend.get_texts(), *ax.get_legend_handles_labels()):
         if hasattr(handle, 'get_color'):

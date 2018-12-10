@@ -66,15 +66,18 @@ def DrawConstraints(ax):
 
 
 def DrawEoS(ax):
-    df = LoadSkyrmeFile('Results/Orig_mm2.17.csv')
+    df = LoadSkyrmeFile('Results/ABrownUDen.csv')
+    df = pd.concat([df, LoadSkyrmeFile('Results/ABrownNewNoPolyTrope.csv')])
     df = df[df['NegSound']==False]
 
-    drawer = EOSDrawer(df)
-    drawer.DrawEOS(ax=ax, xname='rho/rho0', yname='GetPressure', labels=['Polytrope', 'Skyrme', 'Rel. gas', 'Crust'])
     GW_constraints = pd.read_csv('Constraints/GWPressureConstraint.csv')
     path, GW_patch = ContourToPatches(GW_constraints['rho/rho0'], GW_constraints['P(MeV/fm3)'], zorder=10, alpha=0.5, color='aqua', facecolor='aqua', label='GW')
-    
     ax.add_patch(copy(GW_patch))
+
+    drawer = EOSDrawer(df.loc[df.index.str.endswith('u') | df.index.str.endswith('q')])
+    drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('u')], xname='rho/rho0', yname='GetPressure', color=['r', 'r', 'r', 'r', 'r', 'r'], zorder=15)#labels=['Polytrope', 'Skyrme', 'Rel. gas', 'Crust'])
+    drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('q')], xname='rho/rho0', yname='GetPressure', color=['b', 'b', 'b', 'b', 'b', 'b'], zorder=15)
+    
 
     ax.set_yscale('log')
     ax.set_xlabel(r'Density $(\rho/\rho_{0})$')

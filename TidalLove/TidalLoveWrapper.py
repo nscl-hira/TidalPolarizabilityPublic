@@ -47,7 +47,7 @@ class TidalLoveWrapper:
             pc = opt.minimize(lambda x: -1e6*self.Calculate(float(x))[0], 
                               x0=np.array([central_pressure0]), 
                               bounds=((0, None),), 
-                              options={'eps':0.1, 'ftol':1e-8})
+                              options={'eps':0.1, 'ftol':1e-5})
         except RuntimeError as error:
             pc = {'x': np.nan}
         return (pc['x'][0],) +self.ans

@@ -35,7 +35,7 @@ Print the selected EOS into a file for the tidallove script to run
 def CalculateModel(name_and_eos, **kwargs):
     name = name_and_eos[0]    
     EOSType = kwargs['EOSType']
-    max_mass = kwargs['MaxMassRequested']
+    max_mass_req = kwargs['MaxMassRequested']
     eos_creator = EOSCreator(name_and_eos[1])
 
 
@@ -66,11 +66,14 @@ def CalculateModel(name_and_eos, **kwargs):
     1.4 solar mass and 2.0 solar mass calculation
     """
     with wrapper.TidalLoveWrapper(eos) as tidal_love:
-        pc_max, _, _, _, _, _ = tidal_love.FindMaxMass()
+        pc_max, max_mass, _, _, _, _ = tidal_love.FindMaxMass()
         tidal_love.checkpoint = np.append(eos.GetPressure(np.array(list_tran_density), 0), [SurfacePressure])
         try:
             pc14, mass, radius, lambda_, checkpoint_mass, checkpoint_radius = tidal_love.FindMass(mass=1.4)
-            pc2, _, _, _, _, _ = tidal_love.FindMass(mass=2., central_pressure0=300)
+            if max_mass >= max_mass_req: 
+              pc2, _, _, _, _, _ = tidal_love.FindMass(mass=max_mass_req, central_pressure0=300)
+            else:
+              pc2 = 0
         except RuntimeError as error:
             raise ValueError('Failed to find 1.4/2.0 solar mass properties for this EOS')
         #if mass < 1e-4 or lambda_ < 1e-4:
