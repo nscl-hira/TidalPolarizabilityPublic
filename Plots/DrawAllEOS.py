@@ -75,7 +75,7 @@ def DrawEoS(ax):
     ax.add_patch(copy(GW_patch))
 
     drawer = EOSDrawer(df.loc[df.index.str.endswith('u') | df.index.str.endswith('q')])
-    drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('u')], xname='rho/rho0', yname='GetPressure', color=['r', 'r', 'r', 'r', 'r', 'r'], zorder=15)#labels=['Polytrope', 'Skyrme', 'Rel. gas', 'Crust'])
+    drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('u')], xname='rho/rho0', yname='GetPressure', color=['r', 'r', 'r', 'r', 'r', 'r'], zorder=16)#labels=['Polytrope', 'Skyrme', 'Rel. gas', 'Crust'])
     drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('q')], xname='rho/rho0', yname='GetPressure', color=['b', 'b', 'b', 'b', 'b', 'b'], zorder=15)
     
 

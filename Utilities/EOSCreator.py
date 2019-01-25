@@ -182,13 +182,19 @@ class EOSCreator:
         TranDensity = kwargs['TranDensity']
         SkyrmeDensity = kwargs['SkyrmeDensity'] 
 
-
+        """
         pseudo = sky.PseudoEOS(TranDensity, 
                                self.crustEOS.GetEnergyDensity(TranDensity, 0), 
                                self.crustEOS.GetPressure(TranDensity, 0), 
                                SkyrmeDensity, 
                                self.BENuclear.GetEnergyDensity(SkyrmeDensity, 0), 
                                self.BENuclear.GetPressure(SkyrmeDensity, 0))
+        """
+        pseudo = sky.SmoothPseudo(TranDensity,
+                                  self.crustEOS,
+                                  SkyrmeDensity,
+                                  self.BENuclear)
+
         eos = sky.EOSConnect([(-1, TranDensity), 
                               (TranDensity, SkyrmeDensity), 
                               (SkyrmeDensity, 100)], 

@@ -36,6 +36,7 @@ def CalculateModel(name_and_eos, **kwargs):
     name = name_and_eos[0]    
     EOSType = kwargs['EOSType']
     max_mass_req = kwargs['MaxMassRequested']
+    target_mass = kwargs['TargetMass']
     eos_creator = EOSCreator(name_and_eos[1])
 
 
@@ -65,36 +66,54 @@ def CalculateModel(name_and_eos, **kwargs):
     """
     1.4 solar mass and 2.0 solar mass calculation
     """
+    pc14 = []
+    mass = []
+    radius = []
+    lambda_ = []
+    checkpoint_mass = []
+    checkpoint_radius = []
     with wrapper.TidalLoveWrapper(eos) as tidal_love:
         pc_max, max_mass, _, _, _, _ = tidal_love.FindMaxMass()
         tidal_love.checkpoint = np.append(eos.GetPressure(np.array(list_tran_density), 0), [SurfacePressure])
         try:
-            pc14, mass, radius, lambda_, checkpoint_mass, checkpoint_radius = tidal_love.FindMass(mass=1.4)
-            if max_mass >= max_mass_req: 
-              pc2, _, _, _, _, _ = tidal_love.FindMass(mass=max_mass_req, central_pressure0=300)
-            else:
-              pc2 = 0
+            for tg in target_mass:
+                pc14_tg, mass_tg, radius_tg, lambda_tg, checkpoint_mass_tg, checkpoint_radius_tg = tidal_love.FindMass(mass=tg)
+                pc14.append(pc14_tg)
+                mass.append(mass_tg)
+                radius.append(radius_tg)
+                lambda_.append(lambda_tg)
+                checkpoint_mass.append(checkpoint_mass_tg)
+                checkpoint_radius.append(checkpoint_radius_tg)
         except RuntimeError as error:
-            raise ValueError('Failed to find 1.4/2.0 solar mass properties for this EOS')
+            raise ValueError('Failed to find %g solar mass properties for this EOS' % tg)
+        if max_mass >= max_mass_req: 
+            try:
+                pc2, _, _, _, _, _ = tidal_love.FindMass(mass=max_mass_req, central_pressure0=300)
+            except RuntimeError as error:
+                raise ValueError('Failed to find %g solar mass properties for this EOS' % max_mass_req)
+        else:
+          pc2 = 0
+        
         #if mass < 1e-4 or lambda_ < 1e-4:
         #    raise ValueError('Mass/Lambda = 0. Calculation failed')
-        if any(np.isnan([mass, radius, lambda_, pc14])) or any(np.isnan(checkpoint_mass)) or any(np.isnan(checkpoint_radius)):
-            raise ValueError('Some of the calculated values are nan.')
+        #if any(np.isnan([mass, radius, lambda_, pc14])) or any(np.isnan(checkpoint_mass)) or any(np.isnan(checkpoint_radius)):
+        #    raise ValueError('Some of the calculated values are nan.')
 
 
     """
     Write results to dict and return
     """
     result = {'Model':name, 
-              'R(1.4)':radius, 
-              'lambda(1.4)':lambda_, 
-              'PCentral':pc14, 
               'PCentral2MOdot': pc2, 
               'PCentralMaxMass':pc_max, 
               'MaxMass': max_mass} 
-    for den, (index, radius) in zip(list_tran_density, enumerate(checkpoint_radius)):
-        result['RadiusCheckpoint%d' % index] = radius
-        result['DensityCheckpoint%d' % index] = den
+    for tg, r, lamb, pc, cp_r in zip(target_mass, radius, lambda_, pc14, checkpoint_radius):
+        result['R(%g)'%tg] = r
+        result['lambda(%g)'%tg] = lamb
+        result['PCentral(%g)'%tg] = pc
+        for den, (index, cp_radius) in zip(list_tran_density, enumerate(cp_r)):
+            result['RadiusCheckpoint%d(%g)' % (index, tg)] = cp_radius
+            result['DensityCheckpoint%d(%g)' % (index, tg)] = den
     for key, val in kwargs.iteritems():
         result[key] = val
 
@@ -161,7 +180,7 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrme.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrme.csv)")
+    parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrme.csv", help="Name of the Skyrme input file (Default: SkyrmeParameters/PawelSkyrme.csv)")
     parser.add_argument("-o", "--Output", default="Result", help="Name of the CSV output (Default: Result)")
     parser.add_argument("-et", "--EOSType", default="EOS", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme (Default: EOS)")
     parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Density at which Skyrme takes over from crustal EOS (Default: 0.3)")
@@ -171,6 +190,7 @@ if __name__ == "__main__":
     parser.add_argument("-cs", "--CrustSmooth", type=float, default=0, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
     parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
     parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
+    parser.add_argument("-tg", "--TargetMass", type=float, nargs='+', default=[1.4], help="Target mass of the neutron star. (Default: 1.4)")
     args = parser.parse_args()
 
     df = LoadSkyrmeFile(args.Input)

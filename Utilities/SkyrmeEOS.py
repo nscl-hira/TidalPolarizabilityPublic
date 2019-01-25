@@ -37,6 +37,9 @@ class EOS:
     def GetSpeedOfSound(self, rho, pfrac):
         return egrad(self.GetPressure, 0)(rho, pfrac)/(self.GetEnergy(rho, pfrac) + egrad(self.GetEnergy, 0)(rho, pfrac)*rho)
 
+    def Get2EGrad(self, rho, pfrac):
+        return egrad(egrad(self.GetEnergy, 0),0)(rho, pfrac)
+
     def ToFile(self, name):
         with open(name, 'w') as file_:
             self.ToFileStream(file_)
@@ -87,6 +90,9 @@ class SplineEOS(EOS):
         pressure = rho*rho*grad_edensity
         return pressure
 
+    def Get2EGrad(self, rho, pfrac):
+        return self.ddspl(rho)
+
     def GetSpeedOfSound(self, rho, pfrac):
         return (2*rho*(self.dspl(rho)) + rho*rho*(self.ddspl(rho))) \
                /(self.GetEnergy(rho, pfrac) + self.dspl(rho)*rho)
@@ -109,7 +115,10 @@ class SplineEOSFull(SplineEOS):
         return EOSSpline.GetEnergy(self, rho, pfrac) + (2*pfrac - 1)**2*self.SymSpl(rho)
 
     def GetPressure(self, rho, pfrac):
-        return EOSSpline.GetPressure(self, rho, pfrac) + (2*pfrac - 1)**2*self.dSymSpl(rho)
+        return EOSSpline.GetPressure(self, rho, pfrac) + rho*rho*(2*pfrac - 1)**2*self.dSymSpl(rho)
+
+    def Get2EGrad(self, rho, pfrac):
+        return EOSSpline.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho)
 
     def GetAsymEnergy(self, rho, *args):
         return self.SymSpl(rho)
@@ -172,6 +181,9 @@ class EOSConnect(EOS):
     def GetPressure(self, rho, pfrac):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetPressure(rho, pfrac))(eos) for eos in self.eos_list])
 
+    def Get2EGrad(self, rho, pfrac):
+        return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.Get2EGrad(rho, pfrac))(eos) for eos in self.eos_list])
+
     def GetSpeedOfSound(self, rho, pfrac):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetSpeedOfSound(rho, pfrac))(eos) for eos in self.eos_list])
 
@@ -219,7 +231,71 @@ class PseudoEOS(EOS):
     def GetSpeedOfSound(self, rho, pfrac):
         return 4./3.*self.K*np.power(self.GetEnergyDensity(rho, 0), 1./3.)
 
+    def Get2EGrad(self, rho, pfrac):
+        pass
 
+def SmoothPseudo(ini_rho, ini_eos, final_rho, final_eos):
+    ini_energy_density = ini_eos.GetEnergyDensity(ini_rho, 0)
+    ini_pressure = ini_eos.GetPressure(ini_rho, 0)
+    final_energy_density = final_eos.GetEnergyDensity(final_rho, 0)
+    final_pressure = final_eos.GetPressure(final_rho, 0)
+
+    peos = PseudoEOS(ini_rho, ini_energy_density, ini_pressure, final_rho, final_energy_density, final_pressure)
+    rho_range = final_rho - ini_rho
+    start_rho = np.linspace(ini_rho, ini_rho + 0.1*rho_range, 10, endpoint=True)
+    mid_rho = np.linspace(ini_rho + 0.3*rho_range, ini_rho + 0.4*rho_range, 0, endpoint=True)
+    end_rho = np.linspace(final_rho, final_rho + 0.1*rho_range, 10, endpoint=True)
+    energy = peos.GetEnergy(mid_rho, 0)
+    pressure = peos.GetPressure(mid_rho, 0)
+
+    energy = np.concatenate([ini_eos.GetEnergy(start_rho, 0), energy, final_eos.GetEnergy(end_rho, 0)])
+    pressure = np.concatenate([ini_eos.GetPressure(start_rho,  0), pressure, final_eos.GetPressure(end_rho, 0)])
+
+    eos = EOSSpline(np.concatenate([start_rho, mid_rho, end_rho]), energy=energy, pressure=pressure)
+
+    def CustomGetSpeedOfSound(self, rho, pfrac):
+        return final_eos.GetSpeedOfSound(rho, pfrac)
+    eos.GetSpeedOfSound = types.MethodType(CustomGetSpeedOfSound, eos)
+
+    return eos
+
+
+class CubicEOS(EOS):
+
+    """
+    Similar to Pseudo EOS. Does not correspond to any physical process
+    it exist such that 2 EOSs can be connected with smooth first derivative
+    """
+
+    def __init__(self, ini_rho, ini_eos, final_rho, final_eos):
+        EOS.__init__(self)       
+        """
+        E = A + B*rho + C*rho^2 + D*rho^3 + E*rho^4 + F*rho^5
+        """
+
+        mat = np.array([[1, ini_rho, ini_rho**2, ini_rho**3, ini_rho**4, ini_rho**5],
+                        [1, final_rho, final_rho**2, final_rho**3, final_rho**4, final_rho**5],
+                        [0, 1, 2*ini_rho, 3*ini_rho**2, 4*ini_rho**3, 5*ini_rho**4],
+                        [0, 1, 2*final_rho, 3*final_rho**2, 4*final_rho**3, 5*final_rho**4],
+                        [0, 0, 2, 6*ini_rho, 12*ini_rho**2, 20*ini_rho**3],
+                        [0, 0, 2, 6*final_rho, 12*final_rho**2, 20*final_rho**3]])
+        pfrac = 0
+        b = np.array([ini_eos.GetEnergy(ini_rho, pfrac), 
+                      final_eos.GetEnergy(final_rho, pfrac), 
+                      ini_eos.GetPressure(ini_rho, pfrac)/(ini_rho*ini_rho),
+                      final_eos.GetPressure(final_rho, pfrac)/(final_rho*final_rho),
+                      ini_eos.Get2EGrad(ini_rho, pfrac),
+                      final_eos.Get2EGrad(final_rho, pfrac)])
+
+        self.coeff = np.linalg.solve(mat, b)
+        print(self.coeff)
+
+
+    def GetEnergy(self, rho, pfrac):
+        return self.coeff[0] + self.coeff[1]*rho + self.coeff[2]*np.power(rho, 2) + self.coeff[3]*np.power(rho, 3) + self.coeff[4]*np.power(rho, 4) + self.coeff[5]*np.power(rho, 5)
+
+
+    
 
 class PolyTrope(EOS):
 

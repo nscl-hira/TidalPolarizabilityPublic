@@ -12,7 +12,7 @@ import Utilities as utl
 import SkyrmeEOS as sky 
 from Constants import *
 
-def CreateGif(df_list, output_filename, densitylist, func='GetAsymEnergy', ymin=0, ymax=100, color=['r', 'b']):
+def CreateGif(df_list, output_filename, densitylist, func='GetAsymEnergy', ymin=0, ymax=100, xmin=60, xmax=1500, color=['r', 'b'], xval='lambda(1.4)', xlabel=r'$Deformability\ \Lambda$', ylabel=r'$Sym (MeV/fm^{3})$', xscale='log', yscale='linear'):
     # plot with different densities
     if func == 'GetAsymEnergy':
         ytitle = 'Sym'
@@ -28,16 +28,15 @@ def CreateGif(df_list, output_filename, densitylist, func='GetAsymEnergy', ymin=
             for index, row in df.iterrows():
                 eos = sky.Skryme(row)
                 pressure.append(getattr(eos, func)(density*rho0, 0))
-                polarizability.append(row['lambda(1.4)'])
+                polarizability.append(row[xval])
             ax.plot(polarizability, pressure, 'ro', marker='o', markerfacecolor='w', color=color[num])
-        ax.set_ylim([1e-2,3000])
-        #ax.set_yscale('log')
-        ax.set_xlabel(r'$Deformability\ \Lambda$')
-        ax.set_ylabel(r'$%s (MeV/fm^{3})$' % ytitle)
-        ax.set_xlim([60,1500])
-        ax.set_xscale('log')
+        ax.set_yscale(yscale)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_xlim([xmin,xmax])
+        ax.set_xscale(xscale)
         ax.set_ylim([ymin, ymax])
-        ax.text(100, 0.85*ymax, r'$Density = %3.2f\rho_{0}$' % density, fontsize=35)
+        ax.text(0.1, 0.85, r'$Density = %3.2f\rho_{0}$' % density, fontsize=35, transform=ax.transAxes)
         #plt.show()
         name = 'images/test%f.png' % density
         fig.savefig(name, dpi=50)
@@ -53,10 +52,20 @@ if __name__ == "__main__":
     df = pd.read_csv('Results/Newest.csv', index_col=0)
     df.fillna(0, inplace=True)
 
+    CreateGif([df], 'Sym_0_1.5_R.gif', np.linspace(0.1, 1.5, 50).tolist(), xval='R(1.4)', xmin=7, xmax=16, xscale='linear', xlabel=r'Radius (km)')
+    CreateGif([df], 'Pressure_0_1.5_R.gif', np.linspace(0.1, 1.5, 50).tolist(), 'GetPressure', 0, 50, xval='R(1.4)', xmin=7, xmax=16, xscale='linear', xlabel=r'Radius (km)', ylabel=r'Pressure $(MeV/fm^{3})$')
+
+    CreateGif([df], 'Sym_1.5_2.5_R.gif', np.linspace(1.5, 2.5, 50).tolist(), xval='R(1.4)', xmin=7, xmax=16, xscale='linear', xlabel=r'Radius (km)')
+    CreateGif([df], 'Pressure_1.5_2.5_R.gif', np.linspace(1.5, 2.5, 50).tolist(), 'GetPressure', 0, 50, xval='R(1.4)', xmin=7, xmax=16, xscale='linear', xlabel=r'Radius (km)', ylabel=r'Pressure $(MeV/fm^{3})$')
+
+
+
     CreateGif([df], 'Sym_0_1.5.gif', np.linspace(0.1, 1.5, 50).tolist())
-    CreateGif([df], 'Pressure_0_1.5.gif', np.linspace(0.1, 1.5, 50).tolist(), 'GetPressure', 0, 50)
+    CreateGif([df], 'Pressure_0_1.5.gif', np.linspace(0.1, 1.5, 50).tolist(), 'GetPressure', 0, 50, ylabel=r'Pressure $(MeV/fm^{3})$')
 
     CreateGif([df], 'Sym_1.5_2.5.gif', np.linspace(1.5, 2.5, 50).tolist())
-    CreateGif([df], 'Pressure_1.5_2.5.gif', np.linspace(1.5, 2.5, 50).tolist(), 'GetPressure', 0, 50)
+    CreateGif([df], 'Pressure_1.5_2.5.gif', np.linspace(1.5, 2.5, 50).tolist(), 'GetPressure', 0, 50, ylabel=r'Pressure $(MeV/fm^{3})$')
+
+
 
 

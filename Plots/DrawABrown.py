@@ -18,10 +18,10 @@ if __name__ == '__main__':
 
     xvalue = 'R(1.4)'
     yvalue = 'lambda(1.4)'
-    xlower = 8.
-    xupper = 7.
+    xlower = 10.
+    xupper = 14.
     ylower = 0.
-    yupper = -0.1
+    yupper = 700
     if len(sys.argv) >= 3:
         xvalue = sys.argv[1]
         yvalue = sys.argv[2]
@@ -53,12 +53,12 @@ if __name__ == '__main__':
                 color = 'b'
             ax.plot(Radius[last_letter], Lambda[last_letter], 'o', label='Group %s' % last_letter, color=color)
 
-    if xvalue == 'R(1.4)' and yvalue == 'lambda(1.4)':
+    if len(sys.argv) < 3:
         DrawTightLIGO(ax, color='aqua', alpha=0.5, fill=True)
 
-    #ax.set_xlim([xlower, xupper])
-    #ax.set_ylim([ylower, yupper])
-    ax.set_ylabel(yvalue)
+    ax.set_xlim([xlower, xupper])
+    ax.set_ylim([ylower, yupper])
+    ax.set_ylabel(r'$\Lambda (1.4 M_{\odot})$')#yvalue)
     ax.set_xlabel(xvalue)
     ax.xaxis.set_ticks_position('both')
     ax.yaxis.set_ticks_position('both')
