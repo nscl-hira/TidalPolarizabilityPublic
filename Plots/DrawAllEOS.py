@@ -72,18 +72,18 @@ def DrawEoS(ax):
 
     GW_constraints = pd.read_csv('Constraints/GWPressureConstraint.csv')
     path, GW_patch = ContourToPatches(GW_constraints['rho/rho0'], GW_constraints['P(MeV/fm3)'], zorder=10, alpha=0.5, color='aqua', facecolor='aqua', label='GW')
-    ax.add_patch(copy(GW_patch))
+    #ax.add_patch(copy(GW_patch))
 
     drawer = EOSDrawer(df.loc[df.index.str.endswith('u') | df.index.str.endswith('q')])
-    drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('u')], xname='rho/rho0', yname='GetPressure', color=['r', 'r', 'r', 'r', 'r', 'r'], zorder=16)#labels=['Polytrope', 'Skyrme', 'Rel. gas', 'Crust'])
-    drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('q')], xname='rho/rho0', yname='GetPressure', color=['b', 'b', 'b', 'b', 'b', 'b'], zorder=15)
+    drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('u')], xname='rho/rho0', yname='GetPressure', color=['r', 'r', 'r', 'r', 'r', 'r'], zorder=16, labels=['$m*_n/m = 0.7$', None, None, None])#labels=['Polytrope', 'Skyrme', 'Rel. gas', 'Crust'])
+    drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('q')], xname='rho/rho0', yname='GetPressure', color=['b', 'b', 'b', 'b', 'b', 'b'], zorder=15, labels=['$m*_n/m = 0.9$', None, None, None])
     
 
-    ax.set_yscale('log')
+    #ax.set_yscale('log')
     ax.set_xlabel(r'Density $(\rho/\rho_{0})$')
     ax.set_ylabel(r'Pressure $(MeV\ fm^{-3})$')
-    ax.set_xlim([0, 6])
-    ax.set_ylim([1e-2, 1e3])
+    ax.set_xlim([0, 4])
+    ax.set_ylim([0, 1e2])
     ax.set_xticks([0,1,2,3,4,5])
 
     ax.legend(loc='lower right')

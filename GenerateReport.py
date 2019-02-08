@@ -40,11 +40,6 @@ argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
 
 # Calculate Polarizability to begin with
 df = CalculatePolarizability(df_orig, **argd)
-df = AddPressure(df)
-df = AddCausailty(df)
-df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
-df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
-#df = LoadSkyrmeFile('test.csv')
 
 prs = Presentation()
 title_only_slide_layout = prs.slide_layouts[5]
@@ -161,6 +156,13 @@ plt.legend()
 plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
 plt.close()
+
+df = AddPressure(df)
+df = AddCausailty(df)
+df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
+df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
+#df = LoadSkyrmeFile('test.csv')
+df.to_csv('Results/%s.csv' % args.Output, index=True)
 
 figname = 'Report/pressure_lambda.png'
 ax = plt.subplot(111)
@@ -279,4 +281,4 @@ plt.savefig(figname)
 slide.shapes.add_picture(figname, left, top, height=height, width=width)
 plt.close()
 prs.save('Report/%s.pptx' % args.Output)
-df.to_csv('Results/%s.csv' % args.Output, index=True)
+

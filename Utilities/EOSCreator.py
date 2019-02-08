@@ -32,16 +32,38 @@ class EOSCreator:
 
 
     def __init__(self, row):
-        self.Skyrme = sky.Skryme(row)
-        self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.Skyrme)
+        self.EQType = None # type of EOS for which equilibrium is calculated
+        self.row = row
+        self.BENuclear = None 
+        self.rho = None 
+        self.pfrac = None 
+        self.mufrac = None
+
 
     def PrepareEOS(self, **kwargs):
         EOSType = kwargs['EOSType']
+
+        if EOSType == 'Rod':
+            if self.EQType != 'Rod':
+                # load Rodrigo EFT functional
+                df_E = pd.read_csv('SkyrmeParameters/Rodrigo.csv')
+                df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym.csv')
+                self.Skyrme = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E['E(MeV/fm3)'] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym['Sym(MeV/fm3)'])
+                self.EQType = 'Rod'
+                self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.Skyrme)
+        elif self.EQType != 'Skyrme':
+            self.Skyrme = sky.Skyrme(self.row)
+            self.EQType = 'Skyrme'
+            self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.Skyrme)
+
         if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoCrust":
             if 'PolyTropeDensity' not in kwargs:
                 kwargs['PolyTropeDensity'] = 3*0.16
+        if EOSType == "Rod":
+            if 'PolyTropeDensity' not in kwargs:
+                kwargs['PolyTropeDensity'] = 1.5*0.16
         # List for creating crustal EoS
-        if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoPolyTrope":
+        if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoPolyTrope" or EOSType == "Rod":
             if 'CrustSmooth' not in kwargs:
                 kwargs['CrustSmooth'] = 0.
             if 'CrustFileName' not in kwargs:
@@ -64,7 +86,7 @@ class EOSCreator:
                 kwargs['Pressure2'] = 50
 
         # Needs to fix maximum mass for the equation of state
-        if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'EOSNoCrust':
+        if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'EOSNoCrust' or EOSType == 'Rod':
             if not 'PressureHigh' in kwargs:
                 if not 'MaxMassRequested' in kwargs:
                     kwargs['MaxMassRequested'] = 2.
@@ -158,12 +180,18 @@ class EOSCreator:
         PolyTropeDensity = kwargs['PolyTropeDensity']
         PressureHigh = kwargs['PressureHigh']
 
+        """
         pseudo = sky.PseudoEOS(TranDensity, 
                                self.crustEOS.GetEnergyDensity(TranDensity, 0), 
                                self.crustEOS.GetPressure(TranDensity, 0), 
                                SkyrmeDensity, 
                                self.BENuclear.GetEnergyDensity(SkyrmeDensity, 0), 
                                self.BENuclear.GetPressure(SkyrmeDensity, 0))
+        """
+        pseudo = sky.SmoothPseudo(TranDensity,
+                                  self.crustEOS,
+                                  SkyrmeDensity,
+                                  self.BENuclear)
         poly = sky.PolyTrope(PolyTropeDensity, 
                              self.BENuclear.GetEnergy(PolyTropeDensity, 0), 
                              self.BENuclear.GetPressure(PolyTropeDensity, 0), 
@@ -239,6 +267,19 @@ class EOSCreator:
                               (SkyrmeDensity, PolyTropeDensity), 
                               (PolyTropeDensity, SoundHighDensity), (SoundHighDensity, 100)],
                               [self.crustEOS, pseudo, self.BENuclear, poly1, poly2])
+        #print([TranDensity, SkyrmeDensity, PolyTropeDensity])
+        #print([self.crustEOS.GetEnergy(TranDensity, 0), self.BENuclear.GetEnergy(SkyrmeDensity, 0)])
+        """
+        rho = np.linspace(1e-4, 1, 1000)
+        pressure = eos.GetPressure(rho, 0)
+        energy = eos.GetEnergyDensity(rho, 0)
+        plt.plot(energy, pressure)
+        plt.show()
+        plt.plot(rho, energy)
+        plt.show()
+        plt.plot(rho, pressure)
+        plt.show()
+        """
         return eos, [SoundHighDensity, PolyTropeDensity, SkyrmeDensity, TranDensity]
 
  
@@ -262,6 +303,8 @@ class EOSCreator:
             return self.Get3Poly(**kwargs)
         elif EOSType == 'EOSNoCrust':
             return self.GetEOSNoCrust(**kwargs)
+        elif EOSType == 'Rod':
+            return self.GetEOS(**kwargs) # you should have supplied Rodrigo EOS
         else: 
             return self.GetOnlySkyrme(**kwargs)
             

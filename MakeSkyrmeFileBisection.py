@@ -75,17 +75,19 @@ def CalculateModel(name_and_eos, **kwargs):
     with wrapper.TidalLoveWrapper(eos) as tidal_love:
         pc_max, max_mass, _, _, _, _ = tidal_love.FindMaxMass()
         tidal_love.checkpoint = np.append(eos.GetPressure(np.array(list_tran_density), 0), [SurfacePressure])
-        try:
-            for tg in target_mass:
-                pc14_tg, mass_tg, radius_tg, lambda_tg, checkpoint_mass_tg, checkpoint_radius_tg = tidal_love.FindMass(mass=tg)
+        for tg in target_mass:
+            try:
+                pc14_tg, mass_tg, radius_tg, lambda_tg, checkpoint_mass_tg, checkpoint_radius_tg = tidal_love.FindMass(mass=tg, central_pressure0=150)
+                if any(np.isnan([mass_tg, radius_tg, lambda_tg, pc14_tg])) or any(np.isnan(checkpoint_mass_tg)) or any(np.isnan(checkpoint_radius_tg)):
+                    raise ValueError('Some of the calculated values are nan.')
                 pc14.append(pc14_tg)
                 mass.append(mass_tg)
                 radius.append(radius_tg)
                 lambda_.append(lambda_tg)
                 checkpoint_mass.append(checkpoint_mass_tg)
                 checkpoint_radius.append(checkpoint_radius_tg)
-        except RuntimeError as error:
-            raise ValueError('Failed to find %g solar mass properties for this EOS' % tg)
+            except RuntimeError as error:
+                raise ValueError('Failed to find %g solar mass properties for this EOS' % tg)
         if max_mass >= max_mass_req: 
             try:
                 pc2, _, _, _, _, _ = tidal_love.FindMass(mass=max_mass_req, central_pressure0=300)
@@ -94,12 +96,6 @@ def CalculateModel(name_and_eos, **kwargs):
         else:
           pc2 = 0
         
-        #if mass < 1e-4 or lambda_ < 1e-4:
-        #    raise ValueError('Mass/Lambda = 0. Calculation failed')
-        #if any(np.isnan([mass, radius, lambda_, pc14])) or any(np.isnan(checkpoint_mass)) or any(np.isnan(checkpoint_radius)):
-        #    raise ValueError('Some of the calculated values are nan.')
-
-
     """
     Write results to dict and return
     """
@@ -111,6 +107,7 @@ def CalculateModel(name_and_eos, **kwargs):
         result['R(%g)'%tg] = r
         result['lambda(%g)'%tg] = lamb
         result['PCentral(%g)'%tg] = pc
+        #print('checkpoint_radius', cp_r)
         for den, (index, cp_radius) in zip(list_tran_density, enumerate(cp_r)):
             result['RadiusCheckpoint%d(%g)' % (index, tg)] = cp_radius
             result['DensityCheckpoint%d(%g)' % (index, tg)] = den
@@ -128,7 +125,7 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
     """
     Tells ConsolePrinter which quantities to be printed in real time
     """
-    title = ['Model', 'R(1.4)', 'lambda(1.4)', 'PCentral']
+    title = ['Model', 'R(1.4)', 'lambda(1.4)', 'PCentral(1.4)']
     if PBar:
         printer = cp.ConsolePBar(title, total=df.shape[0])
     else:
@@ -160,10 +157,10 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
             except ProcessExpired as error:
                 printer.PrintError(error)
                 print("%s. Exit code: %d" % (error, error.exitcode))
-            except Exception as error:
-                printer.PrintError(error)
-                print("function raised %s" % error)
-                print(error.traceback)  # Python's traceback of remote process
+            #except Exception as error:
+            #    printer.PrintError(error)
+            #    print("function raised %s" % error)
+            #    print(error.traceback)  # Python's traceback of remote process
 
     printer.Close()            
     """

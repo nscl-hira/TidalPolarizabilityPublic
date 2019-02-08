@@ -49,9 +49,12 @@ if __name__ == '__main__':
         if(last_letter == 'u' or last_letter == 'q'):
             if(last_letter == 'u'):
                 color = 'r'
+                label = '$m^*_n/m = 0.7$'
             else:
                 color = 'b'
-            ax.plot(Radius[last_letter], Lambda[last_letter], 'o', label='Group %s' % last_letter, color=color)
+                label = '$m^*_n/m = 0.9$'
+            
+            ax.plot(Radius[last_letter], Lambda[last_letter], 'o', label=label, color=color)
 
     if len(sys.argv) < 3:
         DrawTightLIGO(ax, color='aqua', alpha=0.5, fill=True)
@@ -59,7 +62,7 @@ if __name__ == '__main__':
     ax.set_xlim([xlower, xupper])
     ax.set_ylim([ylower, yupper])
     ax.set_ylabel(r'$\Lambda (1.4 M_{\odot})$')#yvalue)
-    ax.set_xlabel(xvalue)
+    ax.set_xlabel(r'$R (1.4 M_{\odot})$')
     ax.xaxis.set_ticks_position('both')
     ax.yaxis.set_ticks_position('both')
     ax.legend()

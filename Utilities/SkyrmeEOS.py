@@ -112,16 +112,23 @@ class SplineEOSFull(SplineEOS):
                + (self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho))*rho)
 
     def GetEnergy(self, rho, pfrac):
-        return EOSSpline.GetEnergy(self, rho, pfrac) + (2*pfrac - 1)**2*self.SymSpl(rho)
+        return SplineEOS.GetEnergy(self, rho, pfrac) + (2*pfrac - 1)**2*self.SymSpl(rho)
 
     def GetPressure(self, rho, pfrac):
-        return EOSSpline.GetPressure(self, rho, pfrac) + rho*rho*(2*pfrac - 1)**2*self.dSymSpl(rho)
+        return SplineEOS.GetPressure(self, rho, pfrac) + rho*rho*(2*pfrac - 1)**2*self.dSymSpl(rho)
+
+    def GetEnergyDensity(self, rho, pfrac):
+        return rho*self.GetEnergy(rho, pfrac)
 
     def Get2EGrad(self, rho, pfrac):
-        return EOSSpline.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho)
+        return SplineEOS.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho)
 
     def GetAsymEnergy(self, rho, *args):
         return self.SymSpl(rho)
+
+    def GetL(self, rho):
+        grad_S = self.dSymSpl(rho)
+        return 3*rho*grad_S
 
 
 
