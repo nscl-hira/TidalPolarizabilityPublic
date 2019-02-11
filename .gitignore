@@ -5,4 +5,5 @@ Plots/PFrac/
 int_talks/
 references/
 *.pyc
+*.so
 __pycache__

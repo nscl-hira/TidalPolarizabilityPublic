@@ -52,7 +52,7 @@ class EOSCreator:
                 self.EQType = 'Rod'
                 self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.Skyrme)
         elif self.EQType != 'Skyrme':
-            self.Skyrme = sky.Skyrme(self.row)
+            self.Skyrme = sky.Skryme(self.row)
             self.EQType = 'Skyrme'
             self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.Skyrme)
 

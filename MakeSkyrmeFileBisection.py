@@ -157,10 +157,11 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
             except ProcessExpired as error:
                 printer.PrintError(error)
                 print("%s. Exit code: %d" % (error, error.exitcode))
-            #except Exception as error:
-            #    printer.PrintError(error)
-            #    print("function raised %s" % error)
-            #    print(error.traceback)  # Python's traceback of remote process
+            except Exception as error:
+                pass
+                #printer.PrintError(error)
+                #print("function raised %s" % error)
+                #print(error.traceback)  # Python's traceback of remote process
 
     printer.Close()            
     """
