@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
 from Utilities.EOSDrawer import EOSDrawer 
@@ -16,8 +15,8 @@ def DrawEOS(row, ax, xlim=[1e-2, 1e4], ylim=[1e-4, 1e4], **kwargs):
     if 'yname' in kwargs:
         ax.set_ylabel(kwargs['yname'])
 
-def AnalysisEOS(name):
-    mass, radius, pressure
+#def AnalysisEOS(name):
+#    mass, radius, pressure
 
 def update_energy(names):
     energy_ax.clear()

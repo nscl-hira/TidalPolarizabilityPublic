@@ -1,13 +1,11 @@
 #!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
+import traceback
 import numpy as np
 import argparse
-from pptx import Presentation
-from pptx.util import Inches
-from PIL import Image
 import matplotlib.pyplot as plt
 
 from Utilities.EOSDrawer import EOSDrawer
-from Utilities.MakeMovie import CreateGif
+#from Utilities.MakeMovie import CreateGif
 from MakeSkyrmeFileBisection import LoadSkyrmeFile, CalculatePolarizability
 from SelectPressure import AddPressure
 from SelectAsym import SelectLowDensity
@@ -145,80 +143,69 @@ if __name__ == '__main__':
     argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
     
     # Calculate Polarizability to begin with
-    df = CalculatePolarizability(df_orig, **argd)
-    drawer = EOSDrawer(df)
-     # calculate additional EOS properties
-    df = AddPressure(df)
-    df = AddCausailty(df)
-    df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
-    df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
-    #df = LoadSkyrmeFile('test.csv')
-    df.to_csv('Results/%s.csv' % args.Output, index=True)
+    df_causal = None   
+    df_acausal = None
+    df_causal_sat_asym = None
+    try:
+        df = CalculatePolarizability(df_orig, **argd)
+        drawer = EOSDrawer(df)
+         # calculate additional EOS properties
+        df = AddPressure(df)
+        df = AddCausailty(df)
+        df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
+        df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
+        df_causal = df.loc[df['ViolateCausality']==False]
+        df_acausal = df.loc[df['ViolateCausality']==True]
+        df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
+        #df = LoadSkyrmeFile('test.csv')
+    except Exception as e:
+        traceback.print_exc()
+        print('Calculation of EOS properties stop at one point. Not all info will be avaliable')
+
     
-    df_causal = df.loc[df['ViolateCausality']==False]
-    df_acausal = df.loc[df['ViolateCausality']==True]
-    df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
     
     pars = pptx.CreateFirstSlide('EOS NS simulation', '')
     
     # Plot all the EOSs
-    figname = 'Report/EOSSection.png'
-    PressureVsEnergyDensity(drawer, figname)
-    pptx.ImageOnlySlide(pars, 'Pressure vs energy density for all EoSs', figname)
+    figname = None
+    pptx_slides = [['Report/EOSSection.png', PressureVsEnergyDensity, {'drawer':drawer}, 'Pressure vs energy density for all EoSs'],
+                   ['Report/RejectedEOS.png', RejectedEOS, {'df':df, 'df_orig':df_orig}, 'EOS Pressure vs rho for EOS not calculated'],
+                   ['Report/EOSSectionCausal.png', PressureVsEnergyDensity, {'drawer':drawer, 'df':df_causal}, 'Pressure vs energy density for all reasonable EoSs'],
+                   ['Report/EOSEnergyDensity.png', EnergyDensityVsDensity, {'drawer':drawer, 'df':df_causal}, 'EOS Energy Density vs rho'],
+                   ['Report/EOSPressure.png', PressureVsDensity, {'drawer':drawer, 'df':df_causal}, 'EOS Pressure vs rho'],
+                   ['Report/EOSCausality.png', Causality, {'drawer':drawer, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'EOS Causal (blue) Acausal (red) satisfy low density asym (black)'],
+                   ['Report/lambda_radius.png', LambdaVsRadius, {'drawer':drawer, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Lambda vs radius'],
+                   ['Report/pressure_lambda.png', PressureVsLambda, {'density':2, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (2rho0) vs Lambda'],
+                   ['Report/pressure1.5_lambda.png', PressureVsLambda, {'density':1.5, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (1.5rho0) vs Lambda'],
+                   ['Report/pressure0.67_lambda.png', PressureVsLambda, {'density':0.67, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (0.67rho0) vs Lambda'],
+                   ['Report/sym_lambda.png', SymVsLambda, {'density':2, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Sym Term (2rho0) vs Lambda'], 
+                   ['Report/sym1.5_lambda.png', SymVsLambda, {'density':1.5, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Sym Term (1.5rho0) vs Lambda'], 
+                   ['Report/sym0.67_lambda.png', SymVsLambda, {'density':0.67, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Sym Term (2rho0) vs Lambda']]
     
-    figname = 'Report/RejectedEOS.png'
-    RejectedEOS(df, df_orig, figname)
-    pptx.ImageOnlySlide(pars, 'EOS Pressure vs rho for EOS not calculated', figname)
+    for figname, draw_function, kwargs, title in pptx_slides:
+        try:
+           draw_function(figname=figname, **kwargs)
+           pptx.ImageOnlySlide(pars, title, figname)
+        except Exception:
+           print('Cannot draw %s' % figname)
+           continue
 
-    figname = 'Report/EOSSectionCausal.png'
-    PressureVsEnergyDensity(drawer, figname, df=df_causal)
-    pptx.ImageOnlySlide(pars, 'Pressure vs energy density for all causal EoSs', figname) 
     
-    figname = 'Report/EOSEnergyDensity.png'
-    EnergyDensityVsDensity(drawer, figname, df=df_causal)
-    pptx.ImageOnlySlide(pars, 'EOS Energy Density vs rho', figname)
-
-    figname = 'Report/EOSPressure.png'
-    PressureVsDensity(drawer, figname, df=df_causal)
-    pptx.ImageOnlySlide(pars, 'EOS Pressure vs rho', figname)
+    while True:
+        output_name = args.Output  
+        try:
+            pars.save('Report/%s.pptx' % output_name)
+            break
+        except Exception:
+            print('Cannot write to file %s. Will output to %s_new.pptx instead' % (output_name))
+            output_name = '%s_new' % output_name
     
-   
-    
-    figname = 'Report/EOSCausality.png'
-    Causality(drawer, df_causal, df_causal_sat_asym, df_acausal, figname)
-    pptx.ImageOnlySlide(pars, 'EOS Causal (blue) Acausal (red) satisfy low density asym (black)', figname)
-    
-    figname = 'Report/lambda_radius.png'
-    LambdaVsRadius(drawer, df_causal, df_causal_sat_asym, df_acausal, figname)
-    pptx.ImageOnlySlide(pars, 'Lambda vs radius', figname)
-    
-    
-    
-    
-    figname = 'Report/pressure_lambda.png'
-    PressureVsLambda(2, df_causal, df_causal_sat_asym, df_acausal, figname)
-    pptx.ImageOnlySlide(pars, 'Pressure (2rho0) vs Lambda', figname)
-    
-    figname = 'Report/pressure1.5_lambda.png'
-    PressureVsLambda(1.5, df_causal, df_causal_sat_asym, df_acausal, figname, [-20, 30])
-    pptx.ImageOnlySlide(pars, 'Pressure (1.5rho0) vs Lambda', figname)
-    
-    figname = 'Report/pressure0.67_lambda.png'
-    PressureVsLambda(0.67, df_causal, df_causal_sat_asym, df_acausal, figname, [-1.1, 3.2])
-    pptx.ImageOnlySlide(pars, 'Pressure (0.67rho0) vs Lambda', figname)
-    
-    
-    figname = 'Report/sym_lambda.png'
-    SymVsLambda(2, df_causal, df_causal_sat_asym, df_acausal, figname)
-    pptx.ImageOnlySlide(pars, 'Sym Term (2rho0) vs Lambda', figname)
-    
-    figname = 'Report/sym1.5_lambda.png'
-    SymVsLambda(1.5, df_causal, df_causal_sat_asym, df_acausal, figname, [-5, 85])
-    pptx.ImageOnlySlide(pars, 'Sym Term (1.5rho0) vs Lambda', figname)
-    
-    figname = 'Report/sym0.67_lambda.png'
-    SymVsLambda(0.67, df_causal, df_causal_sat_asym, df_acausal, figname, [10, 40])
-    pptx.ImageOnlySlide(pars, 'Sym Term (0.67rho0) vs Lambda', figname)
-    
-    pars.save('Report/%s.pptx' % args.Output)
+    while True:
+       output_name = args.Output  
+       try:
+           df.to_csv('Results/%s.csv' % output_name)
+           break
+       except Exception:
+           print('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name))
+           output_name = '%s_new' % output_name
     

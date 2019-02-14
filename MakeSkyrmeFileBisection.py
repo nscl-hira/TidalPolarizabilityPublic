@@ -1,25 +1,16 @@
 #!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
-import math
 import sys
-import cPickle as pickle
-import itertools
-marker = itertools.cycle((',', '+', '.', 'o', '*')) 
 from pebble import ProcessPool, ProcessExpired
 from concurrent.futures import TimeoutError
-import tempfile
-import matplotlib.pyplot as plt
 import autograd.numpy as np
 import pandas as pd
-import scipy.optimize as opt
 import argparse
 from functools import partial
 
 import Utilities.ConsolePrinter as cp
 import TidalLove.TidalLoveWrapper as wrapper
-import Utilities.Utilities as utl
-import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
-from Utilities.EOSCreator import EOSCreator
+from Utilities.EOSCreator import EOSCreator, SummarizeSkyrme
 from SelectPressure import AddPressure
 
 OuterCrustDensity = 0.3e-3
@@ -107,7 +98,6 @@ def CalculateModel(name_and_eos, **kwargs):
         result['R(%g)'%tg] = r
         result['lambda(%g)'%tg] = lamb
         result['PCentral(%g)'%tg] = pc
-        #print('checkpoint_radius', cp_r)
         for den, (index, cp_radius) in zip(list_tran_density, enumerate(cp_r)):
             result['RadiusCheckpoint%d(%g)' % (index, tg)] = cp_radius
             result['DensityCheckpoint%d(%g)' % (index, tg)] = den
@@ -119,8 +109,9 @@ def CalculateModel(name_and_eos, **kwargs):
 
 
 def CalculatePolarizability(df, Output, PBar=False, **kwargs):
-    summary = sky.SummarizeSkyrme(df)
+    
     EOSType = kwargs['EOSType']
+    summary = SummarizeSkyrme(df, EOSType=EOSType)
 
     """
     Tells ConsolePrinter which quantities to be printed in real time
@@ -137,7 +128,7 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
     """
     name_list = [(index, row) for index, row in df.iterrows()]
     result = []
-    CalculateModel(name_list[0], **kwargs)
+    #CalculateModel(name_list[0], **kwargs)
     with ProcessPool(25) as pool:
         future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
         iterator = future.result()

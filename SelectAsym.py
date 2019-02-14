@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import autograd.numpy as np
 import pandas as pd
 import Utilities.Utilities as utl
-import Utilities.SkyrmeEOS as sky 
+from Utilities.EOSCreator import EOSCreator
 from Utilities.Constants import *
 
 # obs -- observed value
@@ -31,8 +31,10 @@ def SelectLowDensity(constraint_filename, df):
 
     AdditionalColumn = []
     for index, row in df.iterrows():
-        eos = sky.Skryme(row)
-        asym = eos.GetAsymEnergy(constraints['rho']*eos.rho0)
+        creator = EOSCreator(row)
+        creator.ImportEOS(**row)
+        eos = creator.ImportedEOS
+        asym = eos.GetAsymEnergy(constraints['rho'].values*eos.rho0)
         chi_square = chisqr(asym, constraints['S'], constraints['S_Error'])
         # only accept models with chisqr per deg. freedom < 3
         if chi_square/float(num_constraints) > 2:

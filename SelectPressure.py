@@ -1,13 +1,10 @@
 import itertools
 color = itertools.cycle(('g', 'purple', 'r', 'black', 'orange')) 
 import matplotlib.pyplot as plt
-import matplotlib.path as pltPath
-import matplotlib.patches as patches
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
 
-import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
 from Utilities.EOSCreator import EOSCreator
@@ -19,12 +16,10 @@ def power_law(x, a, b, c):
 def AddPressure(df):
     pressure = []
     for index, row in df.iterrows():
-        if row['EOSType'] == '3Poly':
-            eos = EOSCreator(row, **row).Get3Poly()[0]
-            rho0 = 0.16
-        else:
-            eos = sky.Skryme(row)
-            rho0 = eos.rho0
+        creator = EOSCreator(row)
+        creator.ImportEOS(**row)
+        eos = creator.ImportedEOS
+        rho0 = eos.rho0
         pressure.append({'Model':index, 
                         'P(4rho0)':eos.GetPressure(4*rho0, 0),
                         'P(3.5rho0)':eos.GetPressure(3.5*rho0, 0),

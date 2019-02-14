@@ -38,6 +38,21 @@ class EOSCreator:
         self.rho = None 
         self.pfrac = None 
         self.mufrac = None
+        self.ImportedEOS = None
+
+    def ImportEOS(self, **kwargs):
+        """
+        Only load the externally imported EOS
+        No beta equilibrium for fast EOS fetching
+        """
+        EOSType = kwargs['EOSType']
+        if EOSType == 'Rod':
+            # load Rodrigo EFT functional
+            df_E = pd.read_csv('SkyrmeParameters/Rodrigo.csv')
+            df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym.csv')
+            self.ImportedEOS = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E['E(MeV/fm3)'] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym['Sym(MeV/fm3)'])
+        elif self.EQType != 'Skyrme':
+            self.ImportedEOS = sky.Skryme(self.row)
 
 
     def PrepareEOS(self, **kwargs):
@@ -48,13 +63,13 @@ class EOSCreator:
                 # load Rodrigo EFT functional
                 df_E = pd.read_csv('SkyrmeParameters/Rodrigo.csv')
                 df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym.csv')
-                self.Skyrme = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E['E(MeV/fm3)'] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym['Sym(MeV/fm3)'])
+                self.ImportedEOS = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E['E(MeV/fm3)'] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym['Sym(MeV/fm3)'])
                 self.EQType = 'Rod'
-                self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.Skyrme)
+                self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
         elif self.EQType != 'Skyrme':
-            self.Skyrme = sky.Skryme(self.row)
+            self.ImportedEOS = sky.Skryme(self.row)
             self.EQType = 'Skyrme'
-            self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.Skyrme)
+            self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
 
         if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoCrust":
             if 'PolyTropeDensity' not in kwargs:
@@ -74,8 +89,8 @@ class EOSCreator:
                                           smooth=kwargs['CrustSmooth'], 
                                           pressure=crust['P(MeV/fm3)'])
             if kwargs['PRCTransDensity'] > 0:
-                kwargs['TranDensity'] = kwargs['PRCTransDensity']*FindCrustalTransDensity(self.Skyrme)
-                kwargs['SkyrmeDensity'] = FindCrustalTransDensity(self.Skyrme)
+                kwargs['TranDensity'] = kwargs['PRCTransDensity']*FindCrustalTransDensity(self.ImportedEOS)
+                kwargs['SkyrmeDensity'] = FindCrustalTransDensity(self.ImportedEOS)
             elif 'TranDensity' not in kwargs or 'SkyrmeDensity' not in kwargs:
                 print('Cannot proceed without transition density information for crustal EoS')
             
@@ -164,12 +179,12 @@ class EOSCreator:
         poly = sky.PolyTrope(PolyTropeDensity, 
                              self.BENuclear.GetEnergy(PolyTropeDensity, 0), 
                              self.BENuclear.GetPressure(PolyTropeDensity, 0), 
-                             7*self.Skyrme.rho0, PressureHigh)
+                             7*self.ImportedEOS.rho0, PressureHigh)
         
         #return sky.EOSConnect([(0, 10)], [BENuclear])
         eos = sky.EOSConnect([(-1, PolyTropeDensity), 
                               (PolyTropeDensity, 100)], 
-                             [self.Skyrme, poly])
+                             [self.ImportedEOS, poly])
         return eos, [PolyTropeDensity]
 
 
@@ -195,7 +210,7 @@ class EOSCreator:
         poly = sky.PolyTrope(PolyTropeDensity, 
                              self.BENuclear.GetEnergy(PolyTropeDensity, 0), 
                              self.BENuclear.GetPressure(PolyTropeDensity, 0), 
-                             7*self.Skyrme.rho0, PressureHigh)
+                             7*self.ImportedEOS.rho0, PressureHigh)
         
         #return sky.EOSConnect([(0, 10)], [BENuclear])
         eos = sky.EOSConnect([(-1, TranDensity), 
@@ -237,7 +252,7 @@ class EOSCreator:
     def GetOnlySkyrme(self, **kwargs):
         TranDensity = kwargs['TranDensity']
         SkyrmeDensity = kwargs['SkyrmeDensity']
-        return self.Skyrme, []
+        return self.ImportedEOS, []
 
     def GetEOS2Poly(self, **kwargs):
         TranDensity = kwargs['TranDensity']
@@ -308,6 +323,46 @@ class EOSCreator:
         else: 
             return self.GetOnlySkyrme(**kwargs)
             
+def SummarizeSkyrme(df, EOSType):
+    """
+    This function will print out the value of E0, K0, K'=-Q0, J=S(rho0), L, Ksym, Qsym, m*
+    """
+    summary_list = []
+    #print('Model\tE0\tK0\tK\'\tJ\tL\tKsym\tQsym\tm*')
+
+    for index, row in df.iterrows():
+        creator = EOSCreator(row=row)
+        creator.ImportEOS(EOSType=EOSType)
+        sky = creator.ImportedEOS
+        try:
+            rho0 = sky.rho0
+            E0 = sky.GetEnergy(rho0, 0.5)
+            K0 = sky.GetK(rho0, 0.5)
+            Kprime = -sky.GetQ(rho0, 0.5)
+            J = sky.GetAsymEnergy(rho0)
+            L = sky.GetL(rho0)
+            Ksym = sky.GetKsym(rho0)
+            Qsym = sky.GetQsym(rho0)
+            summary_dict = {'Model':index, 'E0':E0, 'K0':K0, 'K\'':Kprime, 'J':J, 'L':L, 'Ksym':Ksym, 'Qsym':Qsym}
+        except Exception:
+            raise Exception('The EOS type does not suppor calculation of L, K and Q.')
+        try:
+            eff_m = sky.GetEffectiveMass(rho0, 0.5)
+            m_s = sky.GetMs(rho0)
+            m_v = sky.GetMv(rho0)
+            fi = sky.GetFI(rho0)
+            summary_dict['m*'] = eff_m
+            summary_dict['m_s'] = m_s
+            summary_dict['m_v'] = m_v
+            summary_dict['fi'] = fi
+        except Exception:
+            pass
+        summary_list.append(summary_dict)
+
+    df = pd.DataFrame.from_dict(summary_list)
+    df.set_index('Model', inplace=True)
+    return df
+ 
 
 
 if __name__ == "__main__":

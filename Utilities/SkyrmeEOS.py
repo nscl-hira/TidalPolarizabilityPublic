@@ -78,6 +78,7 @@ class SplineEOS(EOS):
         self.spl = UnivariateSpline(rho, energy, s=smooth)
         self.dspl = self.spl.derivative(1)
         self.ddspl = self.spl.derivative(2)
+        self.dddspl = self.spl.derivative(3)
 
     def GetEnergy(self, rho, pfrac):
         return self.spl(rho)
@@ -104,6 +105,7 @@ class SplineEOSFull(SplineEOS):
         self.SymSpl = UnivariateSpline(rho_Sym, Sym, s=smooth)
         self.dSymSpl = self.SymSpl.derivative(1)
         self.ddSymSpl = self.SymSpl.derivative(2)
+        self.dddSymSpl = self.SymSpl.derivative(3)
 
     def GetSpeedOfSound(self, rho, pfrac):
         return (2*rho*(self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho)) 
@@ -129,6 +131,27 @@ class SplineEOSFull(SplineEOS):
     def GetL(self, rho):
         grad_S = self.dSymSpl(rho)
         return 3*rho*grad_S
+
+    def GetK(self, rho, pfrac):
+        sec_grad_density = self.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho)
+        return 9*rho*rho*sec_grad_density
+    
+    def GetQ(self, rho, pfrac):
+        """
+        For some weird reasons, Q is also called -K' which we will use to compare
+        """
+        third_grad_density = self.dddspl(rho) + (2*pfrac - 1)**2*self.dddSymSpl(rho)
+        return 27*rho*rho*rho*third_grad_density
+
+    def GetKsym(self, rho):
+        second_grad_S = self.ddSymSpl(rho)
+        return 9*rho*rho*second_grad_S
+    
+    def GetQsym(self, rho):
+        third_grad_S = self.dddSymSpl(rho)
+        return 27*rho*rho*rho*third_grad_S
+
+
 
 
 
@@ -295,7 +318,6 @@ class CubicEOS(EOS):
                       final_eos.Get2EGrad(final_rho, pfrac)])
 
         self.coeff = np.linalg.solve(mat, b)
-        print(self.coeff)
 
 
     def GetEnergy(self, rho, pfrac):
@@ -372,7 +394,7 @@ class FullEOS(EOS):
     """
 
     def GetAsymEnergy(self, rho, *args):
-        pass
+        return 1./8.*egrad(egrad(self.GetEnergy, 1), 1)(rho, 0.5)
 
 
     def GetK(self, rho, pfrac):
@@ -430,6 +452,15 @@ class Skryme(FullEOS):
         result *= (mn*rho/(4*(hbar**2)))
         result += self.__GetH(5./3., pfrac)
         return 1./result
+
+    def GetMs(self, rho):
+        return 1./(1. + mn*rho*(self.a+self.b)/(4*(hbar**2)))
+
+    def GetMv(self, rho):
+        return 1./(1. + mn*rho*self.a/(4*(hbar**2)))
+
+    def GetFI(self, rho):
+        return 1./self.GetMs(rho) - 1./self.GetMv(rho)
     
     def GetEnergy(self, rho, pfrac):
         result = 3.*(hbar**2.)/(10.*mn)*((3.*pi2/2.)**0.666667)*np.power(rho, 0.6667)*self.__GetH(5./3., pfrac)
@@ -439,13 +470,20 @@ class Skryme(FullEOS):
         result += 3./40.*((3.*pi2/2.)**0.666667)*np.power(rho, 5./3.)*(self.a*self.__GetH(5./3., pfrac)+self.b*self.__GetH(8./3., pfrac))
         return result + mn
     
-    def GetAsymEnergy(self, rho, *args):
-        result = (hbar**2.)/(6.*mn)*((3.*pi2/2.)**0.666667)*np.power(rho, 0.6667)
-        result -= self.para['t0']/8.*rho*(2.*self.para['x0']+1.)
-        for i in xrange(1, 4):
-            result -= 1./48.*self.para['t3%d'%i]*(rho**(self.para['sigma%d'%i]+1.))*(2.*self.para['x3%d'%i]+1.)
-        result += 1./24.*((3.*pi2/2.)**0.666667)*np.power(rho, 5./3.)*(self.a+4*self.b)
-        return result
+    #def GetAsymEnergy(self, rho, *args):
+        #print(self.__GetH(5./3., 0.5), self.__GetH(8./3., 0.5))
+        #result = (hbar**2.)/(6.*mn)*((3.*pi2/2.)**0.666667)*np.power(rho, 0.6667)
+        #print(result)
+        #result -= self.para['t0']/8.*rho*(2.*self.para['x0']+1.)
+        #print(result)
+        #for i in xrange(1, 4):
+            #result -= 1./48.*self.para['t3%d'%i]*(rho**(self.para['sigma%d'%i]+1.))*(2.*self.para['x3%d'%i]+1.)
+            #print(result)
+        #result += 1./24.*((3.*pi2/2.)**0.666667)*np.power(rho, 5./3.)*(self.a+4*self.b)
+        #print(result)
+        #print('a + 4b', self.a+4*self.b)
+        #print(1./24.*((3.*pi2/2.)**0.666667)*np.power(1, 5./3.)*(self.a+4*self.b))
+        #return result
 
     def ToCSV(self, filename, rho, pfrac):
 
@@ -464,37 +502,4 @@ class Skryme(FullEOS):
 
     
 
-def SummarizeSkyrme(df):
-    """
-    This function will print out the value of E0, K0, K'=-Q0, J=S(rho0), L, Ksym, Qsym, m*
-    """
-    summary_list = []
-    #print('Model\tE0\tK0\tK\'\tJ\tL\tKsym\tQsym\tm*')
 
-    """
-    Check if it is skyrme first, if not then it will return an empty dataframe
-    """
-    if 't0' not in df.iloc[0]:
-        return pd.DataFrame()
-
-    for index, row in df.iterrows():
-        sky = Skryme(row)
-        rho0 = sky.rho0
-        E0 = sky.GetEnergy(rho0, 0.5)
-        K0 = sky.GetK(rho0, 0.5)
-        Kprime = -sky.GetQ(rho0, 0.5)
-        J = sky.GetAsymEnergy(rho0)
-        L = sky.GetL(rho0)
-        Ksym = sky.GetKsym(rho0)
-        Qsym = sky.GetQsym(rho0)
-        eff_m = sky.GetEffectiveMass(rho0, 0.5)
-        m_n = sky.GetEffectiveMass(rho0, 0.)
-        m_p = sky.GetEffectiveMass(rho0, 1)
-        #print('%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f' % (index, E0, K0, Kprime, J, L, Ksym, Qsym, eff_m))
-        summary_dict = {'Model':index, 'E0':E0, 'K0':K0, 'K\'':Kprime, 'J':J, 'L':L, 'Ksym':Ksym, 'Qsym':Qsym, 'm*':eff_m, 'm_n': m_n, 'm_p': m_p}
-        summary_list.append(summary_dict)
-
-    df = pd.DataFrame.from_dict(summary_list)
-    df.set_index('Model', inplace=True)
-    return df
-    
