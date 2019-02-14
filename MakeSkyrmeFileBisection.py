@@ -1,5 +1,6 @@
 #!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
 import sys
+from multiprocessing import cpu_count
 from pebble import ProcessPool, ProcessExpired
 from concurrent.futures import TimeoutError
 import autograd.numpy as np
@@ -118,7 +119,7 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
     """
     title = ['Model', 'R(1.4)', 'lambda(1.4)', 'PCentral(1.4)']
     if PBar:
-        printer = cp.ConsolePBar(title, total=df.shape[0])
+        printer = cp.ConsolePBar(title, total=df.shape[0], **kwargs)
     else:
         printer = cp.ConsolePrinter(title, total=df.shape[0])
     
@@ -129,7 +130,7 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
     name_list = [(index, row) for index, row in df.iterrows()]
     result = []
     #CalculateModel(name_list[0], **kwargs)
-    with ProcessPool(25) as pool:
+    with ProcessPool(max_workers=cpu_count()) as pool:
         future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
         iterator = future.result()
         while True:
@@ -150,7 +151,7 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
                 print("%s. Exit code: %d" % (error, error.exitcode))
             except Exception as error:
                 pass
-                #printer.PrintError(error)
+                printer.PrintError(error)
                 #print("function raised %s" % error)
                 #print(error.traceback)  # Python's traceback of remote process
 
@@ -163,6 +164,8 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
     data.set_index('Model', inplace=True)
     data = pd.concat([df, summary, data], axis=1)
     #data = pd.concat([df, data], axis=1)    
+    #data.combine_first(summary)
+    #data.combine_first(data)
     data.dropna(axis=0, how='any', inplace=True)
 
     return data

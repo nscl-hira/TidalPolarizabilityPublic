@@ -84,10 +84,10 @@ class EOSCreator:
             if 'CrustFileName' not in kwargs:
                 kwargs['CrustFileName'] = 'Constraints/EOSCrustOutput.dat' 
             crust = pd.read_csv(kwargs['CrustFileName'])
-            self.crustEOS = sky.EOSSpline(crust['rho(fm-3)'], 
-                                          energy_density=crust['E(MeV/fm3)'], 
+            self.crustEOS = sky.EOSSpline(crust['rho(fm-3)'].values, 
+                                          energy_density=crust['E(MeV/fm3)'].values, 
                                           smooth=kwargs['CrustSmooth'], 
-                                          pressure=crust['P(MeV/fm3)'])
+                                          pressure=crust['P(MeV/fm3)'].values)
             if kwargs['PRCTransDensity'] > 0:
                 kwargs['TranDensity'] = kwargs['PRCTransDensity']*FindCrustalTransDensity(self.ImportedEOS)
                 kwargs['SkyrmeDensity'] = FindCrustalTransDensity(self.ImportedEOS)

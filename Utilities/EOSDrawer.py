@@ -1,9 +1,14 @@
 import sys
 from pathos.multiprocessing import ProcessingPool
+from pathos.helpers import cpu_count
 import scipy.optimize as opt
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+
 from functools import partial
 from tqdm import tqdm
 
@@ -27,17 +32,25 @@ def GetEOS(name_and_row):
 class EOSDrawer:
 
 
-    def __init__(self, df):
+    def __init__(self, df, **kwargs):
         self.df = df
         name_list = [(index, row) for index, row in df.iterrows()]
-        result = ProcessingPool().imap(GetEOS, name_list)
+        pool = ProcessingPool(nodes=cpu_count())
+        result = pool.imap(GetEOS, name_list)
         self.EOS = {}
         print('Preparing EOS in progress:')
-        for val in tqdm(result, total=len(name_list), unit='EOS', ncols=100):
+        for val in tqdm(result, total=len(name_list), unit='EOS', ncols=100, **kwargs):
             self.EOS[val[0]] = val[1::]
+        pool.close()
+        pool.join()
+        
 
     def ParticleFraction(self, name):
         return tuple(self.EOS[name][2::])
+
+    def Merge(self, other_drawers):
+        for drawer in other_drawers:
+            self.EOS.update(drawer.EOS)
 
     def DrawEOS(self, df=None, ax=None, xname='GetEnergyDensity', yname='GetPressure', xlim=None, ylim=None, color=['r', 'b', 'g', 'orange', 'b', 'pink'], labels=[], **kwargs):
 

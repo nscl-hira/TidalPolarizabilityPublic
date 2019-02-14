@@ -1,5 +1,7 @@
+import traceback
 import sys
-from pebble import ProcessPool
+from multiprocessing import cpu_count
+from pebble import ProcessPool, ProcessExpired
 import scipy.optimize as opt
 import pandas as pd
 import numpy as np
@@ -41,8 +43,11 @@ def ViolateCausality(eos_name, df):
         density = 7*0.16
 
     rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 100, base=np.exp(1)), np.linspace(3.77e-4, density, 900)])
-    pressure = eos.GetPressure(rho, 0)
-    sound = np.array(eos.GetSpeedOfSound(rho, 0))
+    try:
+        pressure = eos.GetPressure(rho, 0)
+        sound = np.array(eos.GetSpeedOfSound(rho, 0))
+    except Exception:
+        return eos_name, True, False
 
     if all(sound <= 1) and all(sound >=0):
         #print('%s | %r | %10.3f' % (eos_name, False, density/rho0))
@@ -57,11 +62,11 @@ def ViolateCausality(eos_name, df):
         return eos_name, True, False
 
 
-def AddCausailty(df):
+def AddCausailty(df, disable=False):
     name_list = [index for index, row in df.iterrows()]
     result = []
-    with tqdm(total = len(name_list), ncols=100) as pbar:
-        with ProcessPool() as pool:
+    with tqdm(total = len(name_list), ncols=100, disable=disable) as pbar:
+        with ProcessPool(max_workers=cpu_count()) as pool:
             future = pool.map(partial(ViolateCausality, df=df), name_list)
             iterator = future.result()
             while True:
@@ -70,16 +75,17 @@ def AddCausailty(df):
                     pbar.update(1)
                 except StopIteration:
                     break
+                except ProcessExpired as error:
+                    sys.stderr.write("%s. Exit code: %d" % (error, error.exitcode))
                 except Exception as error:
                     pbar.update(1)
-                    print("function raised %s" % error)
-                    print(error.traceback)  # Python's traceback of remote process
-                    #raise
+                    sys.stderr.write(error.traceback)
     
     data = [{'Model': val[0], 'ViolateCausality': val[1], 'NegSound': val[2]} for val in result]
     data = pd.DataFrame.from_dict(data)
     data.set_index('Model', inplace=True)
     df = pd.concat([df, data], axis=1)
+    #df.combine_first(data)
     return df
 
 if __name__ == "__main__":

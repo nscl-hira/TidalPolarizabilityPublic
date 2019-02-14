@@ -69,7 +69,7 @@ if __name__ == '__main__':
     cov = np.dot(np.diag(sd), np.dot(corr, np.diag(sd)))
     
     all_para = []
-    for num in range(0, 200):
+    for num in range(0, 50000):
         S0, L, K0 = np.random.multivariate_normal(mean, cov).T
         row = NucProp2Skyrme(S0, L, efms, delta_m=delta_m, K0=K0)
         all_para.append(row)

@@ -35,7 +35,7 @@ def SelectLowDensity(constraint_filename, df):
         creator.ImportEOS(**row)
         eos = creator.ImportedEOS
         asym = eos.GetAsymEnergy(constraints['rho'].values*eos.rho0)
-        chi_square = chisqr(asym, constraints['S'], constraints['S_Error'])
+        chi_square = chisqr(asym, constraints['S'].values, constraints['S_Error'].values)
         # only accept models with chisqr per deg. freedom < 3
         if chi_square/float(num_constraints) > 2:
             AdditionalColumn.append({'Model': index, 'AgreeLowDensity':False})

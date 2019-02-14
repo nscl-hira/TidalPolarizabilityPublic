@@ -1,8 +1,17 @@
 #!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
+import os
+import sys
 import traceback
 import numpy as np
+import pandas as pd
 import argparse
+import matplotlib 
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from mpi4py import MPI
+import dill
+MPI.pickle.dumps = dill.dumps
+MPI.pickle.loads = dill.loads
 
 from Utilities.EOSDrawer import EOSDrawer
 #from Utilities.MakeMovie import CreateGif
@@ -10,7 +19,7 @@ from MakeSkyrmeFileBisection import LoadSkyrmeFile, CalculatePolarizability
 from SelectPressure import AddPressure
 from SelectAsym import SelectLowDensity
 from SelectSpeedOfSound import AddCausailty
-from SelectSymPressure import SelectSymPressure
+#from SelectSymPressure import SelectSymPressure
 from Utilities.Constants import *
 from Utilities.SkyrmeEOS import Skryme
 import GeneratePPTX as pptx
@@ -119,93 +128,124 @@ def SymVsLambda(density, df_causal, df_causal_sat_asym, df_acausal, figname, yli
     plt.savefig(figname)
     plt.close()
 
+comm = MPI.COMM_WORLD
+size = comm.Get_size()
+rank = comm.Get_rank()
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrmeNew.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrmeNew.csv)")
-    parser.add_argument("-o", "--Output", default="Result", help="Name of the CSV output (Default: Result)")
-    parser.add_argument("-et", "--EOSType", default="EOS", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme (Default: EOS)")
-    parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Density at which Skyrme takes over from crustal EOS (Default: 0.3)")
-    parser.add_argument("-pp", "--PolyTropeDensity", type=float, default=3, help="Density at which Skyrme EOS ends. (Default: 3)")
-    parser.add_argument("-td", "--TranDensity", type=float, default=0.001472, help="Density at which Crustal EOS ends (Default: 0.001472)")
-    parser.add_argument("-pd", "--PRCTransDensity", type=float, default=-1, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
-    parser.add_argument("-cs", "--CrustSmooth", type=float, default=0., help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
-    parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
-    parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
-    parser.add_argument("--PBar", dest='PBar', action='store_true', help="Enable if you don't need to display everything during calculation, just a progress bar")
-    parser.add_argument("-tg", "--TargetMass", type=float, nargs='+', default=[1.4], help="Target mass of the neutron star. (Default: 1.4)")
-    args = parser.parse_args()
-    
-    df_orig = LoadSkyrmeFile(args.Input)
-    argd = vars(args)
-    rho0 = 0.16
-    argd['TranDensity'] = argd['TranDensity']*rho0
-    argd['SkyrmeDensity'] = argd['SkyrmeDensity']*rho0
-    argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
-    
-    # Calculate Polarizability to begin with
-    df_causal = None   
-    df_acausal = None
-    df_causal_sat_asym = None
+    if rank == 0:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrmeNew.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrmeNew.csv)")
+        parser.add_argument("-o", "--Output", default="Result", help="Name of the CSV output (Default: Result)")
+        parser.add_argument("-et", "--EOSType", default="EOS", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme (Default: EOS)")
+        parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Density at which Skyrme takes over from crustal EOS (Default: 0.3)")
+        parser.add_argument("-pp", "--PolyTropeDensity", type=float, default=3, help="Density at which Skyrme EOS ends. (Default: 3)")
+        parser.add_argument("-td", "--TranDensity", type=float, default=0.001472, help="Density at which Crustal EOS ends (Default: 0.001472)")
+        parser.add_argument("-pd", "--PRCTransDensity", type=float, default=-1, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
+        parser.add_argument("-cs", "--CrustSmooth", type=float, default=0., help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
+        parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
+        parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
+        parser.add_argument("--PBar", dest='PBar', action='store_true', help="Enable if you don't need to display everything during calculation, just a progress bar")
+        parser.add_argument("-tg", "--TargetMass", type=float, nargs='+', default=[1.4], help="Target mass of the neutron star. (Default: 1.4)")
+        args = parser.parse_args()
+        
+        df_orig = LoadSkyrmeFile(args.Input)
+        argd = vars(args)
+        rho0 = 0.16
+        argd['TranDensity'] = argd['TranDensity']*rho0
+        argd['SkyrmeDensity'] = argd['SkyrmeDensity']*rho0
+        argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
+        
+        # divide dataframe into equal pieces
+        df_orig = np.array_split(df_orig, size)
+    else:
+        df_orig = None
+        argd = None
+
+    df_orig = comm.scatter(df_orig, root=0)
+    argd = comm.bcast(argd, root=0)
+    disable_output = False
+
+    if rank != 0:
+        # hide all output from non-root process
+        disable_output = True
+        f = open(os.devnull, 'w')
+        sys.stdout = f
     try:
-        df = CalculatePolarizability(df_orig, **argd)
-        drawer = EOSDrawer(df)
-         # calculate additional EOS properties
+        df = CalculatePolarizability(df_orig, disable=disable_output, **argd)
+        drawer = EOSDrawer(df, disable=disable_output)
+        # calculate additional EOS properties
         df = AddPressure(df)
-        df = AddCausailty(df)
+        df = AddCausailty(df, disable=disable_output)
         df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
-        df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
-        df_causal = df.loc[df['ViolateCausality']==False]
-        df_acausal = df.loc[df['ViolateCausality']==True]
-        df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
-        #df = LoadSkyrmeFile('test.csv')
+        #df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
     except Exception as e:
-        traceback.print_exc()
         print('Calculation of EOS properties stop at one point. Not all info will be avaliable')
+        traceback.print_exc()
 
-    
-    
-    pars = pptx.CreateFirstSlide('EOS NS simulation', '')
-    
-    # Plot all the EOSs
-    figname = None
-    pptx_slides = [['Report/EOSSection.png', PressureVsEnergyDensity, {'drawer':drawer}, 'Pressure vs energy density for all EoSs'],
-                   ['Report/RejectedEOS.png', RejectedEOS, {'df':df, 'df_orig':df_orig}, 'EOS Pressure vs rho for EOS not calculated'],
-                   ['Report/EOSSectionCausal.png', PressureVsEnergyDensity, {'drawer':drawer, 'df':df_causal}, 'Pressure vs energy density for all reasonable EoSs'],
-                   ['Report/EOSEnergyDensity.png', EnergyDensityVsDensity, {'drawer':drawer, 'df':df_causal}, 'EOS Energy Density vs rho'],
-                   ['Report/EOSPressure.png', PressureVsDensity, {'drawer':drawer, 'df':df_causal}, 'EOS Pressure vs rho'],
-                   ['Report/EOSCausality.png', Causality, {'drawer':drawer, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'EOS Causal (blue) Acausal (red) satisfy low density asym (black)'],
-                   ['Report/lambda_radius.png', LambdaVsRadius, {'drawer':drawer, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Lambda vs radius'],
-                   ['Report/pressure_lambda.png', PressureVsLambda, {'density':2, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (2rho0) vs Lambda'],
-                   ['Report/pressure1.5_lambda.png', PressureVsLambda, {'density':1.5, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (1.5rho0) vs Lambda'],
-                   ['Report/pressure0.67_lambda.png', PressureVsLambda, {'density':0.67, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (0.67rho0) vs Lambda'],
-                   ['Report/sym_lambda.png', SymVsLambda, {'density':2, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Sym Term (2rho0) vs Lambda'], 
-                   ['Report/sym1.5_lambda.png', SymVsLambda, {'density':1.5, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Sym Term (1.5rho0) vs Lambda'], 
-                   ['Report/sym0.67_lambda.png', SymVsLambda, {'density':0.67, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Sym Term (2rho0) vs Lambda']]
-    
-    for figname, draw_function, kwargs, title in pptx_slides:
-        try:
-           draw_function(figname=figname, **kwargs)
-           pptx.ImageOnlySlide(pars, title, figname)
-        except Exception:
-           print('Cannot draw %s' % figname)
-           continue
+    df = comm.gather(df, root=0)
+    drawer = comm.gather(drawer, root=0)
 
-    
-    while True:
-        output_name = args.Output  
+    if rank == 0:
+        df = pd.concat(df)
+        if len(drawer) > 1:
+            drawer[0].Merge(drawer[1:])
+        drawer = drawer[0]
         try:
-            pars.save('Report/%s.pptx' % output_name)
-            break
+            df_causal = df.loc[df['ViolateCausality']==False]
+            df_acausal = df.loc[df['ViolateCausality']==True]
+            df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
+        except Exception as e:
+            print('Causality calculation is not being done')
+
+        while True:
+           output_name = args.Output  
+           try:
+               df.to_csv('Results/%s.csv' % output_name)
+               break
+           except Exception:
+               print('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name))
+               output_name = '%s_new' % output_name
+ 
+            
+        
+        try:
+            pars = pptx.CreateFirstSlide('EOS NS simulation', '')
+            
+            # Plot all the EOSs
+            figname = None
+            pptx_slides = [['Report/EOSSection.png', PressureVsEnergyDensity, {'drawer':drawer}, 'Pressure vs energy density for all EoSs'],
+                           ['Report/RejectedEOS.png', RejectedEOS, {'df':df, 'df_orig':df_orig}, 'EOS Pressure vs rho for EOS not calculated'],
+                           ['Report/EOSSectionCausal.png', PressureVsEnergyDensity, {'drawer':drawer, 'df':df_causal}, 'Pressure vs energy density for all reasonable EoSs'],
+                           ['Report/EOSEnergyDensity.png', EnergyDensityVsDensity, {'drawer':drawer, 'df':df_causal}, 'EOS Energy Density vs rho'],
+                           ['Report/EOSPressure.png', PressureVsDensity, {'drawer':drawer, 'df':df_causal}, 'EOS Pressure vs rho'],
+                           ['Report/EOSCausality.png', Causality, {'drawer':drawer, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'EOS Causal (blue) Acausal (red) satisfy low density asym (black)'],
+                           ['Report/lambda_radius.png', LambdaVsRadius, {'drawer':drawer, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Lambda vs radius'],
+                           ['Report/pressure_lambda.png', PressureVsLambda, {'density':2, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (2rho0) vs Lambda'],
+                           ['Report/pressure1.5_lambda.png', PressureVsLambda, {'density':1.5, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (1.5rho0) vs Lambda'],
+                           ['Report/pressure0.67_lambda.png', PressureVsLambda, {'density':0.67, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (0.67rho0) vs Lambda'],
+                           ['Report/sym_lambda.png', SymVsLambda, {'density':2, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Sym Term (2rho0) vs Lambda'], 
+                           ['Report/sym1.5_lambda.png', SymVsLambda, {'density':1.5, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Sym Term (1.5rho0) vs Lambda'], 
+                           ['Report/sym0.67_lambda.png', SymVsLambda, {'density':0.67, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Sym Term (2rho0) vs Lambda']]
+            
+            for figname, draw_function, kwargs, title in pptx_slides:
+                try:
+                   draw_function(figname=figname, **kwargs)
+                   pptx.ImageOnlySlide(pars, title, figname)
+                except Exception:
+                   print('Cannot draw %s' % figname)
+                   continue
         except Exception:
-            print('Cannot write to file %s. Will output to %s_new.pptx instead' % (output_name))
-            output_name = '%s_new' % output_name
+            print('Cannot create PowerPoint')
+
+        
+        while True:
+            output_name = args.Output  
+            try:
+                pars.save('Report/%s.pptx' % output_name)
+                break
+            except Exception:
+                print('Cannot write to file %s. Will output to %s_new.pptx instead' % (output_name))
+                output_name = '%s_new' % output_name
     
-    while True:
-       output_name = args.Output  
-       try:
-           df.to_csv('Results/%s.csv' % output_name)
-           break
-       except Exception:
-           print('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name))
-           output_name = '%s_new' % output_name
-    
+   
