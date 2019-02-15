@@ -48,9 +48,9 @@ class EOSCreator:
         EOSType = kwargs['EOSType']
         if EOSType == 'Rod':
             # load Rodrigo EFT functional
-            df_E = pd.read_csv('SkyrmeParameters/Rodrigo.csv')
-            df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym.csv')
-            self.ImportedEOS = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E['E(MeV/fm3)'] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym['Sym(MeV/fm3)'])
+            df_E = pd.read_csv('SkyrmeParameters/Rodrigo_extended.csv')
+            df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym_extended.csv')
+            self.ImportedEOS = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
         elif self.EQType != 'Skyrme':
             self.ImportedEOS = sky.Skryme(self.row)
 
@@ -61,9 +61,9 @@ class EOSCreator:
         if EOSType == 'Rod':
             if self.EQType != 'Rod':
                 # load Rodrigo EFT functional
-                df_E = pd.read_csv('SkyrmeParameters/Rodrigo.csv')
-                df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym.csv')
-                self.ImportedEOS = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E['E(MeV/fm3)'] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym['Sym(MeV/fm3)'])
+                df_E = pd.read_csv('SkyrmeParameters/Rodrigo_extended.csv')
+                df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym_extended.csv')
+                self.ImportedEOS = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
                 self.EQType = 'Rod'
                 self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
         elif self.EQType != 'Skyrme':

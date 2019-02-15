@@ -188,8 +188,8 @@ if __name__ == '__main__':
     df = comm.gather(df, root=0)
     if rank == 0:
         df = pd.concat(df)
+        output_name = args.Output
         while True:
-           output_name = args.Output  
            try:
                df.to_csv('Results/%s.csv' % output_name)
                break
@@ -215,6 +215,7 @@ if __name__ == '__main__':
             try:
                 df_causal = df.loc[df['ViolateCausality']==False]
                 df_acausal = df.loc[df['ViolateCausality']==True]
+                df_resonable = df.loc[df['NegSound']==False] 
                 df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
             except Exception as e:
                 print('Causality calculation is not being done')
@@ -224,9 +225,9 @@ if __name__ == '__main__':
             figname = None
             pptx_slides = [['Report/EOSSection.png', PressureVsEnergyDensity, {'drawer':drawer}, 'Pressure vs energy density for all EoSs'],
                            ['Report/RejectedEOS.png', RejectedEOS, {'df':df, 'df_orig':df_orig}, 'EOS Pressure vs rho for EOS not calculated'],
-                           ['Report/EOSSectionCausal.png', PressureVsEnergyDensity, {'drawer':drawer, 'df':df_causal}, 'Pressure vs energy density for all reasonable EoSs'],
-                           ['Report/EOSEnergyDensity.png', EnergyDensityVsDensity, {'drawer':drawer, 'df':df_causal}, 'EOS Energy Density vs rho'],
-                           ['Report/EOSPressure.png', PressureVsDensity, {'drawer':drawer, 'df':df_causal}, 'EOS Pressure vs rho'],
+                           ['Report/EOSSectionCausal.png', PressureVsEnergyDensity, {'drawer':drawer, 'df':df_resonable}, 'Pressure vs energy density for all reasonable EoSs'],
+                           ['Report/EOSEnergyDensity.png', EnergyDensityVsDensity, {'drawer':drawer, 'df':df_resonable}, 'EOS Energy Density vs rho'],
+                           ['Report/EOSPressure.png', PressureVsDensity, {'drawer':drawer, 'df':df_resonable}, 'EOS Pressure vs rho'],
                            ['Report/EOSCausality.png', Causality, {'drawer':drawer, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'EOS Causal (blue) Acausal (red) satisfy low density asym (black)'],
                            ['Report/lambda_radius.png', LambdaVsRadius, {'drawer':drawer, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Lambda vs radius'],
                            ['Report/pressure_lambda.png', PressureVsLambda, {'density':2, 'df_causal':df_causal, 'df_causal_sat_asym':df_causal_sat_asym, 'df_acausal':df_acausal}, 'Pressure (2rho0) vs Lambda'],
@@ -246,14 +247,14 @@ if __name__ == '__main__':
         except Exception:
             print('Cannot create PowerPoint')
 
-        
+
+        output_name = args.Output          
         while True:
-            output_name = args.Output  
             try:
                 pars.save('Report/%s.pptx' % output_name)
                 break
             except Exception:
-                print('Cannot write to file %s. Will output to %s_new.pptx instead' % (output_name))
+                print('Cannot write to file %s. Will output to %s_new.pptx instead' % (output_name, output_name))
                 output_name = '%s_new' % output_name
     
    
