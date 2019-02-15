@@ -16,22 +16,17 @@ from Utilities.EOSCreator import EOSCreator
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
 
 def ViolateCausality(eos_name, df):
-    #skyrme = sky.Skryme(df.loc[eos_name])
     rho0 = 0.16#skyrme.rho0
-    #skyrme.ToCSV('AllSkyrmes/%s.csv' % eos_name, np.linspace(1e-14, 3*0.16, 100), 0)
     eos_creator = EOSCreator(df.loc[eos_name])
     kwargs = eos_creator.PrepareEOS(**df.loc[eos_name])
-    #pressure_high = df['PolyHighP'].loc[eos_name]
-    #eos_creator.PressureHigh = pressure_high
     try:
         eos, _ = eos_creator.GetEOSType(**kwargs)
     except ValueError:
         #print('%s | Cannot form EOS' % eos_name)
         return eos_name, True, False
-    
 
     # Get density corresponding to the high pressure point so we can plot things easier
-    max_pressure = df['PCentral2MOdot'].loc[eos_name]
+    max_pressure = df['PCentralMaxMass'].loc[eos_name]
     def GetDensityFromPressure(rho):
         pressure =  eos.GetPressure(rho, 0) - max_pressure
         return pressure
@@ -50,15 +45,12 @@ def ViolateCausality(eos_name, df):
         return eos_name, True, False
 
     if all(sound <= 1) and all(sound >=0):
-        #print('%s | %r | %10.3f' % (eos_name, False, density/rho0))
         return eos_name, False, False
     elif any(sound <=0):
-        #print('%s | %r | Neg. sound' % (eos_name, True))
         return eos_name, True, True
     else:
         index = np.argmax(sound > 1)
         den = rho[index]
-        #print('%s | %r | %10.3f | %10.3f | %10.3f' % (eos_name, True, den/rho0, eos.GetPressure(den, 0), density/rho0))
         return eos_name, True, False
 
 

@@ -147,6 +147,7 @@ if __name__ == '__main__':
         parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
         parser.add_argument("--PBar", dest='PBar', action='store_true', help="Enable if you don't need to display everything during calculation, just a progress bar")
         parser.add_argument("-tg", "--TargetMass", type=float, nargs='+', default=[1.4], help="Target mass of the neutron star. (Default: 1.4)")
+        parser.add_argument("--NoPPTX", dest='NoPPTX', action='store_true', help="Enable if you don't need a PowerPoint report. Recommended for HPCC calculation as it cannot make use of multicores")
         args = parser.parse_args()
         
         df_orig = LoadSkyrmeFile(args.Input)
@@ -162,10 +163,12 @@ if __name__ == '__main__':
         df_orig = None
         argd = None
 
+
+    # start deformability calculation
     df_orig = comm.scatter(df_orig, root=0)
     argd = comm.bcast(argd, root=0)
     disable_output = False
-
+    
     if rank != 0:
         # hide all output from non-root process
         disable_output = True
@@ -173,7 +176,6 @@ if __name__ == '__main__':
         sys.stdout = f
     try:
         df = CalculatePolarizability(df_orig, disable=disable_output, **argd)
-        drawer = EOSDrawer(df, disable=disable_output)
         # calculate additional EOS properties
         df = AddPressure(df)
         df = AddCausailty(df, disable=disable_output)
@@ -184,20 +186,8 @@ if __name__ == '__main__':
         traceback.print_exc()
 
     df = comm.gather(df, root=0)
-    drawer = comm.gather(drawer, root=0)
-
     if rank == 0:
         df = pd.concat(df)
-        if len(drawer) > 1:
-            drawer[0].Merge(drawer[1:])
-        drawer = drawer[0]
-        try:
-            df_causal = df.loc[df['ViolateCausality']==False]
-            df_acausal = df.loc[df['ViolateCausality']==True]
-            df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
-        except Exception as e:
-            print('Causality calculation is not being done')
-
         while True:
            output_name = args.Output  
            try:
@@ -207,10 +197,28 @@ if __name__ == '__main__':
                print('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name))
                output_name = '%s_new' % output_name
  
-            
-        
+
+    if argd['NoPPTX']:
+        sys.exit()
+
+    if rank == 0:
+        print('Start creating PPTX report...')
         try:
-            pars = pptx.CreateFirstSlide('EOS NS simulation', '')
+            pars = pptx.CreateFirstSlide('EOS NS simulation', 'This is just a sample of all the results. Only intended for fast debugging')
+            
+            max_sample = 500 # only draw 500 EOS for efficiency considerasion
+            nsample = df.shape[0]
+            if nsample > max_sample:
+                nsample = max_sample
+           
+            df = df.sample(n=nsample)
+            try:
+                df_causal = df.loc[df['ViolateCausality']==False]
+                df_acausal = df.loc[df['ViolateCausality']==True]
+                df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
+            except Exception as e:
+                print('Causality calculation is not being done')
+            drawer = EOSDrawer(df, disable=False)
             
             # Plot all the EOSs
             figname = None
