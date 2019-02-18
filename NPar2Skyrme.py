@@ -42,13 +42,13 @@ def NucProp2Skyrme(S0, L, efms, fi=None, delta_m=None, E0=E0, K0=K0, rho0=0.16):
     
     a_sky = 32*gsur/rho0
     b_sky= -32*gsuriso/rho0
-    c_sky=-24*csym/np.power(1.5*pi2, 2./3.)
+    c_sky=-24*csym/np.power(1.5*pi2, 2./3.)/np.power(rho0, 5./3.)
     d_sky=80*grt/(3*np.power(1.5*pi2, 2./3.)*np.power(rho0, 5./3.))
     
     t1=(a_sky+d_sky)/12.
     t2=(3*d_sky-(b_sky-2*c_sky)-6*t1)/6.
     x2=(d_sky-3*t1-5*t2)/(4.*t2)
-    x1=(c_sky/np.power(rho0, 5./3.)+5*x2*t2+4*t2)/(3*t1)
+    x1=(c_sky+5*x2*t2+4*t2)/(3*t1)
 
 
     row = {'t0': t0, 't1':t1, 't2':t2, 't31':t3, 't32':0, 't33':0,
@@ -75,7 +75,6 @@ if __name__ == '__main__':
         all_para.append(row)
     df = pd.DataFrame(all_para)
     df.to_csv('test.csv')
-
 
 
     """
