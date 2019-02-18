@@ -1,78 +1,74 @@
-name: Tidal
+name: Tidal3
 channels:
   - defaults
 dependencies:
   - blas=1.0=mkl
-  - ca-certificates=2018.03.07=0
-  - cairo=1.14.8=0
-  - certifi=2018.8.24=py27_1
-  - cycler=0.10.0=py27_0
-  - dbus=1.13.2=h714fa37_1
+  - ca-certificates=2019.1.23=0
+  - certifi=2018.11.29=py36_0
+  - cycler=0.10.0=py36_0
+  - dbus=1.13.6=h746ee38_0
   - expat=2.2.6=he6710b0_0
-  - fontconfig=2.12.1=3
-  - freetype=2.5.5=2
-  - functools32=3.2.3.2=py27_1
-  - future=0.16.0=py27_2
+  - fontconfig=2.13.0=h9420a91_0
+  - freetype=2.9.1=h8a8886c_1
   - glib=2.56.2=hd408876_0
   - gst-plugins-base=1.14.0=hbbd80ab_1
   - gstreamer=1.14.0=hb453b48_1
-  - icu=54.1=0
-  - imageio=2.4.1=py27_0
-  - intel-openmp=2019.0=118
+  - icu=58.2=h9c2bf20_1
+  - intel-openmp=2019.1=144
   - jpeg=9b=h024ee3a_2
-  - libedit=3.1.20170329=h6b74fdf_2
+  - kiwisolver=1.0.1=py36hf484d3e_0
+  - libedit=3.1.20181209=hc058e9b_0
   - libffi=3.2.1=hd88cf55_4
-  - libgcc=7.2.0=h69d50b8_2
   - libgcc-ng=8.2.0=hdf63c60_1
   - libgfortran-ng=7.3.0=hdf63c60_0
-  - libiconv=1.14=0
-  - libpng=1.6.34=hb9fc6fc_0
+  - libpng=1.6.36=hbc83047_0
   - libstdcxx-ng=8.2.0=hdf63c60_1
-  - libtiff=4.0.9=he85c1e1_2
+  - libuuid=1.0.3=h1bed415_2
   - libxcb=1.13=h1bed415_1
-  - libxml2=2.9.4=0
-  - matplotlib=2.0.2=np113py27_0
-  - mkl=2019.0=118
-  - mkl_fft=1.0.6=py27h7dd41cf_0
-  - mkl_random=1.0.1=py27h4414c95_1
-  - ncurses=6.1=hf484d3e_0
-  - numpy=1.13.3=py27hdbf6ddf_4
-  - olefile=0.46=py27_0
-  - openssl=1.0.2p=h14c3975_0
-  - pandas=0.23.4=py27h04863e7_0
+  - libxml2=2.9.9=he19cac6_0
+  - matplotlib=3.0.2=py36h5429711_0
+  - mkl=2019.1=144
+  - mkl_fft=1.0.10=py36ha843d7b_0
+  - mkl_random=1.0.2=py36hd81dba3_0
+  - mpi4py=2.0.0=py36_2
+  - mpich2=1.4.1p1=0
+  - ncurses=6.1=he6710b0_1
+  - numpy=1.15.4=py36h7e9f1db_0
+  - numpy-base=1.15.4=py36hde5b4d6_0
+  - openssl=1.1.1a=h7b6447c_0
+  - pandas=0.24.1=py36he6710b0_0
   - pcre=8.42=h439df22_0
-  - pillow=4.2.1=py27_0
-  - pip=10.0.1=py27_0
-  - pixman=0.34.0=hceecf20_3
-  - pycairo=1.13.3=py27hea6d626_0
-  - pyparsing=2.2.2=py27_0
-  - pyqt=5.6.0=py27h22d08a2_6
-  - python=2.7.10=2
-  - python-dateutil=2.7.3=py27_0
-  - pytz=2018.5=py27_0
-  - qt=5.6.2=5
-  - readline=6.2=2
-  - scipy=1.1.0=py27hd20e5f9_0
-  - setuptools=40.4.3=py27_0
-  - sip=4.18.1=py27hf484d3e_2
-  - six=1.11.0=py27_1
-  - sqlite=3.25.2=h7b6447c_0
-  - subprocess32=3.5.2=py27h14c3975_0
-  - tk=8.5.18=0
-  - wheel=0.32.1=py27_0
+  - pip=19.0.1=py36_0
+  - pyparsing=2.3.1=py36_0
+  - pyqt=5.9.2=py36h05f1152_2
+  - python=3.6.8=h0371630_0
+  - python-dateutil=2.7.5=py36_0
+  - pytz=2018.9=py36_0
+  - qt=5.9.7=h5867ecd_1
+  - readline=7.0=h7b6447c_5
+  - scipy=1.2.0=py36h7c811a0_0
+  - setuptools=40.8.0=py36_0
+  - sip=4.19.8=py36hf484d3e_0
+  - six=1.12.0=py36_0
+  - sqlite=3.26.0=h7b6447c_0
+  - tk=8.6.8=hbc83047_0
+  - tornado=5.1.1=py36h7b6447c_0
+  - tqdm=4.31.1=py_0
+  - wheel=0.32.3=py36_0
   - xz=5.2.4=h14c3975_4
-  - zlib=1.2.11=ha838bed_2
+  - zlib=1.2.11=h7b6447c_3
   - pip:
     - autograd==1.2
-    - dill==0.2.8.2
-    - futures==3.2.0
-    - lxml==4.2.5
-    - multiprocess==0.70.6.1
-    - pathos==0.2.2.1
-    - pebble==4.3.9
-    - pox==0.2.4
-    - ppft==1.6.4.8
-    - python-pptx==0.6.15
-    - utils==0.9.0
-    - xlsxwriter==1.1.1
+    - dill==0.2.9
+    - future==0.17.1
+    - lxml==4.3.1
+    - multiprocess==0.70.7
+    - pathos==0.2.3
+    - pebble==4.3.10
+    - pillow==5.4.1
+    - pox==0.2.5
+    - ppft==1.6.4.9
+    - python-pptx==0.6.17
+    - xlsxwriter==1.1.4
+prefix: /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal3
 
