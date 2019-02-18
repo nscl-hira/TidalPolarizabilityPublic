@@ -58,8 +58,8 @@ pylab.rcParams.update(params)
 
 
 import numpy as np
-import SkyrmeEOS as sky
-from Constants import *
+import Utilities.SkyrmeEOS as sky
+from Utilities.Constants import *
 
 def GetContour(df, rho_min, rho_max):
     n = np.linspace(rho_min,rho_max,1000)

@@ -12,11 +12,10 @@ import matplotlib.pyplot as plt
 from functools import partial
 from tqdm import tqdm
 
-import SkyrmeEOS as sky
-from Constants import *
-from EOSCreator import EOSCreator
+import Utilities.SkyrmeEOS as sky
+from Utilities.Constants import *
+from Utilities.EOSCreator import EOSCreator
 
-from itertools import izip
 
 def GetEOS(name_and_row):
     name = name_and_row[0]

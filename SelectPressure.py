@@ -48,7 +48,7 @@ def AddPressure(df):
                         'L(0.67rho0)':eos.GetL(0.67*rho0)})
 
         # try to convert the result to float if it returns an array of single element
-        for key, val in pressure[-1].iteritems():
+        for key, val in pressure[-1].items():
             try:
                 val = np.asscalar(val)
                 pressure[-1][key] = val

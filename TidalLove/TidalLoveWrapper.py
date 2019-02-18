@@ -1,5 +1,5 @@
 import tempfile
-import TidalLove_individual as tidal
+import TidalLove.TidalLove_individual as tidal
 from decimal import Decimal
 import autograd.numpy as np
 import scipy.optimize as opt
@@ -19,7 +19,7 @@ class TidalLoveWrapper:
         """
         self.eos = eos
         if name is None:
-            self.output = tempfile.NamedTemporaryFile()
+            self.output = tempfile.NamedTemporaryFile('w')
         else:
             self.output = open(name, 'w')
         eos.ToFileStream(self.output)

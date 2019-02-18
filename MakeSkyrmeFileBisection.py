@@ -102,7 +102,7 @@ def CalculateModel(name_and_eos, **kwargs):
         for den, (index, cp_radius) in zip(list_tran_density, enumerate(cp_r)):
             result['RadiusCheckpoint%d(%g)' % (index, tg)] = cp_radius
             result['DensityCheckpoint%d(%g)' % (index, tg)] = den
-    for key, val in kwargs.iteritems():
+    for key, val in kwargs.items():
         result[key] = val
 
     return result
@@ -152,8 +152,8 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
             except Exception as error:
                 pass
                 printer.PrintError(error)
-                print("function raised %s" % error)
-                print(error.traceback)  # Python's traceback of remote process
+                #print("function raised %s" % error)
+                #print(error.traceback)  # Python's traceback of remote process
 
     printer.Close()            
     """

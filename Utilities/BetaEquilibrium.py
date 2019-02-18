@@ -8,8 +8,8 @@ import scipy.optimize as optimize
 import pandas as pd
 
 import Utilities as utl
-import SkyrmeEOS as sky 
-from Constants import *
+import Utilities.SkyrmeEOS as sky 
+from Utilities.Constants import *
 
 
 def BetaEquilibrium(SkyrmeEOS):

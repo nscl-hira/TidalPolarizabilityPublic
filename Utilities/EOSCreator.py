@@ -12,9 +12,9 @@ from scipy.interpolate import UnivariateSpline
 
 from TidalLove import TidalLoveWrapper as wrapper
 import Utilities as utl
-import SkyrmeEOS as sky 
-from Constants import *
-from BetaEquilibrium import BetaEquilibrium
+import Utilities.SkyrmeEOS as sky 
+from Utilities.Constants import *
+from Utilities.BetaEquilibrium import BetaEquilibrium
 
 
 def FindCrustalTransDensity(Skryme):

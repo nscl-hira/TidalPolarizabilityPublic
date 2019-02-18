@@ -10,7 +10,7 @@ from scipy.interpolate import UnivariateSpline
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 
-from Constants import *
+from Utilities.Constants import *
 
 class EOS:
 
@@ -465,7 +465,7 @@ class Skryme(FullEOS):
     def GetEnergy(self, rho, pfrac):
         result = 3.*(hbar**2.)/(10.*mn)*((3.*pi2/2.)**0.666667)*np.power(rho, 0.6667)*self.__GetH(5./3., pfrac)
         result += self.para['t0']/8.*rho*(2.*(self.para['x0']+2.)-(2.*self.para['x0']+1)*self.__GetH(2., pfrac))
-        for i in xrange(1, 4):
+        for i in range(1, 4):
             result += 1./48.*self.para['t3%d'%i]*(rho**(self.para['sigma%d'%i]+1.))*(2.*(self.para['x3%d'%i]+2.)-(2.*self.para['x3%d'%i]+1.)*self.__GetH(2., pfrac))
         result += 3./40.*((3.*pi2/2.)**0.666667)*np.power(rho, 5./3.)*(self.a*self.__GetH(5./3., pfrac)+self.b*self.__GetH(8./3., pfrac))
         return result + mn
