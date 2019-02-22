@@ -1,4 +1,3 @@
-#!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
 import os
 import sys
 import traceback
@@ -10,8 +9,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpi4py import MPI
 import dill
-MPI.pickle.dumps = dill.dumps
-MPI.pickle.loads = dill.loads
+MPI.pickle.__init__(dill.dumps, dill.loads)
+#MPI.pickle.dumps = dill.dumps
+#MPI.pickle.loads = dill.loads
 
 from Utilities.EOSDrawer import EOSDrawer
 #from Utilities.MakeMovie import CreateGif

@@ -58,7 +58,7 @@ def AddCausailty(df, disable=False):
     name_list = [index for index, row in df.iterrows()]
     result = []
     with tqdm(total = len(name_list), ncols=100, disable=disable) as pbar:
-        with ProcessPool(max_workers=cpu_count()) as pool:
+        with ProcessPool(max_workers=20) as pool:
             future = pool.map(partial(ViolateCausality, df=df), name_list)
             iterator = future.result()
             while True:

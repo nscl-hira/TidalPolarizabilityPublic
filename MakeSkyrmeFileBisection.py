@@ -110,7 +110,6 @@ def CalculateModel(name_and_eos, **kwargs):
 
 
 def CalculatePolarizability(df, Output, PBar=False, **kwargs):
-    
     EOSType = kwargs['EOSType']
     summary = SummarizeSkyrme(df, EOSType=EOSType)
 
@@ -130,7 +129,7 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
     name_list = [(index, row) for index, row in df.iterrows()]
     result = []
     #CalculateModel(name_list[0], **kwargs)
-    with ProcessPool(max_workers=cpu_count()) as pool:
+    with ProcessPool(max_workers=20) as pool:
         future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
         iterator = future.result()
         while True:

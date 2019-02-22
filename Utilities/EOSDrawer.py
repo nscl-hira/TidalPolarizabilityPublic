@@ -34,7 +34,7 @@ class EOSDrawer:
     def __init__(self, df, **kwargs):
         self.df = df
         name_list = [(index, row) for index, row in df.iterrows()]
-        pool = ProcessingPool(nodes=cpu_count())
+        pool = ProcessingPool(nodes=20)
         result = pool.imap(GetEOS, name_list)
         self.EOS = {}
         print('Preparing EOS in progress:')

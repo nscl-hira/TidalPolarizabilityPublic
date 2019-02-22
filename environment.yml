@@ -1,4 +1,3 @@
-name: Tidal3
 channels:
   - defaults
 dependencies:
@@ -70,5 +69,4 @@ dependencies:
     - ppft==1.6.4.9
     - python-pptx==0.6.17
     - xlsxwriter==1.1.4
-prefix: /mnt/analysis/hira/tsangc/anaconda2/envs/Tidal3
 
