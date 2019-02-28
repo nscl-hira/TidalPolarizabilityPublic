@@ -54,11 +54,11 @@ def ViolateCausality(eos_name, df):
         return eos_name, True, False
 
 
-def AddCausailty(df, disable=False):
+def AddCausailty(df, disable=False, ncpu=20):
     name_list = [index for index, row in df.iterrows()]
     result = []
     with tqdm(total = len(name_list), ncols=100, disable=disable) as pbar:
-        with ProcessPool(max_workers=20) as pool:
+        with ProcessPool(max_workers=ncpu) as pool:
             future = pool.map(partial(ViolateCausality, df=df), name_list)
             iterator = future.result()
             while True:

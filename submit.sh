@@ -18,7 +18,7 @@ cat > $SUBFILE << EOF
 
 cd \$SLURM_SUBMIT_DIR
 ./configure.sh Tidal3
-mpiexec -np ${NODES} --bind-to none python -W ignore GenerateReport.py -i ${INPUT} -o ${OUTPUT} -pd 0.3 -et EOS --PBar 
+mpiexec -np ${NODES} --bind-to none python -W ignore GenerateReport.py -i ${INPUT} -o ${OUTPUT} -c ${CORES} -pd 0.3 -et EOS --PBar 
 EOF
     sbatch $SUBFILE
     rm $SUBFILE

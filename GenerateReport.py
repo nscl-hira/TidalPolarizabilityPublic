@@ -146,8 +146,9 @@ if __name__ == '__main__':
         parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
         parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
         parser.add_argument("--PBar", dest='PBar', action='store_true', help="Enable if you don't need to display everything during calculation, just a progress bar")
-        parser.add_argument("-tg", "--TargetMass", type=float, nargs='+', default=[1.4], help="Target mass of the neutron star. (Default: 1.4)")
+        parser.add_argument("-tg", "--TargetMass", type=float, nargs='+', default=[1.4], help="Target mass of the neutron star. (default: 1.4)")
         parser.add_argument("--NoPPTX", dest='NoPPTX', action='store_true', help="Enable if you don't need a PowerPoint report. Recommended for HPCC calculation as it cannot make use of multicores")
+        parser.add_argument("-c", "--nCPU", type=int, default=20, help="Number of CPU used in each nodes (default: 20)")
         args = parser.parse_args()
         
         df_orig = LoadSkyrmeFile(args.Input)
@@ -178,7 +179,7 @@ if __name__ == '__main__':
         df = CalculatePolarizability(df_orig, disable=disable_output, **argd)
         # calculate additional EOS properties
         df = AddPressure(df)
-        df = AddCausailty(df, disable=disable_output)
+        df = AddCausailty(df, disable=disable_output, ncpu=argd['nCPU'])
         df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
         #df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
     except Exception as e:
@@ -219,7 +220,7 @@ if __name__ == '__main__':
                 df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
             except Exception as e:
                 print('Causality calculation is not being done')
-            drawer = EOSDrawer(df, disable=False)
+            drawer = EOSDrawer(df, disable=False, ncpu=argd['nCPU'])
             
             # Plot all the EOSs
             figname = None

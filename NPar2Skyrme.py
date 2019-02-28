@@ -62,17 +62,21 @@ if __name__ == '__main__':
     efms = 0.75
     delta_m = 0.1
 
-    # order: S0, L, K0
-    corr = np.array([[1., -0.1, 0.0], [-0.1, 1., 0.0], [0.0, 0.0, 1.0]])
-    sd = np.array([2., 15., 20.])
-    mean = np.array([32., 60., 230.])
+    # order: S0, L, K0, ms, fi
+    corr = np.array([[1., -0.1, 0.0, 0.0,0.0], [-0.1, 1., 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0, 0.0],[0.0,0.0,0.0,0.0,1.0]])
+    sd = np.array([2., 15., 20., 0.1, 0.1])
+    mean = np.array([32., 60., 230., 0.75, -0.05])
+
     cov = np.dot(np.diag(sd), np.dot(corr, np.diag(sd)))
     
     all_para = []
-    for num in range(0, 50000):
-        S0, L, K0 = np.random.multivariate_normal(mean, cov).T
-        row = NucProp2Skyrme(S0, L, efms, delta_m=delta_m, K0=K0)
-        all_para.append(row)
+    S0, L, K0, efms, fi = np.random.multivariate_normal(mean, cov, size=(200000,1,1)).T
+    S0 = S0.flatten()
+    L = L.flatten()
+    K0 = K0.flatten()
+    efms = efms.flatten()
+    fi = fi.flatten()
+    all_para = NucProp2Skyrme(S0, L, efms, fi, K0=K0)
     df = pd.DataFrame(all_para)
     df.to_csv('test.csv')
 

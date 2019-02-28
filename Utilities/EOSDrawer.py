@@ -31,10 +31,10 @@ def GetEOS(name_and_row):
 class EOSDrawer:
 
 
-    def __init__(self, df, **kwargs):
+    def __init__(self, df, ncpu=20):
         self.df = df
         name_list = [(index, row) for index, row in df.iterrows()]
-        pool = ProcessingPool(nodes=20)
+        pool = ProcessingPool(nodes=ncpu)
         result = pool.imap(GetEOS, name_list)
         self.EOS = {}
         print('Preparing EOS in progress:')
