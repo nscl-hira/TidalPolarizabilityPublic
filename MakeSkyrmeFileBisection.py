@@ -109,18 +109,19 @@ def CalculateModel(name_and_eos, **kwargs):
 
 
 
-def CalculatePolarizability(df, Output, PBar=False, **kwargs):
+def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
     EOSType = kwargs['EOSType']
     summary = SummarizeSkyrme(df, EOSType=EOSType)
+    total = df.shape[0]
 
     """
     Tells ConsolePrinter which quantities to be printed in real time
     """
     title = ['Model', 'R(1.4)', 'lambda(1.4)', 'PCentral(1.4)']
     if PBar:
-        printer = cp.ConsolePBar(title, total=df.shape[0], **kwargs)
+        printer = cp.ConsolePBar(title, comm=comm, total=total, **kwargs)
     else:
-        printer = cp.ConsolePrinter(title, total=df.shape[0])
+        printer = cp.ConsolePrinter(title, comm=comm, total=total)
     
     
     """
@@ -141,18 +142,16 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
                 break
             except ValueError as error:
                 printer.PrintError(error)
-                pass
             except TimeoutError as error:
                 printer.PrintError(error)
-                pass
             except ProcessExpired as error:
                 printer.PrintError(error)
-                print("%s. Exit code: %d" % (error, error.exitcode))
+                #print("%s. Exit code: %d" % (error, error.exitcode))
             except Exception as error:
-                pass
                 printer.PrintError(error)
                 #print("function raised %s" % error)
                 #print(error.traceback)  # Python's traceback of remote process
+            printer.ListenFor(0.1)
 
     printer.Close()            
     """
@@ -161,7 +160,7 @@ def CalculatePolarizability(df, Output, PBar=False, **kwargs):
     data = [val for val in result]
     data = pd.DataFrame.from_dict(data)
     data.set_index('Model', inplace=True)
-    data = pd.concat([df, summary, data], axis=1)
+    data = pd.concat([df, summary, data], axis=1, sort=True)
     #data = pd.concat([df, data], axis=1)    
     #data.combine_first(summary)
     #data.combine_first(data)

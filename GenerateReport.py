@@ -166,6 +166,7 @@ if __name__ == '__main__':
 
 
     # start deformability calculation
+    
     df_orig = comm.scatter(df_orig, root=0)
     argd = comm.bcast(argd, root=0)
     disable_output = False
@@ -173,13 +174,13 @@ if __name__ == '__main__':
     if rank != 0:
         # hide all output from non-root process
         disable_output = True
-        f = open(os.devnull, 'w')
-        sys.stdout = f
+        #f = open(os.devnull, 'w')
+        #sys.stdout = f
     try:
-        df = CalculatePolarizability(df_orig, disable=disable_output, **argd)
+        df = CalculatePolarizability(df_orig, comm=comm, disable=disable_output, **argd)
         # calculate additional EOS properties
         df = AddPressure(df)
-        df = AddCausailty(df, disable=disable_output, ncpu=argd['nCPU'])
+        df = AddCausailty(df, disable=disable_output, ncpu=argd['nCPU'], comm=comm)
         df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
         #df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
     except Exception as e:
@@ -220,7 +221,7 @@ if __name__ == '__main__':
                 df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
             except Exception as e:
                 print('Causality calculation is not being done')
-            drawer = EOSDrawer(df, disable=False, ncpu=argd['nCPU'])
+            drawer = EOSDrawer(df, ncpu=argd['nCPU'])
             
             # Plot all the EOSs
             figname = None
@@ -245,8 +246,9 @@ if __name__ == '__main__':
                 except Exception:
                    print('Cannot draw %s' % figname)
                    continue
-        except Exception:
-            print('Cannot create PowerPoint')
+        except Exception as e:
+            print('Cannot create PowerPoint because %s' % e)
+            print(e.traceback)
 
 
         output_name = args.Output          

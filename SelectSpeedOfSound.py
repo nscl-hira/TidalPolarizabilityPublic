@@ -13,6 +13,7 @@ import Utilities.Utilities as tul
 import Utilities.SkyrmeEOS as sky
 from Utilities.Constants import *
 from Utilities.EOSCreator import EOSCreator
+from Utilities.ConsolePrinter import ConsolePBar
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
 
 def ViolateCausality(eos_name, df):
@@ -54,24 +55,27 @@ def ViolateCausality(eos_name, df):
         return eos_name, True, False
 
 
-def AddCausailty(df, disable=False, ncpu=20):
+def AddCausailty(df, disable=False, ncpu=20, comm=None):
     name_list = [index for index, row in df.iterrows()]
     result = []
-    with tqdm(total = len(name_list), ncols=100, disable=disable) as pbar:
-        with ProcessPool(max_workers=ncpu) as pool:
-            future = pool.map(partial(ViolateCausality, df=df), name_list)
-            iterator = future.result()
-            while True:
-                try:
-                    result.append(next(iterator))
-                    pbar.update(1)
-                except StopIteration:
-                    break
-                except ProcessExpired as error:
-                    sys.stderr.write("%s. Exit code: %d" % (error, error.exitcode))
-                except Exception as error:
-                    pbar.update(1)
-                    sys.stderr.write(error.traceback)
+    pbar = ConsolePBar(total=len(name_list), ncols=100, comm=comm) 
+    with ProcessPool(max_workers=ncpu) as pool:
+        future = pool.map(partial(ViolateCausality, df=df), name_list)
+        iterator = future.result()
+        while True:
+            try:
+                result.append(next(iterator))
+                pbar.PrintContent(1)
+            except StopIteration:
+                break
+            except ProcessExpired as error:
+                sys.stderr.write("%s. Exit code: %d" % (error, error.exitcode))
+                pbar.PrintError(error)
+            except Exception as error:
+                pbar.PrintError(error)
+                sys.stderr.write(error.traceback)
+            pbar.ListenFor(0.05)
+    pbar.Close()
     
     data = [{'Model': val[0], 'ViolateCausality': val[1], 'NegSound': val[2]} for val in result]
     data = pd.DataFrame.from_dict(data)

@@ -31,7 +31,7 @@ def GetEOS(name_and_row):
 class EOSDrawer:
 
 
-    def __init__(self, df, ncpu=20):
+    def __init__(self, df, ncpu=20, **kwargs):
         self.df = df
         name_list = [(index, row) for index, row in df.iterrows()]
         pool = ProcessingPool(nodes=ncpu)
