@@ -70,7 +70,7 @@ class EOSCreator:
                 self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
         elif EOSType == 'Power':
             self.ImportedEOS = sky.PowerLawEOS(self.row)
-            self.BENuclear = self.ImportedEOS
+            self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
             self.EQType = 'Power'
         elif self.EQType != 'Skyrme':
             self.ImportedEOS = sky.Skryme(self.row)
