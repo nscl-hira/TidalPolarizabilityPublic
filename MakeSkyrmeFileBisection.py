@@ -160,7 +160,8 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
     data = [val for val in result]
     data = pd.DataFrame.from_dict(data)
     data.set_index('Model', inplace=True)
-    data = pd.concat([df, summary, data], axis=1, sort=True)
+    cols_to_use = df.columns.difference(summary.columns)
+    data = pd.concat([df[cols_to_use], summary, data], axis=1, sort=True)
     #data = pd.concat([df, data], axis=1)    
     #data.combine_first(summary)
     #data.combine_first(data)

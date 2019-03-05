@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
 from Utilities.EOSDrawer import EOSDrawer 
@@ -21,12 +23,12 @@ def DrawEOS(row, ax, xlim=[1e-2, 1e4], ylim=[1e-4, 1e4], **kwargs):
 def update_energy(names):
     energy_ax.clear()
     DrawEOS(df.ix[names], energy_ax)
-    energy_ax.set_title(" ".join(names))
+    energy_ax.set_title(" ".join(str(names)))
 
 def HighlightPoints(names):
     hover_x = [df['R(1.4)'].ix[names]]
     hover_y = [df['lambda(1.4)'].ix[names]]
-    highlight.set_offsets(np.c_[hover_x, hover_y])
+    highlight.set_offsets(np.c_[np.array(hover_x), np.array(hover_y)])
 
 def HighlightLine(names):
     temp = drawer.DrawEOS(df.ix[[names]], ax=pressure_ax, xname='rho/rho0', yname='GetPressure', color=['grey']*6)
@@ -44,7 +46,7 @@ def HighlightLine(names):
 def update_annot(ind, names):
     pos = sc.get_offsets()[ind["ind"][0]]
     annot.xy = pos
-    text = "{}".format(" ".join(names))
+    text = "{}".format(" ".join(str(names)))
     annot.set_text(text)
     annot.get_bbox_patch().set_alpha(0.4)
     HighlightPoints(names) 
@@ -52,7 +54,7 @@ def update_annot(ind, names):
 def update_annot_lines(name, line, ind):
     x, y = line.get_data()
     annot_lines.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
-    text = "{}".format(" ".join(name))
+    text = "{}".format(" ".join(str(name)))
     annot_lines.set_text(text)
     annot_lines.get_bbox_patch().set_alpha(0.4)
 
@@ -62,7 +64,7 @@ def hover(event):
     if event.inaxes == ax:
         cont, ind = sc.contains(event)
         if cont:
-            names = [df.index.values[ind['ind'][0]]]
+            names = [str(df.index.values[ind['ind'][0]])]
             update_energy(names)
             update_annot(ind, names)
             HighlightLine(names[0])
@@ -86,7 +88,8 @@ def hover(event):
 def hover_lines(event):
     vis = annot_lines.get_visible()
     if event.inaxes == pressure_ax:
-        for names, lines in line_list.iteritems():
+        for names, lines in line_list.items():
+            names = str(names)
             for line in lines:
                 cont, ind = line.contains(event)
                 if cont:
@@ -114,7 +117,7 @@ def hover_lines(event):
                 continue
             break
 
-filename = 'Results/ABrown.csv'
+filename = 'Results/test.csv'
 
 def onclick(event):
     if event.inaxes == ax:
@@ -128,7 +131,7 @@ def onclick(event):
 
 def onclick_lines(event):
     if event.inaxes == pressure_ax:
-        for names, lines in line_list.iteritems():
+        for names, lines in line_list.items():
             for line in lines:
                 cont, ind = line.contains(event)
                 if cont:
@@ -144,6 +147,7 @@ def onclick_lines(event):
 
 if __name__ == '__main__':
     df = LoadSkyrmeFile(filename)
+    df.index = df.index.map(str)
     drawer = EOSDrawer(df)
 
     pressure_fig, pressure_ax = plt.subplots()

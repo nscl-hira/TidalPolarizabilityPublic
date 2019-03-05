@@ -124,6 +124,8 @@ class ConsolePrinter(Console):
 
     def PrintError(self, value):
         pass
+        #print(value)
+        #print(value.traceback)
 
 
 

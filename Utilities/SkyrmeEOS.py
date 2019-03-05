@@ -61,6 +61,8 @@ class EOS:
                             np.linspace(3.77e-4, 10*0.16, 18000)])
         energy = (self.GetEnergyDensity(n, 0.))
         pressure = self.GetPressure(n, 0.) 
+        if not np.all(np.diff(energy) > 0) or not np.all(np.diff(pressure) > 0):
+            raise RuntimeError('Energy and pressure is not monotonically increasing. Will not calculate')
         for density, e, p in zip(n, energy, pressure):
             if(not math.isnan(e) and not math.isnan(p)):
                 filestream.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))
@@ -424,6 +426,29 @@ class FullEOS(EOS):
         third_grad_S = egrad(egrad(egrad(self.GetAsymEnergy, 0), 0), 0)(rho)
         return 27*rho*rho*rho*third_grad_S
 
+
+class PowerLawEOS(FullEOS):
+
+    def __init__(self, para):
+        super().__init__()
+        self.Esat = para['Esat']
+        self.Ksat = para['Ksat']
+        self.Qsat = para['Qsat']
+        self.Zsat = para['Zsat']
+        
+        self.Esym = para['Esym']
+        self.Lsym = para['Lsym']
+        self.Ksym = para['Ksym']
+        self.Qsym = para['Qsym']
+        self.Zsym = para['Zsym']
+        self.rho0 = 0.16
+        
+    def GetEnergy(self, rho, pfrac):
+        delta = 1 - 2*pfrac
+        x = (rho - self.rho0)/(3*self.rho0)
+        E_iso_sca = self.Esat + 1./2.*self.Ksat*x*x + 1./6.*self.Qsat*x*x*x + 1./24.*self.Zsat*x*x*x*x
+        E_iso_vec = self.Esym + self.Lsym*x + 1./2.*self.Ksym*x*x + 1./6.*self.Qsym*x*x*x + 1./24.*self.Zsym*x*x*x*x
+        return E_iso_sca + delta*delta*E_iso_vec + 938.27
 
 
 class Skryme(FullEOS):

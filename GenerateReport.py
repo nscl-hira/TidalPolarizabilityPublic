@@ -148,7 +148,7 @@ if __name__ == '__main__':
         parser.add_argument("--PBar", dest='PBar', action='store_true', help="Enable if you don't need to display everything during calculation, just a progress bar")
         parser.add_argument("-tg", "--TargetMass", type=float, nargs='+', default=[1.4], help="Target mass of the neutron star. (default: 1.4)")
         parser.add_argument("--NoPPTX", dest='NoPPTX', action='store_true', help="Enable if you don't need a PowerPoint report. Recommended for HPCC calculation as it cannot make use of multicores")
-        parser.add_argument("-c", "--nCPU", type=int, default=20, help="Number of CPU used in each nodes (default: 20)")
+        parser.add_argument("-c", "--nCPU", type=int, default=10, help="Number of CPU used in each nodes (default: 10)")
         args = parser.parse_args()
         
         df_orig = LoadSkyrmeFile(args.Input)

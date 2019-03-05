@@ -5,7 +5,7 @@ import scipy.optimize as opt
 import pandas as pd
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 

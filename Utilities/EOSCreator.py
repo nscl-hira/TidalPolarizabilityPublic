@@ -51,8 +51,10 @@ class EOSCreator:
             df_E = pd.read_csv('SkyrmeParameters/Rodrigo_extended.csv')
             df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym_extended.csv')
             self.ImportedEOS = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
-        elif self.EQType != 'Skyrme':
+        elif EOSType == 'Skyrme':
             self.ImportedEOS = sky.Skryme(self.row)
+        elif EOSType == 'Power':
+            self.ImportedEOS = sky.PowerLawEOS(self.row)
 
 
     def PrepareEOS(self, **kwargs):
@@ -66,19 +68,23 @@ class EOSCreator:
                 self.ImportedEOS = sky.EOSSpline(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
                 self.EQType = 'Rod'
                 self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
+        elif EOSType == 'Power':
+            self.ImportedEOS = sky.PowerLawEOS(self.row)
+            self.BENuclear = self.ImportedEOS
+            self.EQType = 'Power'
         elif self.EQType != 'Skyrme':
             self.ImportedEOS = sky.Skryme(self.row)
             self.EQType = 'Skyrme'
             self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
 
-        if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoCrust":
+        if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoCrust" or EOSType == 'Power':
             if 'PolyTropeDensity' not in kwargs:
                 kwargs['PolyTropeDensity'] = 3*0.16
         if EOSType == "Rod":
             if 'PolyTropeDensity' not in kwargs:
                 kwargs['PolyTropeDensity'] = 1.5*0.16
         # List for creating crustal EoS
-        if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoPolyTrope" or EOSType == "Rod":
+        if EOSType == "EOS" or EOSType == "EOS2Poly" or EOSType == "EOSNoPolyTrope" or EOSType == "Rod" or EOSType == 'Power':
             if 'CrustSmooth' not in kwargs:
                 kwargs['CrustSmooth'] = 0.
             if 'CrustFileName' not in kwargs:
@@ -101,7 +107,7 @@ class EOSCreator:
                 kwargs['Pressure2'] = 50
 
         # Needs to fix maximum mass for the equation of state
-        if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'EOSNoCrust' or EOSType == 'Rod':
+        if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'EOSNoCrust' or EOSType == 'Rod' or EOSType == 'Power':
             if not 'PressureHigh' in kwargs:
                 if not 'MaxMassRequested' in kwargs:
                     kwargs['MaxMassRequested'] = 2.
@@ -320,6 +326,8 @@ class EOSCreator:
             return self.GetEOSNoCrust(**kwargs)
         elif EOSType == 'Rod':
             return self.GetEOS(**kwargs) # you should have supplied Rodrigo EOS
+        elif EOSType == 'Power':
+            return self.GetEOS(**kwargs)
         else: 
             return self.GetOnlySkyrme(**kwargs)
             
@@ -333,24 +341,24 @@ def SummarizeSkyrme(df, EOSType):
     for index, row in df.iterrows():
         creator = EOSCreator(row=row)
         creator.ImportEOS(EOSType=EOSType)
-        sky = creator.ImportedEOS
+        sky_eos = creator.ImportedEOS
         try:
-            rho0 = sky.rho0
-            E0 = sky.GetEnergy(rho0, 0.5)
-            K0 = sky.GetK(rho0, 0.5)
-            Kprime = -sky.GetQ(rho0, 0.5)
-            J = sky.GetAsymEnergy(rho0)
-            L = sky.GetL(rho0)
-            Ksym = sky.GetKsym(rho0)
-            Qsym = sky.GetQsym(rho0)
+            rho0 = sky_eos.rho0
+            E0 = sky_eos.GetEnergy(rho0, 0.5)
+            K0 = sky_eos.GetK(rho0, 0.5)
+            Kprime = -sky_eos.GetQ(rho0, 0.5)
+            J = sky_eos.GetAsymEnergy(rho0)
+            L = sky_eos.GetL(rho0)
+            Ksym = sky_eos.GetKsym(rho0)
+            Qsym = sky_eos.GetQsym(rho0)
             summary_dict = {'Model':index, 'E0':E0, 'K0':K0, 'K\'':Kprime, 'J':J, 'L':L, 'Ksym':Ksym, 'Qsym':Qsym}
         except Exception:
             raise Exception('The EOS type does not suppor calculation of L, K and Q.')
         try:
-            eff_m = sky.GetEffectiveMass(rho0, 0.5)
-            m_s = sky.GetMs(rho0)
-            m_v = sky.GetMv(rho0)
-            fi = sky.GetFI(rho0)
+            eff_m = sky_eos.GetEffectiveMass(rho0, 0.5)
+            m_s = sky_eos.GetMs(rho0)
+            m_v = sky_eos.GetMv(rho0)
+            fi = sky_eos.GetFI(rho0)
             summary_dict['m*'] = eff_m
             summary_dict['m_s'] = m_s
             summary_dict['m_v'] = m_v
