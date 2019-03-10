@@ -196,7 +196,7 @@ if __name__ == '__main__':
                df.to_csv('Results/%s.csv' % output_name)
                break
            except Exception:
-               print('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name))
+               print('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name, output_name))
                output_name = '%s_new' % output_name
  
 

@@ -40,8 +40,10 @@ class EOSDrawer:
         print('Preparing EOS in progress:')
         for val in tqdm(result, total=len(name_list), unit='EOS', ncols=100, **kwargs):
             self.EOS[val[0]] = val[1::]
-        pool.close()
-        pool.join()
+        #pool.close()
+        #pool.join()
+        pool.terminate()
+        pool.restart()
         
 
     def ParticleFraction(self, name):

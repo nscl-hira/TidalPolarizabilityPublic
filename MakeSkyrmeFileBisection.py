@@ -35,8 +35,10 @@ def CalculateModel(name_and_eos, **kwargs):
     """
     Prepare EOS
     """
+    sys.stdout.flush()
     kwargs = eos_creator.PrepareEOS(**kwargs)
     eos, list_tran_density = eos_creator.GetEOSType(**kwargs)
+
 
     # insert surface density
     list_tran_density.append(OuterCrustDensity)
@@ -78,6 +80,7 @@ def CalculateModel(name_and_eos, **kwargs):
                 lambda_.append(lambda_tg)
                 checkpoint_mass.append(checkpoint_mass_tg)
                 checkpoint_radius.append(checkpoint_radius_tg)
+
             except RuntimeError as error:
                 raise ValueError('Failed to find %g solar mass properties for this EOS' % tg)
         if max_mass >= max_mass_req: 

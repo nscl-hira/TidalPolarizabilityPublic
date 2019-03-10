@@ -12,6 +12,17 @@ import matplotlib.pyplot as plt
 
 from Utilities.Constants import *
 
+# register interpolation methods into autograd
+from autograd.extend import primitive, defvjp
+@primitive
+def interpolate(x, interpolator, deriv_order):
+    return interpolator(x, nu=deriv_order)
+
+def interpolate_vjp(ans, x, interpolator, deriv_order):
+  return lambda g: g*interpolate(x, interpolator, deriv_order + 1)
+
+defvjp(interpolate, interpolate_vjp)
+
 class EOS:
 
     def __init__(self):
@@ -24,20 +35,21 @@ class EOS:
     If your pressure cannot be calculated by autograd, then override GetPressure as well
     If sound is not provided, it will be calculated with autograd, but if it cannot be calculated with autograd then you need to override it as well
     """
-    def GetEnergy(self, rho, pfrac):
+    def GetEnergy(self, rho, pfrac=0):
         pass
 
-    def GetPressure(self, rho, pfrac):
+    def GetPressure(self, rho, pfrac=0):
         grad_edensity = egrad(self.GetEnergy, 0)(rho, pfrac)
         return rho*rho*grad_edensity
 
-    def GetEnergyDensity(self, rho, pfrac):
+    def GetEnergyDensity(self, rho, pfrac=0):
         return rho*self.GetEnergy(rho, pfrac)
 
-    def GetSpeedOfSound(self, rho, pfrac):
-        return egrad(self.GetPressure, 0)(rho, pfrac)/(self.GetEnergy(rho, pfrac) + egrad(self.GetEnergy, 0)(rho, pfrac)*rho)
+    def GetSpeedOfSound(self, rho, pfrac=0):
+        #return egrad(self.GetPressure, 0)(rho, pfrac)/(self.GetEnergy(rho, pfrac) + egrad(self.GetEnergy, 0)(rho, pfrac)*rho)
+        return egrad(self.GetPressure, 0)(rho, pfrac)/egrad(self.GetEnergyDensity, 0)(rho, pfrac)
 
-    def Get2EGrad(self, rho, pfrac):
+    def Get2EGrad(self, rho, pfrac=0):
         return egrad(egrad(self.GetEnergy, 0),0)(rho, pfrac)
 
     def ToFile(self, name):
@@ -69,129 +81,54 @@ class EOS:
         filestream.flush()
 
 
-class SplineEOS(EOS):
-
     """
-    Barebone EOSSpline where the use supply only energy as a function of rho0
-    This class will calculate everything by itself
+    Full EoS
+    Where symmetric energy term is provided/ can be independently calculated
+    Need to override GetAsymEnergy
+    if autograd is not compatible with your GetAsymEnergy
+    you need to override all other listed functions as well
     """
-    def __init__(self, rho, energy, smooth=0):
-        EOS.__init__(self)
-        self.spl = UnivariateSpline(rho, energy, s=smooth)
-        self.dspl = self.spl.derivative(1)
-        self.ddspl = self.spl.derivative(2)
-        self.dddspl = self.spl.derivative(3)
-
-    def GetEnergy(self, rho, pfrac):
-        return self.spl(rho)
-
-    def GetEnergyDensity(self, rho, pfrac):
-        return rho*self.GetEnergy(rho, pfrac)
-
-    def GetPressure(self, rho, pfrac):
-        grad_edensity = self.dspl(rho)
-        pressure = rho*rho*grad_edensity
-        return pressure
-
-    def Get2EGrad(self, rho, pfrac):
-        return self.ddspl(rho)
-
-    def GetSpeedOfSound(self, rho, pfrac):
-        return (2*rho*(self.dspl(rho)) + rho*rho*(self.ddspl(rho))) \
-               /(self.GetEnergy(rho, pfrac) + self.dspl(rho)*rho)
-
-class SplineEOSFull(SplineEOS):
-
-    def __init__(self, rho, energy, rho_Sym, Sym, smooth=0):
-        SplineEOS.__init__(self, rho, energy, smooth)
-        self.SymSpl = UnivariateSpline(rho_Sym, Sym, s=smooth)
-        self.dSymSpl = self.SymSpl.derivative(1)
-        self.ddSymSpl = self.SymSpl.derivative(2)
-        self.dddSymSpl = self.SymSpl.derivative(3)
-
-    def GetSpeedOfSound(self, rho, pfrac):
-        return (2*rho*(self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho)) 
-               + rho*rho*(self.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho))) \
-               /(self.GetEnergy(rho, pfrac) 
-               + (self.dspl(rho) + (2*pfrac - 1)**2*self.dSymSpl(rho))*rho)
-
-    def GetEnergy(self, rho, pfrac):
-        return SplineEOS.GetEnergy(self, rho, pfrac) + (2*pfrac - 1)**2*self.SymSpl(rho)
-
-    def GetPressure(self, rho, pfrac):
-        return SplineEOS.GetPressure(self, rho, pfrac) + rho*rho*(2*pfrac - 1)**2*self.dSymSpl(rho)
-
-    def GetEnergyDensity(self, rho, pfrac):
-        return rho*self.GetEnergy(rho, pfrac)
-
-    def Get2EGrad(self, rho, pfrac):
-        return SplineEOS.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho)
+    
 
     def GetAsymEnergy(self, rho, *args):
-        return self.SymSpl(rho)
+        return 1./8.*egrad(egrad(self.GetEnergy, 1), 1)(rho, 0.5)
 
-    def GetL(self, rho):
-        grad_S = self.dSymSpl(rho)
-        return 3*rho*grad_S
 
-    def GetK(self, rho, pfrac):
-        sec_grad_density = self.ddspl(rho) + (2*pfrac - 1)**2*self.ddSymSpl(rho)
+    def GetK(self, rho, pfrac=0):
+        sec_grad_density = egrad(egrad(self.GetEnergy, 0), 0)(rho, pfrac)
         return 9*rho*rho*sec_grad_density
     
-    def GetQ(self, rho, pfrac):
+    def GetQ(self, rho, pfrac=0):
         """
         For some weird reasons, Q is also called -K' which we will use to compare
         """
-        third_grad_density = self.dddspl(rho) + (2*pfrac - 1)**2*self.dddSymSpl(rho)
+        third_grad_density = egrad(egrad(egrad(self.GetEnergy, 0), 0), 0)(rho, pfrac)
         return 27*rho*rho*rho*third_grad_density
 
+    def GetZ(self, rho, pfrac=0):
+        forth_grad_density = egrad(egrad(egrad(egrad(self.GetEnergy, 0), 0), 0), 0)(rho, pfrac)
+        return 81*rho*rho*rho*rho*forth_grad_density
+
+    """
+    Usually these functions are defined only at rho0
+    When calling them, try to set rho to rho0
+    """
+    def GetL(self, rho):
+        grad_S = egrad(self.GetAsymEnergy, 0)(rho)
+        return 3*rho*grad_S
+    
     def GetKsym(self, rho):
-        second_grad_S = self.ddSymSpl(rho)
+        second_grad_S = egrad(egrad(self.GetAsymEnergy, 0), 0)(rho)
         return 9*rho*rho*second_grad_S
     
     def GetQsym(self, rho):
-        third_grad_S = self.dddSymSpl(rho)
+        third_grad_S = egrad(egrad(egrad(self.GetAsymEnergy, 0), 0), 0)(rho)
         return 27*rho*rho*rho*third_grad_S
 
+    def GetZsym(self, rho):
+        forth_grad_density = egrad(egrad(egrad(egrad(self.GetAsymEnergy, 0), 0), 0), 0)(rho, pfrac)
+        return 81*rho*rho*rho*rho*forth_grad_density
 
-
-
-
-"""
-Create a spline according to what you've provided. Bare minimum: energy as a function of rho
-"""
-def EOSSpline(rho, energy=None, pressure=None, energy_density=None, rho_Sym=None, Sym=None, smooth=0):
-
-    if energy is None:
-        energy = energy_density/rho
-
-    if rho_Sym is None:
-        rho_Sym = rho
-
-    if Sym is None:
-        eos = SplineEOS(rho, energy, smooth)
-    else:
-        eos = SplineEOSFull(rho, energy, rho_Sym, Sym, smooth)
-
-    if pressure is not None:
-        eos.SplPressure = UnivariateSpline(rho, pressure, s=smooth)
-        def CustomGetPressure(self, rho, pfrac):
-            return self.SplPressure(rho)
-        eos.GetPressure = types.MethodType(CustomGetPressure, eos)
-
-    if energy_density is not None:
-        # calculation of speed of sound with energy density is more accurate
-        # Especially when density is low (crustal EoS)
-        eos.sound = UnivariateSpline(energy_density, pressure, s=smooth).derivative(1)
-        eos.density_spl = UnivariateSpline(rho, energy_density, s=smooth)
-        def CustomGetEnergyDensity(self, rho, pfrac):
-            return self.density_spl(rho)
-        def CustomGetSpeedOfSound(self, rho, pfrac):
-            return eos.sound(rho)
-        eos.GetEnergyDensity = types.MethodType(CustomGetEnergyDensity, eos)
-        eos.GetSpeedOfSound = types.MethodType(CustomGetSpeedOfSound, eos)
-    return eos
-    
 
 
 class EOSConnect(EOS):
@@ -204,24 +141,30 @@ class EOSConnect(EOS):
         self.eos_list = eos_list
         self.intervals = intervals
 
-    def GetEnergy(self, rho, pfrac):
+    def GetEnergy(self, rho, pfrac=0):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetEnergy(rho, pfrac))(eos) for eos in self.eos_list])
 
-    def GetEnergyDensity(self, rho, pfrac):
+    def GetEnergyDensity(self, rho, pfrac=0):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetEnergyDensity(rho, pfrac))(eos) for eos in self.eos_list])
 
-    def GetPressure(self, rho, pfrac):
+    def GetPressure(self, rho, pfrac=0):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetPressure(rho, pfrac))(eos) for eos in self.eos_list])
 
-    def Get2EGrad(self, rho, pfrac):
+    def Get2EGrad(self, rho, pfrac=0):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.Get2EGrad(rho, pfrac))(eos) for eos in self.eos_list])
 
-    def GetSpeedOfSound(self, rho, pfrac):
+    def GetSpeedOfSound(self, rho, pfrac=0):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetSpeedOfSound(rho, pfrac))(eos) for eos in self.eos_list])
 
     def _Interval(self, rho):
         return [(rho > interval[0]) & (rho <= interval[1]) for interval in self.intervals]
 
+"""
+Connection EOS
+Used only to connect 2 EOS from below and above
+must provide classmethod MatchBothEnds
+such that can be smooth out by Spline
+"""
 
 class PseudoEOS(EOS):
 
@@ -251,45 +194,29 @@ class PseudoEOS(EOS):
         self.K = (final_pressure - ini_pressure)/(np.power(final_energy_density, 4./3.) - np.power(ini_energy_density, 4./3.))
         self.C = ini_pressure - self.K*np.power(ini_energy_density, 4./3.)
 
-    def GetPressure(self, rho, pfrac):
+    def GetPressure(self, rho, pfrac=0):
         return self.C + self.K*np.power(self.GetEnergyDensity(rho, pfrac), 4./3.)
 
-    def GetEnergy(self, rho, pfrac):
+    def GetEnergy(self, rho, pfrac=0):
         return self.GetEnergyDensity(rho, pfrac)/rho
 
-    def GetEnergyDensity(self, rho, pfrac):
+    def GetEnergyDensity(self, rho, pfrac=0):
         return self.A*rho + self.B
 
-    def GetSpeedOfSound(self, rho, pfrac):
+    def GetSpeedOfSound(self, rho, pfrac=0):
         return 4./3.*self.K*np.power(self.GetEnergyDensity(rho, 0), 1./3.)
 
-    def Get2EGrad(self, rho, pfrac):
+    def Get2EGrad(self, rho, pfrac=0):
         pass
 
-def SmoothPseudo(ini_rho, ini_eos, final_rho, final_eos):
-    ini_energy_density = ini_eos.GetEnergyDensity(ini_rho, 0)
-    ini_pressure = ini_eos.GetPressure(ini_rho, 0)
-    final_energy_density = final_eos.GetEnergyDensity(final_rho, 0)
-    final_pressure = final_eos.GetPressure(final_rho, 0)
+    @classmethod
+    def MatchBothEnds(cls, ini_rho, ini_eos, final_rho, final_eos, **kwargs):
+        ini_energy_density = ini_eos.GetEnergyDensity(ini_rho, 0)
+        ini_pressure = ini_eos.GetPressure(ini_rho, 0)
+        final_energy_density = final_eos.GetEnergyDensity(final_rho, 0)
+        final_pressure = final_eos.GetPressure(final_rho, 0)
 
-    peos = PseudoEOS(ini_rho, ini_energy_density, ini_pressure, final_rho, final_energy_density, final_pressure)
-    rho_range = final_rho - ini_rho
-    start_rho = np.linspace(ini_rho, ini_rho + 0.1*rho_range, 10, endpoint=True)
-    mid_rho = np.linspace(ini_rho + 0.3*rho_range, ini_rho + 0.4*rho_range, 0, endpoint=True)
-    end_rho = np.linspace(final_rho, final_rho + 0.1*rho_range, 10, endpoint=True)
-    energy = peos.GetEnergy(mid_rho, 0)
-    pressure = peos.GetPressure(mid_rho, 0)
-
-    energy = np.concatenate([ini_eos.GetEnergy(start_rho, 0), energy, final_eos.GetEnergy(end_rho, 0)])
-    pressure = np.concatenate([ini_eos.GetPressure(start_rho,  0), pressure, final_eos.GetPressure(end_rho, 0)])
-
-    eos = EOSSpline(np.concatenate([start_rho, mid_rho, end_rho]), energy=energy, pressure=pressure)
-
-    def CustomGetSpeedOfSound(self, rho, pfrac):
-        return final_eos.GetSpeedOfSound(rho, pfrac)
-    eos.GetSpeedOfSound = types.MethodType(CustomGetSpeedOfSound, eos)
-
-    return eos
+        return cls(ini_rho, ini_energy_density, ini_pressure, final_rho, final_energy_density, final_pressure)
 
 
 class CubicEOS(EOS):
@@ -322,11 +249,12 @@ class CubicEOS(EOS):
         self.coeff = np.linalg.solve(mat, b)
 
 
-    def GetEnergy(self, rho, pfrac):
+    def GetEnergy(self, rho, pfrac=0):
         return self.coeff[0] + self.coeff[1]*rho + self.coeff[2]*np.power(rho, 2) + self.coeff[3]*np.power(rho, 3) + self.coeff[4]*np.power(rho, 4) + self.coeff[5]*np.power(rho, 5)
 
-
-    
+    @classmethod
+    def MatchBothEnds(cls, ini_rho, ini_eos, final_rho, final_eos, **kwargs):
+        return cls(ini_rho, ini_eos, final_rho, final_eos)
 
 class PolyTrope(EOS):
 
@@ -342,8 +270,18 @@ class PolyTrope(EOS):
             self.gamma = gamma
         self.K = init_pressure/np.power(init_density, self.gamma)
 
-    def GetEnergy(self, rho, pfrac):
+    def GetEnergy(self, rho, pfrac=0):
         return self.init_energy + self.K*(np.power(rho, self.gamma-1) - np.power(self.init_density, self.gamma-1))/(self.gamma - 1)
+
+    def ChangeFinalPressure(self, final_density, final_pressure):
+        self.gamma = np.log(final_pressure/self.init_pressure)/np.log(final_density/self.init_density)
+        self.K = self.init_pressure/np.power(self.init_density, self.gamma)
+
+    @classmethod
+    def MatchBothEnds(cls, ini_rho, ini_eos, final_rho, final_eos, **kwargs):
+        ini_energy = ini_eos.GetEnergy(ini_rho)
+        ini_pressure = ini_eos.GetPressure(ini_rho)
+        return cls(ini_rho, ini_energy, ini_pressure, final_rho, **kwargs)
     
 
 class ConstSpeed(EOS):
@@ -357,8 +295,103 @@ class ConstSpeed(EOS):
         self.C1 = (init_pressure + init_energy*init_density)/((speed_of_sound + 1)*np.power(init_density, speed_of_sound + 1))
         self.C2 = init_pressure - speed_of_sound*init_energy*init_density
 
-    def GetEnergy(self, rho, pfrac):
+    def GetEnergy(self, rho, pfrac=0):
         return self.C1*np.power(rho, self.speed_of_sound)  - self.C2/((self.speed_of_sound + 1)*rho)
+
+    @classmethod
+    def MatchBothEnds(cls, ini_rho, ini_eos, final_rho, final_eos, **kwargs):
+        ini_energy = ini_eos.GetEnergy(ini_rho)
+        ini_pressure = ini_eos.GetPressure(ini_rho)
+        return cls(ini_rho, ini_energy, ini_pressure, **kwargs)
+ 
+
+"""
+EOS with real physical meaning
+e.g. Skyrmes, Polytrope, Spline with other functionals...
+"""
+
+class SplineEOS(EOS):
+
+    """
+    Barebone EOSSpline where the use supply only energy as a function of rho0
+    This class will calculate everything by itself
+    """
+    def __init__(self, rho, energy, smooth=0):
+        EOS.__init__(self)
+        self.spl = UnivariateSpline(rho, energy, s=smooth)
+        #self.SplPressure = None
+        #self.SymSpl = UnivariateSpline(rho, np.full(rho.shape, 0))
+        #self.SplPressure = None
+
+    def GetEnergy(self, rho, pfrac=0):
+        return interpolate(rho, self.spl, 0)# + (2*pfrac - 1)**2*interpolate(rho, self.SymSpl, 0)
+
+    #def GetPressure(self, rho, pfrac=0):
+    #    if self.SplPressure is None:
+    #        grad_edensity = egrad(self.GetEnergy, 0)(rho, pfrac)
+    #        return rho*rho*grad_edensity
+    #    else:
+    #        return interpolate(rho, self.SplPressure, 0)
+
+    def _SetPressure(self, rho, pressure, smooth):
+        self.SplPressure = UnivariateSpline(rho, pressure, s=smooth)
+        def CustomGetPressure(self, rho, pfrac=0):
+            return interpolate(rho, self.SplPressure, 0)
+        self.GetPressure = types.MethodType(CustomGetPressure, self)
+
+    def _SetAsym(self, rho, Sym, smooth):
+        self.SymSpl = UnivariateSpline(rho, Sym, s=smooth)
+        def CustomGetEnergy(self, rho, pfrac=0):
+            return interpolate(rho, self.spl, 0) + (2*pfrac - 1)**2*interpolate(rho, self.SymSpl, 0)
+        self.GetEnergy = types.MethodType(CustomGetEnergy, self)
+
+    @classmethod
+    def Construct(cls, rho, energy=None, pressure=None, energy_density=None, rho_Sym=None, Sym=None, smooth=0):
+        """
+        Create a spline according to what you've provided. Bare minimum: energy as a function of rho
+        """
+        if energy is None:
+            energy = energy_density/rho
+
+        eos = cls(rho, energy, smooth)
+        if pressure is not None:
+            eos._SetPressure(rho, pressure, smooth)
+
+        if Sym is not None:
+            eos._SetAsym(rho_Sym, Sym, smooth)
+        return eos
+
+    @classmethod
+    def SmoothConnection(cls, ini_rho, ini_eos, int_EOS_type, final_rho, final_eos, **kwargs):
+        """
+        Create a smooth transition between crustal EOS and Skyrme
+        works by leaving gaps between the crustal EOS, intermediate pseudo EOS and Skyrme EOS
+        and let Spline EOS interpolate between them
+        Spline is 3rd degree, so the connection should be natually smooth
+        """
+        peos = int_EOS_type.MatchBothEnds(ini_rho, ini_eos, final_rho, final_eos, **kwargs)
+    
+        rho_range = final_rho - ini_rho
+        start_rho = np.linspace(ini_rho, ini_rho + 0.1*rho_range, 10, endpoint=True)
+        mid_rho = np.linspace(ini_rho + 0.3*rho_range, ini_rho + 0.4*rho_range, 0, endpoint=True)
+        end_rho = np.linspace(final_rho, final_rho + 0.1*rho_range, 10, endpoint=True)
+    
+        energy = peos.GetEnergy(mid_rho, 0)
+        pressure = peos.GetPressure(mid_rho, 0)
+    
+        energy = np.concatenate([ini_eos.GetEnergy(start_rho, 0), energy, final_eos.GetEnergy(end_rho, 0)])
+        pressure = np.concatenate([ini_eos.GetPressure(start_rho,  0), pressure, final_eos.GetPressure(end_rho, 0)])
+    
+        eos = cls.Construct(np.concatenate([start_rho, mid_rho, end_rho]), energy=energy, pressure=pressure)
+    
+        def CustomGetSpeedOfSound(self, rho, pfrac=0, final_eos=final_eos):
+            return final_eos.GetSpeedOfSound(rho, pfrac)
+        eos.GetSpeedOfSound = types.MethodType(CustomGetSpeedOfSound, eos)
+    
+        return eos
+
+
+   
 
 
 class FermiGas(EOS):
@@ -368,7 +401,7 @@ class FermiGas(EOS):
         EOS.__init__(self)
         self.mass = mass
 
-    def GetEnergyDensity(self, rho, pfrac):
+    def GetEnergyDensity(self, rho, pfrac=0):
         a = self.mass*self.mass
         b = hbar*hbar
 
@@ -380,54 +413,11 @@ class FermiGas(EOS):
 
         return (anti_deriv(3.094*np.power(rho, 0.33333333333333)) - anti_deriv(0))
 
-    def GetEnergy(self, rho, pfrac):
+    def GetEnergy(self, rho, pfrac=0):
         return self.GetEnergyDensity(rho, pfrac)/rho
 
-class FullEOS(EOS):
-   
-    def __init__(self):
-        EOS.__init__(self)
-    """
-    Full EoS
-    Where symmetric energy term is provided/ can be independently calculated
-    Need to override GetAsymEnergy
-    if autograd is not compatible with your GetAsymEnergy
-    you need to override all other listed functions as well
-    """
 
-    def GetAsymEnergy(self, rho, *args):
-        return 1./8.*egrad(egrad(self.GetEnergy, 1), 1)(rho, 0.5)
-
-
-    def GetK(self, rho, pfrac):
-        sec_grad_density = egrad(egrad(self.GetEnergy, 0), 0)(rho, pfrac)
-        return 9*rho*rho*sec_grad_density
-    
-    def GetQ(self, rho, pfrac):
-        """
-        For some weird reasons, Q is also called -K' which we will use to compare
-        """
-        third_grad_density = egrad(egrad(egrad(self.GetEnergy, 0), 0), 0)(rho, pfrac)
-        return 27*rho*rho*rho*third_grad_density
-
-    """
-    Usually these functions are defined only at rho0
-    When calling them, try to set rho to rho0
-    """
-    def GetL(self, rho):
-        grad_S = egrad(self.GetAsymEnergy, 0)(rho)
-        return 3*rho*grad_S
-    
-    def GetKsym(self, rho):
-        second_grad_S = egrad(egrad(self.GetAsymEnergy, 0), 0)(rho)
-        return 9*rho*rho*second_grad_S
-    
-    def GetQsym(self, rho):
-        third_grad_S = egrad(egrad(egrad(self.GetAsymEnergy, 0), 0), 0)(rho)
-        return 27*rho*rho*rho*third_grad_S
-
-
-class PowerLawEOS(FullEOS):
+class PowerLawEOS(EOS):
 
     def __init__(self, para):
         super().__init__()
@@ -443,7 +433,7 @@ class PowerLawEOS(FullEOS):
         self.Zsym = para['Zsym']
         self.rho0 = 0.16
         
-    def GetEnergy(self, rho, pfrac):
+    def GetEnergy(self, rho, pfrac=0):
         delta = 1 - 2*pfrac
         x = (rho - self.rho0)/(3*self.rho0)
         E_iso_sca = self.Esat + 1./2.*self.Ksat*x*x + 1./6.*self.Qsat*x*x*x + 1./24.*self.Zsat*x*x*x*x
@@ -451,12 +441,12 @@ class PowerLawEOS(FullEOS):
         return E_iso_sca + delta*delta*E_iso_vec + 938.27
 
 
-class Skryme(FullEOS):
+class Skryme(EOS):
 
 
 
     def __init__(self, para):
-        FullEOS.__init__(self)
+        super().__init__()
         self.para = para
         self.a = para['t1']*(para['x1']+2) + para['t2']*(para['x2']+2)
         self.b = 0.5*(para['t2']*(2*para['x2']+1)-para['t1']*(2*para['x1']+1))
@@ -472,7 +462,7 @@ class Skryme(FullEOS):
     """
     Return m* = M*/M instead of M*
     """
-    def GetEffectiveMass(self, rho, pfrac):
+    def GetEffectiveMass(self, rho, pfrac=0):
         result = self.a*self.__GetH(5./3., pfrac) + self.b*self.__GetH(8./3., pfrac)
         result *= (mn*rho/(4*(hbar**2)))
         result += self.__GetH(5./3., pfrac)
@@ -487,7 +477,7 @@ class Skryme(FullEOS):
     def GetFI(self, rho):
         return 1./self.GetMs(rho) - 1./self.GetMv(rho)
     
-    def GetEnergy(self, rho, pfrac):
+    def GetEnergy(self, rho, pfrac=0):
         result = 3.*(hbar**2.)/(10.*mn)*((3.*pi2/2.)**0.666667)*np.power(rho, 0.6667)*self.__GetH(5./3., pfrac)
         result += self.para['t0']/8.*rho*(2.*(self.para['x0']+2.)-(2.*self.para['x0']+1)*self.__GetH(2., pfrac))
         for i in range(1, 4):
@@ -495,21 +485,6 @@ class Skryme(FullEOS):
         result += 3./40.*((3.*pi2/2.)**0.666667)*np.power(rho, 5./3.)*(self.a*self.__GetH(5./3., pfrac)+self.b*self.__GetH(8./3., pfrac))
         return result + mn
     
-    #def GetAsymEnergy(self, rho, *args):
-        #print(self.__GetH(5./3., 0.5), self.__GetH(8./3., 0.5))
-        #result = (hbar**2.)/(6.*mn)*((3.*pi2/2.)**0.666667)*np.power(rho, 0.6667)
-        #print(result)
-        #result -= self.para['t0']/8.*rho*(2.*self.para['x0']+1.)
-        #print(result)
-        #for i in xrange(1, 4):
-            #result -= 1./48.*self.para['t3%d'%i]*(rho**(self.para['sigma%d'%i]+1.))*(2.*self.para['x3%d'%i]+1.)
-            #print(result)
-        #result += 1./24.*((3.*pi2/2.)**0.666667)*np.power(rho, 5./3.)*(self.a+4*self.b)
-        #print(result)
-        #print('a + 4b', self.a+4*self.b)
-        #print(1./24.*((3.*pi2/2.)**0.666667)*np.power(1, 5./3.)*(self.a+4*self.b))
-        #return result
-
     def ToCSV(self, filename, rho, pfrac):
 
         sym_energy = self.GetAsymEnergy(rho)

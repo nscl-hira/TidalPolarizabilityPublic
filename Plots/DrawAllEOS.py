@@ -13,7 +13,7 @@ import matplotlib.path as pltPath
 import matplotlib.patches as patches
 
 from Utilities.EOSDrawer import EOSDrawer
-from Utilities.MakeMovie import CreateGif
+#from Utilities.MakeMovie import CreateGif
 from MakeSkyrmeFileBisection import LoadSkyrmeFile, CalculatePolarizability
 from SelectPressure import AddPressure
 from SelectAsym import SelectLowDensity
@@ -66,18 +66,19 @@ def DrawConstraints(ax):
 
 
 def DrawEoS(ax):
-    df = LoadSkyrmeFile('Results/RodTest.csv')
+    df = LoadSkyrmeFile('Results/Orig_mm2.17.csv')
+    #df = LoadSkyrmeFile('Results/RodTest.csv')
     #df = LoadSkyrmeFile('Results/ABrownUDen.csv')
     #df = pd.concat([df, LoadSkyrmeFile('Results/ABrownNewNoPolyTrope.csv')])
     df = df[df['NegSound']==False]
 
     GW_constraints = pd.read_csv('Constraints/GWPressureConstraint.csv')
     path, GW_patch = ContourToPatches(GW_constraints['rho/rho0'], GW_constraints['P(MeV/fm3)'], zorder=10, alpha=0.5, color='aqua', facecolor='aqua', label='GW')
-    ax.add_patch(copy(GW_patch))
+    #ax.add_patch(copy(GW_patch))
 
     #drawer = EOSDrawer(df.loc[df.index.str.endswith('u') | df.index.str.endswith('q')])
     drawer = EOSDrawer(df)
-    drawer.DrawEOS(ax=ax, xname='rho/rho0', yname='GetPressure', labels=['Polytrope', 'Skyrme', 'Rel. gas', 'Crust'])
+    drawer.DrawEOS(ax=ax, xname='rho/rho0', yname='GetPressure', labels=['Polytrope', 'Skyrme', 'Fermi gas', 'Crust'])
     #drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('u')], xname='rho/rho0', yname='GetPressure', color=['r', 'r', 'r', 'r', 'r', 'r'], zorder=16, labels=['$m*_n/m = 0.7$', None, None, None])#labels=['Polytrope', 'Skyrme', 'Rel. gas', 'Crust'])
     #drawer.DrawEOS(ax=ax, df=df.loc[df.index.str.endswith('q')], xname='rho/rho0', yname='GetPressure', color=['b', 'b', 'b', 'b', 'b', 'b'], zorder=15, labels=['$m*_n/m = 0.9$', None, None, None])
     

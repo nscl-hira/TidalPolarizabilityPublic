@@ -40,7 +40,7 @@ def BetaEquilibrium(SkyrmeEOS):
     energy = [min_.fun for min_ in min_result]
     pfrac = np.array([min_.x[0] for min_ in min_result])
     mufrac = np.array([min_.x[1]*min_.x[0] for min_ in min_result])
-    return sky.EOSSpline(rho*rho0, energy/(rho*rho0), smooth=0.1), rho*rho0, pfrac, mufrac#, sky.EOSSpline(rho*rho0, energy_density=ele_fermi.GetEnergyDensity(rho*rho0*pfrac*(1-mufrac), 0), pressure=ele_fermi.GetPressure(rho*rho0*pfrac*(1-mufrac), 0), smooth=0), sky.EOSSpline(rho*rho0, energy_density=mu_fermi.GetEnergyDensity(rho*rho0*pfrac*mufrac, 0), pressure=mu_fermi.GetPressure(rho*rho0*pfrac*mufrac, 0), smooth=0)
+    return sky.SplineEOS.Construct(rho*rho0, energy/(rho*rho0), smooth=0.1), rho*rho0, pfrac, mufrac#, sky.EOSSpline(rho*rho0, energy_density=ele_fermi.GetEnergyDensity(rho*rho0*pfrac*(1-mufrac), 0), pressure=ele_fermi.GetPressure(rho*rho0*pfrac*(1-mufrac), 0), smooth=0), sky.EOSSpline(rho*rho0, energy_density=mu_fermi.GetEnergyDensity(rho*rho0*pfrac*mufrac, 0), pressure=mu_fermi.GetPressure(rho*rho0*pfrac*mufrac, 0), smooth=0)
 
 
 if __name__ == "__main__":
