@@ -73,7 +73,10 @@ class EOS:
                             np.linspace(3.77e-4, 10*0.16, 18000)])
         energy = (self.GetEnergyDensity(n, 0.))
         pressure = self.GetPressure(n, 0.) 
-        if not np.all(np.diff(energy) > 0) or not np.all(np.diff(pressure) > 0):
+
+        # only check for monotonicity for up to 4rho0
+        idx = np.searchsorted(n, 4*0.16, side='left')
+        if not np.all(np.diff(energy[:idx]) > 0) or not np.all(np.diff(pressure[:idx]) > 0):
             raise RuntimeError('Energy and pressure is not monotonically increasing. Will not calculate')
         for density, e, p in zip(n, energy, pressure):
             if(not math.isnan(e) and not math.isnan(p)):

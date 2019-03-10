@@ -7,6 +7,7 @@ import autograd.numpy as np
 import pandas as pd
 import argparse
 from functools import partial
+import scipy.optimize as opt
 
 import Utilities.ConsolePrinter as cp
 import TidalLove.TidalLoveWrapper as wrapper
@@ -61,6 +62,7 @@ def CalculateModel(name_and_eos, **kwargs):
     1.4 solar mass and 2.0 solar mass calculation
     """
     pc14 = []
+    dc14 = []
     mass = []
     radius = []
     lambda_ = []
@@ -81,6 +83,12 @@ def CalculateModel(name_and_eos, **kwargs):
                 checkpoint_mass.append(checkpoint_mass_tg)
                 checkpoint_radius.append(checkpoint_radius_tg)
 
+
+                # find the central density of 1.4 star
+                try:
+                    dc14.append(opt.newton(lambda x: eos.GetPressure(x, 0) - pc14_tg, x0=2*0.16))
+                except RuntimeError as error:
+                    dc14.append(0)
             except RuntimeError as error:
                 raise ValueError('Failed to find %g solar mass properties for this EOS' % tg)
         if max_mass >= max_mass_req: 
@@ -98,10 +106,11 @@ def CalculateModel(name_and_eos, **kwargs):
               'PCentral2MOdot': pc2, 
               'PCentralMaxMass':pc_max, 
               'MaxMass': max_mass} 
-    for tg, r, lamb, pc, cp_r in zip(target_mass, radius, lambda_, pc14, checkpoint_radius):
+    for tg, r, lamb, pc, cp_r, dc in zip(target_mass, radius, lambda_, pc14, checkpoint_radius, dc14):
         result['R(%g)'%tg] = r
         result['lambda(%g)'%tg] = lamb
         result['PCentral(%g)'%tg] = pc
+        result['DensCentral(%g)'%tg] = dc
         for den, (index, cp_radius) in zip(list_tran_density, enumerate(cp_r)):
             result['RadiusCheckpoint%d(%g)' % (index, tg)] = cp_radius
             result['DensityCheckpoint%d(%g)' % (index, tg)] = den
@@ -114,7 +123,7 @@ def CalculateModel(name_and_eos, **kwargs):
 
 def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
     EOSType = kwargs['EOSType']
-    summary = SummarizeSkyrme(df, EOSType=EOSType)
+    #summary = SummarizeSkyrme(df, EOSType=EOSType)
     total = df.shape[0]
 
     """
@@ -160,15 +169,20 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
     """
     Merge calculation data with Skyrme loaded data
     """
-    data = [val for val in result]
-    data = pd.DataFrame.from_dict(data)
-    data.set_index('Model', inplace=True)
-    cols_to_use = df.columns.difference(summary.columns)
-    data = pd.concat([df[cols_to_use], summary, data], axis=1, sort=True)
-    #data = pd.concat([df, data], axis=1)    
-    #data.combine_first(summary)
-    #data.combine_first(data)
-    data.dropna(axis=0, how='any', inplace=True)
+    if len(result) > 0:
+        data = [val for val in result]
+        data = pd.DataFrame.from_dict(data)
+        data.set_index('Model', inplace=True)
+      
+        #cols_to_use = df.columns.difference(summary.columns)
+        #data = pd.concat([df[cols_to_use], summary, data], axis=1, sort=True)
+        data = pd.concat([df, data], axis=1)    
+        data.index = df.index.map(str)
+        #data.combine_first(summary)
+        #data.combine_first(data)
+        data.dropna(axis=0, how='any', inplace=True)
+    else:
+        data = None
 
     return data
 

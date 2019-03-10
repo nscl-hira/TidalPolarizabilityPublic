@@ -53,7 +53,7 @@ class EOSCreator:
             df_E = pd.read_csv('SkyrmeParameters/Rodrigo_extended.csv')
             df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym_extended.csv')
             self.ImportedEOS = sky.SplineEOS.Construct(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
-        elif EOSType == 'Power':
+        elif EOSType == 'Power' or 'PowerNoPolyTrope':
             self.ImportedEOS = sky.PowerLawEOS(self.row)
         else:
             self.ImportedEOS = sky.Skryme(self.row)
@@ -76,7 +76,7 @@ class EOSCreator:
             self.ImportedEOS = sky.SplineEOS.Construct(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
             self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
 
-        elif EOSType == 'Power':
+        elif EOSType == 'Power' or EOSType == 'PowerNoPolyTrope':
             self.ImportedEOS = sky.PowerLawEOS(self.row)
             self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
 
@@ -108,7 +108,7 @@ class EOSCreator:
             self.GetEOS(**kwargs)
         elif EOSType == 'EOS2Poly': 
             self.GetEOS2Poly(**kwargs)
-        elif EOSType == 'EOSNoPolyTrope':
+        elif EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope':
             self.GetEOSNoPolyTrope(**kwargs)
         elif EOSType == 'EOSNoCrust':
             self.GetEOSNoCrust(**kwargs)

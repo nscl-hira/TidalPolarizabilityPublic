@@ -170,6 +170,7 @@ if __name__ == '__main__':
     df_orig = comm.scatter(df_orig, root=0)
     argd = comm.bcast(argd, root=0)
     disable_output = False
+    df = None
     
     if rank != 0:
         # hide all output from non-root process
@@ -185,10 +186,13 @@ if __name__ == '__main__':
         #df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
     except Exception as e:
         print('Calculation of EOS properties stop at one point. Not all info will be avaliable')
+        print(e)
+        print(e.traceback)
         traceback.print_exc()
 
     df = comm.gather(df, root=0)
     if rank == 0:
+        df = [x for x in df if x is not None]
         df = pd.concat(df)
         output_name = args.Output
         while True:
@@ -220,7 +224,7 @@ if __name__ == '__main__':
                 df_resonable = df.loc[df['NegSound']==False] 
                 df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
             except Exception as e:
-                print('Causality calculation is not being done')
+                print('Causality calculation is not being done because %s' % e)
             drawer = EOSDrawer(df, ncpu=argd['nCPU'])
             
             # Plot all the EOSs
@@ -248,7 +252,8 @@ if __name__ == '__main__':
                    continue
         except Exception as e:
             print('Cannot create PowerPoint because %s' % e)
-            print(e.traceback)
+            #print(e.traceback)
+            traceback.print_exc()
 
 
         output_name = args.Output          
