@@ -20,6 +20,7 @@ SurfacePressure = 1e-8
 
 def LoadSkyrmeFile(filename):
     df = pd.read_csv(filename, index_col=0)
+    df.index = df.index.map(str)
     return df.fillna(0)
 
 """
@@ -36,7 +37,6 @@ def CalculateModel(name_and_eos, **kwargs):
     """
     Prepare EOS
     """
-    sys.stdout.flush()
     kwargs = eos_creator.PrepareEOS(**kwargs)
     eos, list_tran_density = eos_creator.GetEOSType(**kwargs)
 
@@ -61,62 +61,67 @@ def CalculateModel(name_and_eos, **kwargs):
     """
     1.4 solar mass and 2.0 solar mass calculation
     """
-    pc14 = []
-    dc14 = []
-    mass = []
-    radius = []
-    lambda_ = []
-    checkpoint_mass = []
-    checkpoint_radius = []
+    result = {'Model': str(name)}
+
     with wrapper.TidalLoveWrapper(eos) as tidal_love:
-        pc_max, max_mass, _, _, _, _ = tidal_love.FindMaxMass()
+        result['PCentralMaxMass'], result['MaxMass'], _, _, _, _ = tidal_love.FindMaxMass()
         tidal_love.checkpoint = np.append(eos.GetPressure(np.array(list_tran_density), 0), [SurfacePressure])
         for tg in target_mass:
             try:
-                pc14_tg, mass_tg, radius_tg, lambda_tg, checkpoint_mass_tg, checkpoint_radius_tg = tidal_love.FindMass(mass=tg, central_pressure0=150)
-                if any(np.isnan([mass_tg, radius_tg, lambda_tg, pc14_tg])) or any(np.isnan(checkpoint_mass_tg)) or any(np.isnan(checkpoint_radius_tg)):
+                tg_result = tidal_love.FindMass(mass=tg, central_pressure0=150)
+                if any(np.isnan(tg_result[:4])) or any(np.isnan(tg_result[4:]).flatten()):
                     raise ValueError('Some of the calculated values are nan.')
-                pc14.append(pc14_tg)
-                mass.append(mass_tg)
-                radius.append(radius_tg)
-                lambda_.append(lambda_tg)
-                checkpoint_mass.append(checkpoint_mass_tg)
-                checkpoint_radius.append(checkpoint_radius_tg)
 
+                result['PCentral(%g)' % tg] = tg_result[0]
+                result['R(%g)' % tg] = tg_result[2]
+                result['lambda(%g)' % tg] = tg_result[3]
+                for den, (index, cp_radius) in zip(list_tran_density, enumerate(tg_result[4])):
+                    result['RadiusCheckpoint%d(%g)' % (index, tg)] = cp_radius
+                    result['DensityCheckpoint%d(%g)' % (index, tg)] = den
 
                 # find the central density of 1.4 star
                 try:
-                    dc14.append(opt.newton(lambda x: eos.GetPressure(x, 0) - pc14_tg, x0=2*0.16))
+                    result['DensCentral(%g)' % tg] = opt.newton(lambda x: eos.GetPressure(x, 0) - tg_result[0], x0=2*0.16)
                 except RuntimeError as error:
-                    dc14.append(0)
+                    result['DensCentral(%g)' % tg] = 0
             except RuntimeError as error:
                 raise ValueError('Failed to find %g solar mass properties for this EOS' % tg)
-        if max_mass >= max_mass_req: 
+        if result['MaxMass'] >= max_mass_req: 
             try:
-                pc2, _, _, _, _, _ = tidal_love.FindMass(mass=max_mass_req, central_pressure0=300)
+                result['PCentral2MOdot'], result['MaxMassReq'], _, _, _, _ = tidal_love.FindMass(mass=max_mass_req, central_pressure0=300)
             except RuntimeError as error:
                 raise ValueError('Failed to find %g solar mass properties for this EOS' % max_mass_req)
         else:
-          pc2 = 0
-        
-    """
-    Write results to dict and return
-    """
-    result = {'Model':name, 
-              'PCentral2MOdot': pc2, 
-              'PCentralMaxMass':pc_max, 
-              'MaxMass': max_mass} 
-    for tg, r, lamb, pc, cp_r, dc in zip(target_mass, radius, lambda_, pc14, checkpoint_radius, dc14):
-        result['R(%g)'%tg] = r
-        result['lambda(%g)'%tg] = lamb
-        result['PCentral(%g)'%tg] = pc
-        result['DensCentral(%g)'%tg] = dc
-        for den, (index, cp_radius) in zip(list_tran_density, enumerate(cp_r)):
-            result['RadiusCheckpoint%d(%g)' % (index, tg)] = cp_radius
-            result['DensityCheckpoint%d(%g)' % (index, tg)] = den
-    for key, val in kwargs.items():
-        result[key] = val
+          result['PCentral2MOdot'] = 0
+    summary = SummarizeSkyrme(eos_creator)
+    eos = eos_creator.ImportedEOS
+    pressure = {'P(4rho0)':eos.GetPressure(4*rho0, 0),
+                'P(3.5rho0)':eos.GetPressure(3.5*rho0, 0),
+                'P(3rho0)':eos.GetPressure(3*rho0, 0),
+                'P(2rho0)':eos.GetPressure(2*rho0, 0),
+                'P(1.5rho0)':eos.GetPressure(1.5*rho0, 0),
+                'P(rho0)':eos.GetPressure(rho0, 0),
+                'P(0.67rho0)':eos.GetPressure(0.67*rho0, 0),
+                'P_Sym(4rho0)':eos.GetPressure(4*rho0, 0.5),
+                'P_Sym(3.5rho0)':eos.GetPressure(3.5*rho0, 0.5),
+                'P_Sym(3rho0)':eos.GetPressure(3*rho0, 0.5),
+                'P_Sym(2rho0)':eos.GetPressure(2*rho0, 0.5),
+                'P_Sym(1.5rho0)':eos.GetPressure(1.5*rho0, 0.5),
+                'P_Sym(rho0)':eos.GetPressure(rho0, 0.5),
+                'P_Sym(0.67rho0)':eos.GetPressure(0.67*rho0, 0.5),
+                'Sym(4rho0)':eos.GetAsymEnergy(4*rho0),
+                'Sym(3.5rho0)':eos.GetAsymEnergy(3.5*rho0),
+                'Sym(3rho0)':eos.GetAsymEnergy(3*rho0),
+                'Sym(2rho0)':eos.GetAsymEnergy(2*rho0),
+                'Sym(1.5rho0)':eos.GetAsymEnergy(1.5*rho0),
+                'Sym(rho0)':eos.GetAsymEnergy(rho0),
+                'Sym(0.67rho0)':eos.GetAsymEnergy(0.67*rho0),
+                'L(2rho0)':eos.GetL(2*rho0),
+                'L(1.5rho0)':eos.GetL(1.5*rho0),
+                'L(rho0)':eos.GetL(rho0),
+                'L(0.67rho0)':eos.GetL(0.67*rho0)}
 
+    result = {**result, **kwargs, **summary, **pressure}
     return result
 
 
@@ -172,15 +177,21 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
     if len(result) > 0:
         data = [val for val in result]
         data = pd.DataFrame.from_dict(data)
+        data['Model'] = data['Model'].astype(str)
         data.set_index('Model', inplace=True)
+
       
-        #cols_to_use = df.columns.difference(summary.columns)
+        cols_to_use = df.columns.difference(data.columns)
         #data = pd.concat([df[cols_to_use], summary, data], axis=1, sort=True)
-        data = pd.concat([df, data], axis=1)    
-        data.index = df.index.map(str)
+        data = pd.concat([df[cols_to_use], data], axis=1)    
+        data.dropna(axis=0, how='any', inplace=True)
+        
+        data.index = data.index.map(str)
+        #
+
         #data.combine_first(summary)
         #data.combine_first(data)
-        data.dropna(axis=0, how='any', inplace=True)
+
     else:
         data = None
 

@@ -75,7 +75,7 @@ class EOS:
         pressure = self.GetPressure(n, 0.) 
 
         # only check for monotonicity for up to 4rho0
-        idx = np.searchsorted(n, 4*0.16, side='left')
+        idx = np.searchsorted(n, 3*0.16, side='left')
         if not np.all(np.diff(energy[:idx]) > 0) or not np.all(np.diff(pressure[:idx]) > 0):
             raise RuntimeError('Energy and pressure is not monotonically increasing. Will not calculate')
         for density, e, p in zip(n, energy, pressure):
@@ -129,7 +129,7 @@ class EOS:
         return 27*rho*rho*rho*third_grad_S
 
     def GetZsym(self, rho):
-        forth_grad_density = egrad(egrad(egrad(egrad(self.GetAsymEnergy, 0), 0), 0), 0)(rho, pfrac)
+        forth_grad_density = egrad(egrad(egrad(egrad(self.GetAsymEnergy, 0), 0), 0), 0)(rho)
         return 81*rho*rho*rho*rho*forth_grad_density
 
 

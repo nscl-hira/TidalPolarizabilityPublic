@@ -123,9 +123,9 @@ class ConsolePrinter(Console):
             req.wait()
 
     def PrintError(self, value):
-        #pass
-        print(value)
-        print(value.traceback)
+        pass
+        #print(value)
+        #print(value.traceback)
 
 
 

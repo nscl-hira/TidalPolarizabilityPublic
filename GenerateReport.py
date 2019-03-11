@@ -180,14 +180,14 @@ if __name__ == '__main__':
     try:
         df = CalculatePolarizability(df_orig, comm=comm, disable=disable_output, **argd)
         # calculate additional EOS properties
-        df = AddPressure(df)
+        #df = AddPressure(df)
         df = AddCausailty(df, disable=disable_output, ncpu=argd['nCPU'], comm=comm)
         df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
         #df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
     except Exception as e:
         print('Calculation of EOS properties stop at one point. Not all info will be avaliable')
         print(e)
-        print(e.traceback)
+        #print(e.traceback)
         traceback.print_exc()
 
     df = comm.gather(df, root=0)

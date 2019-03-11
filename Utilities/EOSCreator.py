@@ -235,45 +235,39 @@ class EOSCreator:
 
        
             
-def SummarizeSkyrme(df, EOSType):
+def SummarizeSkyrme(eos_creator):
     """
     This function will print out the value of E0, K0, K'=-Q0, J=S(rho0), L, Ksym, Qsym, m*
     """
-    summary_list = []
 
-    for index, row in df.iterrows():
-        creator = EOSCreator(row=row)
-        creator.ImportEOS(EOSType=EOSType)
-        sky_eos = creator.ImportedEOS
-        try:
-            rho0 = sky_eos.rho0
-            E0 = sky_eos.GetEnergy(rho0, 0.5)
-            K0 = sky_eos.GetK(rho0, 0.5)
-            Kprime = -sky_eos.GetQ(rho0, 0.5)
-            J = sky_eos.GetAsymEnergy(rho0)
-            L = sky_eos.GetL(rho0)
-            Ksym = sky_eos.GetKsym(rho0)
-            Qsym = sky_eos.GetQsym(rho0)
-            summary_dict = {'Model':index, 'E0':E0, 'K0':K0, 'K\'':Kprime, 'J':J, 'L':L, 'Ksym':Ksym, 'Qsym':Qsym}
-        except Exception:
-            raise Exception('The EOS type does not suppor calculation of L, K and Q.')
-        try:
-            eff_m = sky_eos.GetEffectiveMass(rho0, 0.5)
-            m_s = sky_eos.GetMs(rho0)
-            m_v = sky_eos.GetMv(rho0)
-            fi = sky_eos.GetFI(rho0)
-            summary_dict['m*'] = eff_m
-            summary_dict['m_s'] = m_s
-            summary_dict['m_v'] = m_v
-            summary_dict['fi'] = fi
-        except Exception:
-            pass
-        summary_list.append(summary_dict)
-
-    df = pd.DataFrame.from_dict(summary_list)
-    df.set_index('Model', inplace=True)
-    return df
+    sky_eos = eos_creator.ImportedEOS
+    try:
+        rho0 = sky_eos.rho0
+        E0 = sky_eos.GetEnergy(rho0, 0.5)
+        K0 = sky_eos.GetK(rho0, 0.5)
+        Kprime = -sky_eos.GetQ(rho0, 0.5)
+        Z0 = sky_eos.GetZ(rho0, 0.5)
+        J = sky_eos.GetAsymEnergy(rho0)
+        L = sky_eos.GetL(rho0)
+        Ksym = sky_eos.GetKsym(rho0)
+        Qsym = sky_eos.GetQsym(rho0)
+        Zsym = sky_eos.GetZsym(rho0)
+        summary_dict = {'E0':E0, 'K0':K0, 'K\'':Kprime, 'Z0': Z0, 'J':J, 'L':L, 'Ksym':Ksym, 'Qsym':Qsym, 'Zsym':Zsym}
+    except Exception:
+        raise Exception('The EOS type does not suppor calculation of L, K and Q.')
+    try:
+        eff_m = sky_eos.GetEffectiveMass(rho0, 0.5)
+        m_s = sky_eos.GetMs(rho0)
+        m_v = sky_eos.GetMv(rho0)
+        fi = sky_eos.GetFI(rho0)
+        summary_dict['m*'] = eff_m
+        summary_dict['m_s'] = m_s
+        summary_dict['m_v'] = m_v
+        summary_dict['fi'] = fi
+    except Exception:
+        pass
  
+    return summary_dict
 
 
 if __name__ == "__main__":
