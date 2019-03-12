@@ -23,6 +23,73 @@ def LoadSkyrmeFile(filename):
     df.index = df.index.map(str)
     return df.fillna(0)
 
+def CheckCausality(eos, rho_max):
+    rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 100, base=np.exp(1)), np.linspace(3.77e-4, rho_max, 900)])
+    sound = np.array(eos.GetSpeedOfSound(rho, 0))
+
+    if all(sound <= 1) and all(sound >=0):
+        return False, False
+    elif any(sound <=0):
+        return True, True
+    else:
+        return True, False
+
+def AdditionalInfo(eos_creator):
+    eos = eos_creator.ImportedEOS
+    rho0 = eos.rho0
+    return {'P(4rho0)':eos.GetPressure(4*rho0, 0),
+            'P(3.5rho0)':eos.GetPressure(3.5*rho0, 0),
+            'P(3rho0)':eos.GetPressure(3*rho0, 0),
+            'P(2rho0)':eos.GetPressure(2*rho0, 0),
+            'P(1.5rho0)':eos.GetPressure(1.5*rho0, 0),
+            'P(rho0)':eos.GetPressure(rho0, 0),
+            'P(0.67rho0)':eos.GetPressure(0.67*rho0, 0),
+            'P_Sym(4rho0)':eos.GetPressure(4*rho0, 0.5),
+            'P_Sym(3.5rho0)':eos.GetPressure(3.5*rho0, 0.5),
+            'P_Sym(3rho0)':eos.GetPressure(3*rho0, 0.5),
+            'P_Sym(2rho0)':eos.GetPressure(2*rho0, 0.5),
+            'P_Sym(1.5rho0)':eos.GetPressure(1.5*rho0, 0.5),
+            'P_Sym(rho0)':eos.GetPressure(rho0, 0.5),
+            'P_Sym(0.67rho0)':eos.GetPressure(0.67*rho0, 0.5),
+            'Sym(4rho0)':eos.GetAsymEnergy(4*rho0),
+            'Sym(3.5rho0)':eos.GetAsymEnergy(3.5*rho0),
+            'Sym(3rho0)':eos.GetAsymEnergy(3*rho0),
+            'Sym(2rho0)':eos.GetAsymEnergy(2*rho0),
+            'Sym(1.5rho0)':eos.GetAsymEnergy(1.5*rho0),
+            'Sym(rho0)':eos.GetAsymEnergy(rho0),
+            'Sym(0.67rho0)':eos.GetAsymEnergy(0.67*rho0),
+            'L(2rho0)':eos.GetL(2*rho0),
+            'L(1.5rho0)':eos.GetL(1.5*rho0),
+            'L(rho0)':eos.GetL(rho0),
+            'L(0.67rho0)':eos.GetL(0.67*rho0)}
+
+def FindMaxMass(tidal_love):
+    pcentral, max_mass, _, _, _, _ = tidal_love.FindMaxMass()
+    return pcentral, max_mass
+
+def FindAMass(tidal_love, eos, mass, cp_density_list):
+    tidal_love.checkpoint = eos.GetPressure(np.array(cp_density_list), 0).tolist() +  [SurfacePressure]
+    result = tidal_love.FindMass(mass=mass, central_pressure0=150)
+    if any(np.isnan(result[:4])) or any(np.isnan(result[4:]).flatten()):
+       raise ValueError('Some of the calculated values are nan.')
+
+    named_result = {'PCentral(%g)' % mass: result[0],
+                    'R(%g)' % mass: result[2],
+                    'lambda(%g)' % mass: result[3]}
+    for den, (index, cp_radius) in zip(cp_density_list, enumerate(result[4])):
+        named_result['RadiusCheckpoint%d(%g)' % (index, mass)] = cp_radius
+        named_result['DensityCheckponit%d(%g)' % (index, mass)] = den
+
+    # find the central density of 1.4 star
+    try:
+        named_result['DensCentral(%g)' % mass] = opt.newton(lambda x: eos.GetPressure(x, 0) - result[0], x0=2*0.16)
+    except RuntimeError as error:
+        named_result['DensCentral(%g)' % mass] = 0
+
+    return named_result
+   
+
+
 """
 Print the selected EOS into a file for the tidallove script to run
 """
@@ -45,83 +112,25 @@ def CalculateModel(name_and_eos, **kwargs):
     list_tran_density.append(OuterCrustDensity)
 
     """
-    Bill asked for what happens at rho0 and 2rho0
-    """
-    rho0 = 0.16
-    list_tran_density.append(rho0)
-    list_tran_density.append(2.*rho0)
-
-    """
-    list of transition density must be in desending order...
-    Need to sort it
-    """
-    list_tran_density.sort(reverse=True)
-
-
-    """
     1.4 solar mass and 2.0 solar mass calculation
     """
     result = {'Model': str(name)}
 
     with wrapper.TidalLoveWrapper(eos) as tidal_love:
-        result['PCentralMaxMass'], result['MaxMass'], _, _, _, _ = tidal_love.FindMaxMass()
-        tidal_love.checkpoint = np.append(eos.GetPressure(np.array(list_tran_density), 0), [SurfacePressure])
+        result['PCentralMaxMass'], result['MaxMass'] = FindMaxMass(tidal_love)
         for tg in target_mass:
-            try:
-                tg_result = tidal_love.FindMass(mass=tg, central_pressure0=150)
-                if any(np.isnan(tg_result[:4])) or any(np.isnan(tg_result[4:]).flatten()):
-                    raise ValueError('Some of the calculated values are nan.')
-
-                result['PCentral(%g)' % tg] = tg_result[0]
-                result['R(%g)' % tg] = tg_result[2]
-                result['lambda(%g)' % tg] = tg_result[3]
-                for den, (index, cp_radius) in zip(list_tran_density, enumerate(tg_result[4])):
-                    result['RadiusCheckpoint%d(%g)' % (index, tg)] = cp_radius
-                    result['DensityCheckpoint%d(%g)' % (index, tg)] = den
-
-                # find the central density of 1.4 star
-                try:
-                    result['DensCentral(%g)' % tg] = opt.newton(lambda x: eos.GetPressure(x, 0) - tg_result[0], x0=2*0.16)
-                except RuntimeError as error:
-                    result['DensCentral(%g)' % tg] = 0
-            except RuntimeError as error:
-                raise ValueError('Failed to find %g solar mass properties for this EOS' % tg)
+            result_each_mass = FindAMass(tidal_love, eos, tg, list_tran_density)
+            result = {**result, **result_each_mass}
         if result['MaxMass'] >= max_mass_req: 
-            try:
-                result['PCentral2MOdot'], result['MaxMassReq'], _, _, _, _ = tidal_love.FindMass(mass=max_mass_req, central_pressure0=300)
-            except RuntimeError as error:
-                raise ValueError('Failed to find %g solar mass properties for this EOS' % max_mass_req)
-        else:
-          result['PCentral2MOdot'] = 0
-    summary = SummarizeSkyrme(eos_creator)
-    eos = eos_creator.ImportedEOS
-    pressure = {'P(4rho0)':eos.GetPressure(4*rho0, 0),
-                'P(3.5rho0)':eos.GetPressure(3.5*rho0, 0),
-                'P(3rho0)':eos.GetPressure(3*rho0, 0),
-                'P(2rho0)':eos.GetPressure(2*rho0, 0),
-                'P(1.5rho0)':eos.GetPressure(1.5*rho0, 0),
-                'P(rho0)':eos.GetPressure(rho0, 0),
-                'P(0.67rho0)':eos.GetPressure(0.67*rho0, 0),
-                'P_Sym(4rho0)':eos.GetPressure(4*rho0, 0.5),
-                'P_Sym(3.5rho0)':eos.GetPressure(3.5*rho0, 0.5),
-                'P_Sym(3rho0)':eos.GetPressure(3*rho0, 0.5),
-                'P_Sym(2rho0)':eos.GetPressure(2*rho0, 0.5),
-                'P_Sym(1.5rho0)':eos.GetPressure(1.5*rho0, 0.5),
-                'P_Sym(rho0)':eos.GetPressure(rho0, 0.5),
-                'P_Sym(0.67rho0)':eos.GetPressure(0.67*rho0, 0.5),
-                'Sym(4rho0)':eos.GetAsymEnergy(4*rho0),
-                'Sym(3.5rho0)':eos.GetAsymEnergy(3.5*rho0),
-                'Sym(3rho0)':eos.GetAsymEnergy(3*rho0),
-                'Sym(2rho0)':eos.GetAsymEnergy(2*rho0),
-                'Sym(1.5rho0)':eos.GetAsymEnergy(1.5*rho0),
-                'Sym(rho0)':eos.GetAsymEnergy(rho0),
-                'Sym(0.67rho0)':eos.GetAsymEnergy(0.67*rho0),
-                'L(2rho0)':eos.GetL(2*rho0),
-                'L(1.5rho0)':eos.GetL(1.5*rho0),
-                'L(rho0)':eos.GetL(rho0),
-                'L(0.67rho0)':eos.GetL(0.67*rho0)}
+            result_max_mass_req = FindAMass(tidal_love, eos, max_mass_req, list_tran_density)
+            result['PCentral2MOdot'] = result_max_mass_req['PCentral(%g)' % max_mass_req]
+            result['MaxMassReq'] = max_mass_req
 
-    result = {**result, **kwargs, **summary, **pressure}
+    summary = SummarizeSkyrme(eos_creator)
+    additional_info = AdditionalInfo(eos_creator)
+    result['ViolateCausality'], result['NegSound'] = CheckCausality(eos, result['PCentralMaxMass'])
+
+    result = {**result, **kwargs, **summary, **additional_info}
     return result
 
 
@@ -163,11 +172,8 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
                 printer.PrintError(error)
             except ProcessExpired as error:
                 printer.PrintError(error)
-                #print("%s. Exit code: %d" % (error, error.exitcode))
             except Exception as error:
                 printer.PrintError(error)
-                #print("function raised %s" % error)
-                #print(error.traceback)  # Python's traceback of remote process
             printer.ListenFor(0.1)
 
     printer.Close()            
@@ -179,19 +185,12 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
         data = pd.DataFrame.from_dict(data)
         data['Model'] = data['Model'].astype(str)
         data.set_index('Model', inplace=True)
-
       
         cols_to_use = df.columns.difference(data.columns)
-        #data = pd.concat([df[cols_to_use], summary, data], axis=1, sort=True)
         data = pd.concat([df[cols_to_use], data], axis=1)    
         data.dropna(axis=0, how='any', inplace=True)
         
         data.index = data.index.map(str)
-        #
-
-        #data.combine_first(summary)
-        #data.combine_first(data)
-
     else:
         data = None
 

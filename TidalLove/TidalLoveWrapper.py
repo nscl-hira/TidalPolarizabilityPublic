@@ -42,6 +42,8 @@ class TidalLoveWrapper:
         return self.ans
 
     def FindMaxMass(self, central_pressure0=500, disp=False, *args):
+        # checkpoint list must be in desending order
+        self.checkpoint.sort(reverse=True)
         # try finding the maximum mass
         try:
             pc = opt.minimize(lambda x: -1e6*self.Calculate(float(x))[0], 
@@ -53,6 +55,8 @@ class TidalLoveWrapper:
         return (pc['x'][0],) +self.ans
 
     def FindMass(self, central_pressure0=60, mass=1.4, *args):
+        # checkpoint list must be in desending order
+        self.checkpoint.sort(reverse=True)
         try:
             pc = opt.newton(lambda x: self.Calculate(x)[0] - mass, 
                             x0=central_pressure0, *args)

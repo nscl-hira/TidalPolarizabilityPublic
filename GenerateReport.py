@@ -169,25 +169,13 @@ if __name__ == '__main__':
     
     df_orig = comm.scatter(df_orig, root=0)
     argd = comm.bcast(argd, root=0)
-    disable_output = False
     df = None
     
-    if rank != 0:
-        # hide all output from non-root process
-        disable_output = True
-        #f = open(os.devnull, 'w')
-        #sys.stdout = f
     try:
-        df = CalculatePolarizability(df_orig, comm=comm, disable=disable_output, **argd)
-        # calculate additional EOS properties
-        #df = AddPressure(df)
-        df = AddCausailty(df, disable=disable_output, ncpu=argd['nCPU'], comm=comm)
-        df, _ = SelectLowDensity('Constraints/LowEnergySym.csv', df)
-        #df, _ = SelectSymPressure('Constraints/FlowSymMat.csv', df)
+        df = CalculatePolarizability(df_orig, comm=comm, **argd)
     except Exception as e:
         print('Calculation of EOS properties stop at one point. Not all info will be avaliable')
         print(e)
-        #print(e.traceback)
         traceback.print_exc()
 
     df = comm.gather(df, root=0)
@@ -204,10 +192,9 @@ if __name__ == '__main__':
                output_name = '%s_new' % output_name
  
 
-    if argd['NoPPTX']:
-        sys.exit()
+        if argd['NoPPTX']:
+            sys.exit()
 
-    if rank == 0:
         print('Start creating PPTX report...')
         try:
             pars = pptx.CreateFirstSlide('EOS NS simulation', 'This is just a sample of all the results. Only intended for fast debugging')
@@ -222,7 +209,7 @@ if __name__ == '__main__':
                 df_causal = df.loc[df['ViolateCausality']==False]
                 df_acausal = df.loc[df['ViolateCausality']==True]
                 df_resonable = df.loc[df['NegSound']==False] 
-                df_causal_sat_asym = df_causal.loc[df_causal['AgreeLowDensity']==True]
+                df_causal_sat_asym = df_resonable
             except Exception as e:
                 print('Causality calculation is not being done because %s' % e)
             drawer = EOSDrawer(df, ncpu=argd['nCPU'])
