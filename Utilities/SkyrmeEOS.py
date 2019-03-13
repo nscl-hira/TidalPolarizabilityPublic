@@ -71,17 +71,34 @@ class EOS:
         # therefore eps column will always be zero
         n = np.concatenate([np.logspace(np.log(1e-10), np.log(3.76e-4), 2000, base=np.exp(1)), 
                             np.linspace(3.77e-4, 10*0.16, 18000)])
-        energy = (self.GetEnergyDensity(n, 0.))
-        pressure = self.GetPressure(n, 0.) 
+        energy = self.GetEnergyDensity(n, 0.)
+        pressure = self.GetPressure(n, 0.)
 
-        # only check for monotonicity for up to 4rho0
-        idx = np.searchsorted(n, 3*0.16, side='left')
-        if not np.all(np.diff(energy[:idx]) > 0) or not np.all(np.diff(pressure[:idx]) > 0):
-            raise RuntimeError('Energy and pressure is not monotonically increasing. Will not calculate')
+
         for density, e, p in zip(n, energy, pressure):
             if(not math.isnan(e) and not math.isnan(p)):
                 filestream.write("   %.5e   %.5e   %.5e   0.0000e+0\n" % (Decimal(e), Decimal(p), Decimal(density)))
         filestream.flush()
+
+    def GetMaxDef(self):
+        # return the maximum energy at which the EOS is still monotonically increasing
+        n = np.concatenate([np.logspace(np.log(1e-10), np.log(3.76e-4), 2000, base=np.exp(1)),
+                            np.linspace(3.77e-4, 10*0.16, 18000)])
+        energy = self.GetEnergyDensity(n, 0.)
+        pressure = self.GetPressure(n, 0.)
+
+        ediff = np.diff(energy) 
+        pdiff = np.diff(pressure)
+
+        if np.all(ediff > 0) and np.all(pdiff > 0):
+            idx = -2
+        else:
+            idx = min(np.argmax(ediff < 0), np.argmax(pdiff < 0))
+        emax = energy[idx]
+        pmax = pressure[idx]
+        return emax, pmax
+            
+        
 
 
     """

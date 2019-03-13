@@ -12,8 +12,9 @@
 !    UPDATE: Edited to calculate Dimensionless Tidal Polarizability.
 !        May 1, 2018, Bloomington, IN, USA.
     !-----------------------------------------------------------------------!
-subroutine TidalLove_individual(EOS_filename, pc, num_checkpoint, &
-                                checkpoint, mass_out, radius_out, &
+subroutine TidalLove_individual(EOS_filename, pc, max_energy, &
+                                num_checkpoint, checkpoint, &
+                                mass_out, radius_out, &
                                 lambda_out, checkpoint_mass, &
                                 checkpoint_radius)
     implicit real*8 (a-h,k-z)    !Assign letters for reals and integers
@@ -22,6 +23,7 @@ subroutine TidalLove_individual(EOS_filename, pc, num_checkpoint, &
     character(len=*),intent(in) :: EOS_filename
     integer, intent(in) :: num_checkpoint
     real, dimension(num_checkpoint), intent(in) :: checkpoint
+    real, intent(in) :: max_energy
     real, dimension(num_checkpoint), intent(out) :: checkpoint_mass, checkpoint_radius
     real, intent(out) :: mass_out, radius_out, lambda_out
     real, intent(in) :: pc
@@ -200,6 +202,13 @@ k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
 
            if (P .le. pmin) then
               go to 20
+           end if
+
+           if (e*mevfm3/e0 .gt. max_energy) then
+              m = -1
+              r = -1
+              dimlambda = -1
+              go to 150
            end if
 
            !    write (25, 500) r*r0, e/mevfm3*e0/931.5d0, 1.0d0/oneovercs2
