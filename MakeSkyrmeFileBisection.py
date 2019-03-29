@@ -8,6 +8,8 @@ import pandas as pd
 import argparse
 from functools import partial
 import scipy.optimize as opt
+import logging
+from multiprocessing_logging import install_mp_handler, MultiProcessingHandler
 
 import Utilities.ConsolePrinter as cp
 import TidalLove.TidalLoveWrapper as wrapper
@@ -16,7 +18,9 @@ from Utilities.EOSCreator import EOSCreator, SummarizeSkyrme
 from SelectPressure import AddPressure
 
 OuterCrustDensity = 0.3e-3
-SurfacePressure = 1e-8
+
+logger = logging.getLogger(__name__)
+install_mp_handler(logger)
 
 def LoadSkyrmeFile(filename):
     df = pd.read_csv(filename, index_col=0)
@@ -68,9 +72,10 @@ def FindMaxMass(tidal_love):
     return pcentral, max_mass
 
 def FindAMass(tidal_love, eos, mass, cp_density_list):
-    tidal_love.checkpoint = eos.GetPressure(np.array(cp_density_list), 0).tolist() +  [SurfacePressure]
-    result = tidal_love.FindMass(mass=mass, central_pressure0=150)
+    tidal_love.checkpoint = eos.GetPressure(np.array(cp_density_list), 0).tolist()
+    result = tidal_love.FindMass(mass=mass, central_pressure0=150, tol=0.001, rtol=0.001)
     if any(np.isnan(result[:4])) or any(np.isnan(result[4:]).flatten()):
+       logger.warning('Some of the calculated values are nan for mass %g.', mass)
        raise ValueError('Some of the calculated values are nan.')
 
     named_result = {'PCentral(%g)' % mass: result[0],
@@ -84,6 +89,7 @@ def FindAMass(tidal_love, eos, mass, cp_density_list):
     try:
         named_result['DensCentral(%g)' % mass] = opt.newton(lambda x: eos.GetPressure(x, 0) - result[0], x0=2*0.16)
     except RuntimeError as error:
+        logger.warning('Cannot find central density for mass %g' % mass)
         named_result['DensCentral(%g)' % mass] = 0
 
     return named_result
@@ -100,11 +106,13 @@ def CalculateModel(name_and_eos, **kwargs):
     target_mass = kwargs['TargetMass']
     eos_creator = EOSCreator(name_and_eos[1])
 
-
     """
     Prepare EOS
     """
+    
+    logger.debug('Preparing EOS %s', name)
     kwargs = eos_creator.PrepareEOS(**kwargs)
+    logger.debug('Getting EOS %s', name)
     eos, list_tran_density = eos_creator.GetEOSType(**kwargs)
 
 
@@ -117,17 +125,23 @@ def CalculateModel(name_and_eos, **kwargs):
     result = {'Model': str(name)}
 
     with wrapper.TidalLoveWrapper(eos) as tidal_love:
+        logger.debug('Finding maximum mass for EOS %s', name)
         result['PCentralMaxMass'], result['MaxMass'] = FindMaxMass(tidal_love)
         for tg in target_mass:
+            logger.debug('Finding NS with mass %g for %s' % (tg, name))
             result_each_mass = FindAMass(tidal_love, eos, tg, list_tran_density)
             result = {**result, **result_each_mass}
         if result['MaxMass'] >= max_mass_req: 
+            logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % (max_mass_req, name))
             result_max_mass_req = FindAMass(tidal_love, eos, max_mass_req, list_tran_density)
             result['PCentral2MOdot'] = result_max_mass_req['PCentral(%g)' % max_mass_req]
             result['MaxMassReq'] = max_mass_req
 
+    logger.debug('Creating summarize information for EOS %s' % name)
     summary = SummarizeSkyrme(eos_creator)
+    logger.debug('Adding P, P_sym, S_sym information for EOS %s' % name)
     additional_info = AdditionalInfo(eos_creator)
+    logger.debug('Causality checking for EOS %s' % name)
     result['ViolateCausality'], result['NegSound'] = CheckCausality(eos, result['PCentralMaxMass'])
 
     result = {**result, **kwargs, **summary, **additional_info}
@@ -144,6 +158,7 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
     Tells ConsolePrinter which quantities to be printed in real time
     """
     title = ['Model', 'R(1.4)', 'lambda(1.4)', 'PCentral(1.4)']
+    logger.debug('Calling console printer')
     if PBar:
         printer = cp.ConsolePBar(title, comm=comm, total=total, **kwargs)
     else:
@@ -156,6 +171,7 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
     name_list = [(index, row) for index, row in df.iterrows()]
     result = []
     #CalculateModel(name_list[0], **kwargs)
+    logger.debug('Begin multiprocess calculation')
     with ProcessPool(max_workers=kwargs['nCPU']) as pool:
         future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
         iterator = future.result()
@@ -165,14 +181,19 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
                 result.append(new_result)
                 printer.PrintContent(new_result)
             except StopIteration:
+                logger.debug('All calculations finished!')
                 break
             except ValueError as error:
-                printer.PrintError(error)
+                printer.PrintError(error) 
+                logger.exception('Value error')
             except TimeoutError as error:
                 printer.PrintError(error)
+                logger.exception('Timeout')
             except ProcessExpired as error:
                 printer.PrintError(error)
+                logger.exception('ProcessExpired')
             except Exception as error:
+                logger.exception('General exception received')
                 printer.PrintError(error)
             printer.ListenFor(0.1)
 
@@ -181,6 +202,8 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
     Merge calculation data with Skyrme loaded data
     """
     if len(result) > 0:
+        logger.debug('Results found. Merging.')
+
         data = [val for val in result]
         data = pd.DataFrame.from_dict(data)
         data['Model'] = data['Model'].astype(str)
@@ -191,6 +214,7 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
         data.dropna(axis=0, how='any', inplace=True)
         
         data.index = data.index.map(str)
+        logger.debug('merged')
     else:
         data = None
 

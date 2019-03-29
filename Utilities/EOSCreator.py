@@ -83,7 +83,12 @@ class EOSCreator:
         elif EOSType == 'EOSNoCrust':
             self.ImportedEOS = sky.Skryme(self.row)
             self.BENuclear = self.ImportedEOS
-
+        elif EOSType == 'Meta':
+            if 'msat' not in self.row:
+                self.row['msat'] = 0.73
+                self.row['kv'] = 0.46
+            self.ImportedEOS = sky.MetaModeling(self.row)
+            self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
         else:
             self.ImportedEOS = sky.Skryme(self.row)
             self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
@@ -108,7 +113,7 @@ class EOSCreator:
             self.GetEOS(**kwargs)
         elif EOSType == 'EOS2Poly': 
             self.GetEOS2Poly(**kwargs)
-        elif EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope':
+        elif EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':
             self.GetEOSNoPolyTrope(**kwargs)
         elif EOSType == 'EOSNoCrust':
             self.GetEOSNoCrust(**kwargs)

@@ -9,6 +9,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpi4py import MPI
 import dill
+import logging
+
 MPI.pickle.__init__(dill.dumps, dill.loads)
 #MPI.pickle.dumps = dill.dumps
 #MPI.pickle.loads = dill.loads
@@ -132,6 +134,10 @@ comm = MPI.COMM_WORLD
 size = comm.Get_size()
 rank = comm.Get_rank()
 
+
+logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 if __name__ == '__main__':
     if rank == 0:
         parser = argparse.ArgumentParser()
@@ -167,6 +173,7 @@ if __name__ == '__main__':
 
     # start deformability calculation
     
+    logger.debug('Scatter database')
     df_orig = comm.scatter(df_orig, root=0)
     argd = comm.bcast(argd, root=0)
     df = None
@@ -175,9 +182,9 @@ if __name__ == '__main__':
         df = CalculatePolarizability(df_orig, comm=comm, **argd)
     except Exception as e:
         print('Calculation of EOS properties stop at one point. Not all info will be avaliable')
-        print(e)
-        traceback.print_exc()
+        logger.exception('Calculation error')
 
+    logger.debug('Gathering results from all ranks')
     df = comm.gather(df, root=0)
     if rank == 0:
         df = [x for x in df if x is not None]
@@ -189,10 +196,12 @@ if __name__ == '__main__':
                break
            except Exception:
                print('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name, output_name))
+               logger.warning('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name, output_name))
                output_name = '%s_new' % output_name
  
 
         if argd['NoPPTX']:
+            logger.debug('No PPTX requested. ending')
             sys.exit()
 
         print('Start creating PPTX report...')
@@ -202,6 +211,7 @@ if __name__ == '__main__':
             max_sample = 500 # only draw 500 EOS for efficiency considerasion
             nsample = df.shape[0]
             if nsample > max_sample:
+                logger.warning('There are too many statistics. For efficiency consideration, only %d EOSs are drawn' % max_sample)
                 nsample = max_sample
            
             df = df.sample(n=nsample)
@@ -211,7 +221,8 @@ if __name__ == '__main__':
                 df_resonable = df.loc[df['NegSound']==False] 
                 df_causal_sat_asym = df_resonable
             except Exception as e:
-                print('Causality calculation is not being done because %s' % e)
+                print('Causality calculation is not being done')
+                logger.exception('Causality problems')
             drawer = EOSDrawer(df, ncpu=argd['nCPU'])
             
             # Plot all the EOSs
@@ -236,11 +247,10 @@ if __name__ == '__main__':
                    pptx.ImageOnlySlide(pars, title, figname)
                 except Exception:
                    print('Cannot draw %s' % figname)
-                   continue
+                   logger.exception('Cannot draw %s' % figname)
         except Exception as e:
             print('Cannot create PowerPoint because %s' % e)
-            #print(e.traceback)
-            traceback.print_exc()
+            logger.exception('Cannot create PowerPoint')
 
 
         output_name = args.Output          
@@ -250,6 +260,7 @@ if __name__ == '__main__':
                 break
             except Exception:
                 print('Cannot write to file %s. Will output to %s_new.pptx instead' % (output_name, output_name))
+                logger.warning('Cannot write to file %s. Will output to %s_new.pptx instead' % (output_name, output_name))
                 output_name = '%s_new' % output_name
     
    

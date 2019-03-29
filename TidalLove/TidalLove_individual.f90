@@ -12,7 +12,7 @@
 !    UPDATE: Edited to calculate Dimensionless Tidal Polarizability.
 !        May 1, 2018, Bloomington, IN, USA.
     !-----------------------------------------------------------------------!
-subroutine TidalLove_individual(EOS_filename, pc, max_energy, &
+subroutine TidalLove_individual(EOS_filename, pc, max_energy, pmin, &
                                 num_checkpoint, checkpoint, &
                                 mass_out, radius_out, &
                                 lambda_out, checkpoint_mass, &
@@ -22,11 +22,12 @@ subroutine TidalLove_individual(EOS_filename, pc, max_energy, &
     CHARACTER :: CR = CHAR(13)
     character(len=*),intent(in) :: EOS_filename
     integer, intent(in) :: num_checkpoint
-    real, dimension(num_checkpoint), intent(in) :: checkpoint
-    real, intent(in) :: max_energy
-    real, dimension(num_checkpoint), intent(out) :: checkpoint_mass, checkpoint_radius
-    real, intent(out) :: mass_out, radius_out, lambda_out
-    real, intent(in) :: pc
+    real*8, dimension(num_checkpoint), intent(in) :: checkpoint
+    real*8, intent(in) :: max_energy
+    real*8, intent(in) :: pmin
+    real*8, dimension(num_checkpoint), intent(out) :: checkpoint_mass, checkpoint_radius
+    real*8, intent(out) :: mass_out, radius_out, lambda_out
+    real*8, intent(in) :: pc
     parameter(ipnts=1000000)    !The dimension of array for general output
     !Here (a-h,k-z) = reals, (i,j) = integers         
     dimension dens(ipnts),pres(ipnts),B(ipnts),C(ipnts),D(ipnts)     !Creates an array
@@ -185,7 +186,17 @@ k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
            r= r + h                    ! radius of the star    
            e = cseval(ir-1,p,0,pres,dens,B,C,D)        ! corresponding density    
 
-        
+           if (e .gt. max_energy*mevfm3/e0) then
+              m = -1
+              r = -1
+              dimlambda = -1
+              do idx = 1, num_checkpoint
+                  checkpoint_mass(idx) = 0
+                  checkpoint_radius(idx) = 0
+              end do
+              go to 150
+           end if
+
 
            if (icheckpoint <= num_checkpoint) then
                pcheckpoint = checkpoint(icheckpoint)*mevfm3/p0
@@ -197,19 +208,34 @@ k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
                end if
            end if
 
-           ! pmin = 1.0d-14                    ! change as needed...
-           pmin = 0.60817d-8*mevfm3/p0            ! minimum pressure given by BPS
-
-           if (P .le. pmin) then
-              go to 20
+           if (P .le. pmin*mevfm3/p0) then  
+               go to 20
            end if
 
-           if (e*mevfm3/e0 .gt. max_energy) then
-              m = -1
-              r = -1
-              dimlambda = -1
-              go to 150
-           end if
+           !beta = m/r
+
+           !XA = 0.5d0    ! For equal mass binary
+           !XB = XA
+           !CA = beta
+           !CB = CA
+           !XContact = 1.0d0/(XA/CA + XB/CB)
+           !fcontact = XContact**(1.5d0)/(3.141592654d0*(2.0d0*m*1.98892d30*6.673d-11)/(299792458.0d0**3.0d0))
+           !!print *, 'fcontact = ', fcontact, 'Hz'
+
+           !term = 2.0d0*beta**2*(13.0d0-11.0d0*y+beta*(3.0d0*y-2.0d0)+2.0d0*beta&
+           !        **2*(1.0d0+y))
+
+           !kk2a=2.0d0*beta*(6.0d0-3.0d0*y+3.0d0*beta*(5.0d0*y-8.0d0)+term)
+           !kk2b=3.0d0*(1.0d0-2.0d0*beta)**2*(2.0d0-y+2.0d0*beta*(y-1))*log(1.0d0-2.0d0*beta) 
+           !k2=8.0d0/5.0d0*beta**5*(1.0d0-2.0d0*beta)**2*(2.0d0-y+2.0d0*beta*(y-1.0d0))/(kk2a+kk2b)
+
+           !lambda = 2.0d0*k2*(r*r0*1.0d3)**5/(3.0d0*(6.673d-11))        ! in m^2 kg s^2
+           !Rlambda = 1.0d-3*((6.673d-11)*lambda)**(1.0d0/5.0d0)        ! in km
+
+           !dimlambda = lambda/((6.673d-11)**4.0d0)/((m*1.989d30)**5.0d0)*(299792458.0d0)**10.0d0
+           !print *, m, r*r0, e*mevfm3/e0, P*mevfm3/p0, dimlambda
+
+           
 
            !    write (25, 500) r*r0, e/mevfm3*e0/931.5d0, 1.0d0/oneovercs2
 

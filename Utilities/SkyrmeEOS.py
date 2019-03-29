@@ -9,6 +9,11 @@ import scipy.misc as misc
 from scipy.interpolate import UnivariateSpline
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
+import logging
+from multiprocessing_logging import install_mp_handler, MultiProcessingHandler
+
+#logger = logging.getLogger(__name__)
+#install_mp_handler(logger)
 
 from Utilities.Constants import *
 
@@ -57,7 +62,7 @@ class EOS:
             self.ToFileStream(file_)
 
     def ToTempFile(self):
-        with tempfile.NamedTemporaryFile() as file_:
+        with tempfile.NamedTemporaryFile('w') as file_:
             self.ToFileStream(file_)
             yield file_
 
@@ -94,6 +99,7 @@ class EOS:
             idx = -2
         else:
             idx = min(np.argmax(ediff < 0), np.argmax(pdiff < 0))
+            #logger.warning('EOS stops increasing monotonically at index %d' % idx)
         emax = energy[idx]
         pmax = pressure[idx]
         return emax, pmax
@@ -460,7 +466,68 @@ class PowerLawEOS(EOS):
         E_iso_vec = self.Esym + self.Lsym*x + 1./2.*self.Ksym*x*x + 1./6.*self.Qsym*x*x*x + 1./24.*self.Zsym*x*x*x*x
         return E_iso_sca + delta*delta*E_iso_vec + 938.27
 
+class MetaModeling(EOS):
+    def __init__(self, para):
+        super().__init__()
+        Esat = para['Esat']
+        Ksat = para['Ksat']
+        Qsat = para['Qsat']
+        Zsat = para['Zsat']
 
+        Esym = para['Esym']
+        Lsym = para['Lsym']
+        Ksym = para['Ksym']
+        Qsym = para['Qsym']
+        Zsym = para['Zsym']
+
+        msat = para['msat']
+        self.rho0 = 0.16
+
+        self.tFG_sat = 22.1 # MeV
+        self.ksat = 1/msat - 1
+
+        if 'mn' in para and 'mp' in para:
+            mn = para['mn']
+            mp = para['mp']
+            self.ksym = 0.5*(1/mn - 1/mp)
+        else:
+            self.ksym = self.ksat - para['kv']
+
+        self.vis = np.zeros(5)
+        self.vis[0] = Esat - self.tFG_sat*(1+self.ksat)
+        self.vis[1] = -self.tFG_sat*(2+5*self.ksat)
+        self.vis[2] = Ksat - 2*self.tFG_sat*(-1+5*self.ksat)
+        self.vis[3] = Qsat - 2*self.tFG_sat*(4-5*self.ksat)
+        self.vis[4] = Zsat - 8*self.tFG_sat*(-7+5*self.ksat)
+
+        self.viv = np.zeros(5)
+        self.viv[0] = Esym - 5./9.*self.tFG_sat*(1 + (self.ksat + 3*self.ksym))
+        self.viv[1] = Lsym - 5./9.*self.tFG_sat*(2 + 5*(self.ksat + 3*self.ksym))
+        self.viv[2] = Ksym - 10./9.*self.tFG_sat*(-1 + 5*(self.ksat + 3*self.ksym))
+        self.viv[3] = Qsym - 10./9.*self.tFG_sat*(4 - 5*(self.ksat+3*self.ksym))
+        self.viv[4] = Zsym - 40./9.*self.tFG_sat*(-7 + 5*(self.ksat + 3*self.ksym))
+
+    def _f1(self, delta):
+        return np.power(1+delta, 5./3.) + np.power(1-delta, 5./3.)
+
+    def _f2(self, delta):
+        return delta*(np.power(1+delta, 5./3.) - np.power(1-delta, 5./3.))
+
+    def _Kinetic(self, rho, delta):
+        return self.tFG_sat/2*np.power(rho/self.rho0, 2./3.)*((1+self.ksat*rho/self.rho0)*self._f1(delta) + self.ksym*rho/self.rho0*self._f2(delta))
+
+    def _u_N_alpha(self, N, alpha, x, rho):
+        b = 10*np.log(2)
+        return 1 - np.power(-3*x, N+1-alpha)*np.exp(-b*rho/self.rho0)
+
+    def GetEnergy(self, rho, pfrac):
+        delta = 1 - 2*pfrac
+        x = (rho - self.rho0)/(3*self.rho0)
+        energy = self._Kinetic(rho, delta)
+        for alpha in range(5):
+            energy += (self.vis[alpha] + self.viv[alpha]*delta*delta)*np.power(x, alpha)*self._u_N_alpha(4, alpha, x, rho)/math.factorial(alpha)
+        return energy + 938.27
+ 
 class Skryme(EOS):
 
 
