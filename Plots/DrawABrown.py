@@ -8,7 +8,7 @@ from copy import copy
 import sys
 
 from Utilities import Utilities as utl
-from DrawAllEOS import ContourToPatches
+from Plots.DrawAllEOS import ContourToPatches
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
 from Plots.DrawLambdaRadius import DrawTightLIGO
 
@@ -45,19 +45,28 @@ if __name__ == '__main__':
         Lambda[last_letter].append(value[yvalue])
         Radius[last_letter].append(value[xvalue])
 
+
+    if len(sys.argv) < 3:
+        DrawTightLIGO(ax, color='aqua', alpha=0.5, fill=True)
+
+
+
     for last_letter in Lambda:
         if(last_letter == 'u' or last_letter == 'q'):
             if(last_letter == 'u'):
                 color = 'r'
+                facecolors = 'red'
+                linestyle = '-'
                 label = '$m^*_n/m = 0.7$'
+                alpha = 1
             else:
                 color = 'b'
+                facecolors = 'none'
+                linestyle = '-'
                 label = '$m^*_n/m = 0.9$'
+                alpha = None
             
-            ax.plot(Radius[last_letter], Lambda[last_letter], 'o', label=label, color=color)
-
-    if len(sys.argv) < 3:
-        DrawTightLIGO(ax, color='aqua', alpha=0.5, fill=True)
+            ax.scatter(np.array(Radius[last_letter]), np.array(Lambda[last_letter]), marker='o', facecolors=facecolors, linestyle=linestyle, label=label, color=color, alpha=alpha, zorder=10)
 
     ax.set_xlim([xlower, xupper])
     ax.set_ylim([ylower, yupper])

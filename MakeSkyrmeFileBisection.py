@@ -71,7 +71,7 @@ def FindMaxMass(tidal_love):
     pcentral, max_mass, _, _, _, _ = tidal_love.FindMaxMass()
     return pcentral, max_mass
 
-def FindAMass(tidal_love, eos, mass, cp_density_list):
+def FindAMass(tidal_love, eos, mass, cp_density_list, x0=2*0.16):
     tidal_love.checkpoint = eos.GetPressure(np.array(cp_density_list), 0).tolist()
     result = tidal_love.FindMass(mass=mass, central_pressure0=150, tol=0.001, rtol=0.001)
     if any(np.isnan(result[:4])) or any(np.isnan(result[4:]).flatten()):
@@ -87,7 +87,7 @@ def FindAMass(tidal_love, eos, mass, cp_density_list):
 
     # find the central density of 1.4 star
     try:
-        named_result['DensCentral(%g)' % mass] = opt.newton(lambda x: eos.GetPressure(x, 0) - result[0], x0=2*0.16)
+        named_result['DensCentral(%g)' % mass] = opt.newton(lambda x: eos.GetPressure(x, 0) - result[0], x0=x0)
     except RuntimeError as error:
         logger.warning('Cannot find central density for mass %g' % mass)
         named_result['DensCentral(%g)' % mass] = 0
@@ -133,7 +133,7 @@ def CalculateModel(name_and_eos, **kwargs):
             result = {**result, **result_each_mass}
         if result['MaxMass'] >= max_mass_req: 
             logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % (max_mass_req, name))
-            result_max_mass_req = FindAMass(tidal_love, eos, max_mass_req, list_tran_density)
+            result_max_mass_req = FindAMass(tidal_love, eos, max_mass_req, list_tran_density, x0=4*0.16)
             result['PCentral2MOdot'] = result_max_mass_req['PCentral(%g)' % max_mass_req]
             result['MaxMassReq'] = max_mass_req
 
@@ -210,8 +210,9 @@ def CalculatePolarizability(df, Output, comm, PBar=False, **kwargs):
         data.set_index('Model', inplace=True)
       
         cols_to_use = df.columns.difference(data.columns)
-        data = pd.concat([df[cols_to_use], data], axis=1)    
-        data.dropna(axis=0, how='any', inplace=True)
+        data.dropna(axis=0, how='all', inplace=True)
+        data = pd.concat([df[cols_to_use].loc[data.index], data], axis=1)    
+
         
         data.index = data.index.map(str)
         logger.debug('merged')

@@ -1,7 +1,7 @@
 #!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
 import math
 import sys
-import cPickle as pickle
+import pickle
 import itertools
 marker = itertools.cycle((',', '+', '.', 'o', '*')) 
 from pebble import ProcessPool, ProcessExpired
@@ -78,7 +78,7 @@ if __name__ == '__main__':
       
       if name[-1] == 'q':
          mass, radius = MRCurvesForModel([name, df.loc[name]], pressure)
-         plt.plot(radius, mass, color='b', label=labelq)
+         plt.plot(radius, mass, color='b', label=labelq, linestyle='--')
          labelq = None
       if name[-1] == 'u':
          mass, radius = MRCurvesForModel([name, df.loc[name]], pressure)

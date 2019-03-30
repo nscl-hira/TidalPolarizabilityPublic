@@ -6,7 +6,7 @@ import numpy as np
 from copy import copy
 
 from Utilities import Utilities as utl
-from DrawAllEOS import ContourToPatches
+from Plots.DrawAllEOS import ContourToPatches
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
 
 def DrawAnnala(ax, **kwargs):
