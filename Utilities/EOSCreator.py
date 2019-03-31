@@ -96,6 +96,11 @@ class EOSCreator:
         if EOSType == "EOS2Poly":
             kwargs = self._FindEOS2PolyTransDensity(**kwargs)
 
+        if kwargs['PRCTransDensity'] > 0:
+            kwargs['TranDensity'] = kwargs['PRCTransDensity']*FindCrustalTransDensity(self.ImportedEOS)
+            kwargs['SkyrmeDensity'] = FindCrustalTransDensity(self.ImportedEOS)
+
+
         # Needs to fix maximum mass for the equation of state
         if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'EOSNoCrust' or EOSType == 'Rod' or EOSType == 'Power':
             if not 'PressureHigh' in kwargs:
@@ -121,18 +126,16 @@ class EOSCreator:
         eos = sky.EOSConnect(self.density_list, self.eos_list)
         return eos, [rho[0] for rho in self.density_list[1:][::-1]]
 
-    def GetEOS(self, CrustFileName, CrustSmooth, PRCTransDensity, PressureHigh, PolyTropeDensity, **kwargs):
-        trans_density = FindCrustalTransDensity(self.ImportedEOS)
-        self.InsertCrust(CrustFileName, PRCTransDensity*trans_density, CrustSmooth=CrustSmooth)
-        self.InsertConnection(sky.PseudoEOS, trans_density)
+    def GetEOS(self, CrustFileName, CrustSmooth, PRCTransDensity, PressureHigh, PolyTropeDensity, TranDensity, SkyrmeDensity, **kwargs):
+        self.InsertCrust(CrustFileName, TranDensity, CrustSmooth=CrustSmooth)
+        self.InsertConnection(sky.PseudoEOS, SkyrmeDensity)
         self.InsertMain(self.BENuclear, PolyTropeDensity)
         self.InsertConnection(sky.PolyTrope, 7*self.ImportedEOS.rho0, final_pressure=PressureHigh)
         self.Finalize()
 
-    def GetEOS2Poly(self, CrustFileName, CrustSmooth, SoundHighDensity, PolyTropeDensity, PRCTransDensity, **kwargs):
-        trans_density = FindCrustalTransDensity(self.ImportedEOS)
-        self.InsertCrust(CrustFileName, PRCTransDensity*trans_density, CrustSmooth=CrustSmooth)
-        self.InsertSmoothConnection(sky.PseudoEOS, trans_density)
+    def GetEOS2Poly(self, CrustFileName, CrustSmooth, SoundHighDensity, PolyTropeDensity, PRCTransDensity, TranDensity, SkyrmeDensity, **kwargs):
+        self.InsertCrust(CrustFileName, TranDensity, CrustSmooth=CrustSmooth)
+        self.InsertSmoothConnection(sky.PseudoEOS, SkyrmeDensity)
         self.InsertMain(self.BENuclear, PolyTropeDensity)
         if SoundHighDensity < PolyTropeDensity:
             self.InsertConnection(sky.ConstSpeed, 100)
@@ -141,10 +144,9 @@ class EOSCreator:
             self.InsertConnection(sky.ConstSpeed, 100)
         self.Finalize()
 
-    def GetEOSNoPolyTrope(self, CrustFileName, CrustSmooth, PRCTransDensity, **kwargs):
-        trans_density = FindCrustalTransDensity(self.ImportedEOS)
-        self.InsertCrust(CrustFileName, PRCTransDensity*trans_density, CrustSmooth=CrustSmooth)
-        self.InsertSmoothConnection(sky.PseudoEOS, trans_density)
+    def GetEOSNoPolyTrope(self, CrustFileName, CrustSmooth, PRCTransDensity, TranDensity, SkyrmeDensity, **kwargs):
+        self.InsertCrust(CrustFileName, TranDensity, CrustSmooth=CrustSmooth)
+        self.InsertSmoothConnection(sky.PseudoEOS, SkyrmeDensity)
         self.InsertMain(self.BENuclear, 100)
         self.Finalize()
 
