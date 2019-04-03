@@ -208,7 +208,7 @@ k4=        h*(e+(p+k3))*(m+(p+k3)*(r+h)**3)/(2.0d0*m*(r+h)-(r+h)**2)
                end if
            end if
 
-           if (P .le. pmin*mevfm3/p0) then  
+           if (P .le. (pmin*mevfm3/p0)) then  
                go to 20
            end if
 

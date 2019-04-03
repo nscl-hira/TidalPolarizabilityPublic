@@ -72,8 +72,8 @@ if __name__ == '__main__':
 
     #pressure = np.concatenate((np.linspace(2, 500, 50), np.linspace(500, 5000, 100)), axis=None)
     pressure = np.logspace(np.log(1.), np.log(1000), num=100, base=np.exp(1))
-    labelq = 'Group q'
-    labelu = 'Group u'
+    labelq = r'$m^{*}_{n}/m = 0.7$'
+    labelu = r'$m^{*}_{n}/m = 0.9$'
     for name, row in df.iterrows():
       
       if name[-1] == 'q':

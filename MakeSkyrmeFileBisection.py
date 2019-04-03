@@ -32,11 +32,14 @@ def CheckCausality(eos, rho_max):
     sound = np.array(eos.GetSpeedOfSound(rho, 0))
 
     if all(sound <= 1) and all(sound >=0):
-        return False, False
-    elif any(sound <=0):
-        return True, True
+        return False, False, 0
+    elif any(sound > 1):
+        idx = np.where(sound > 1)
+        return True, False, rho[idx][0]
     else:
-        return True, False
+        idx = np.where(sound <= 0)
+        return True, True, rho[idx][0]
+ 
 
 def AdditionalInfo(eos_creator):
     eos = eos_creator.ImportedEOS
@@ -67,9 +70,15 @@ def AdditionalInfo(eos_creator):
             'L(rho0)':eos.GetL(rho0),
             'L(0.67rho0)':eos.GetL(0.67*rho0)}
 
-def FindMaxMass(tidal_love):
+def FindMaxMass(tidal_love, eos):
     pcentral, max_mass, _, _, _, _ = tidal_love.FindMaxMass()
-    return pcentral, max_mass
+    try:
+        DensCentralMax = opt.newton(lambda x: eos.GetPressure(x, 0) - pcentral, x0=5*0.16)
+    except RuntimeError as error:
+        logger.warning('Cannot find central density for mass %g' % mass)
+        DensCentralMax = 0
+
+    return pcentral, max_mass, DensCentralMax
 
 def FindAMass(tidal_love, eos, mass, cp_density_list, x0=2*0.16):
     tidal_love.checkpoint = eos.GetPressure(np.array(cp_density_list), 0).tolist()
@@ -81,7 +90,7 @@ def FindAMass(tidal_love, eos, mass, cp_density_list, x0=2*0.16):
     named_result = {'PCentral(%g)' % mass: result[0],
                     'R(%g)' % mass: result[2],
                     'lambda(%g)' % mass: result[3]}
-    for den, (index, cp_radius) in zip(cp_density_list, enumerate(result[4])):
+    for den, (index, cp_radius) in zip(cp_density_list, enumerate(result[5])):
         named_result['RadiusCheckpoint%d(%g)' % (index, mass)] = cp_radius
         named_result['DensityCheckponit%d(%g)' % (index, mass)] = den
 
@@ -126,7 +135,7 @@ def CalculateModel(name_and_eos, **kwargs):
 
     with wrapper.TidalLoveWrapper(eos) as tidal_love:
         logger.debug('Finding maximum mass for EOS %s', name)
-        result['PCentralMaxMass'], result['MaxMass'] = FindMaxMass(tidal_love)
+        result['PCentralMaxMass'], result['MaxMass'], result['DensCentralMax'] = FindMaxMass(tidal_love, eos)
         for tg in target_mass:
             logger.debug('Finding NS with mass %g for %s' % (tg, name))
             result_each_mass = FindAMass(tidal_love, eos, tg, list_tran_density)
@@ -142,7 +151,7 @@ def CalculateModel(name_and_eos, **kwargs):
     logger.debug('Adding P, P_sym, S_sym information for EOS %s' % name)
     additional_info = AdditionalInfo(eos_creator)
     logger.debug('Causality checking for EOS %s' % name)
-    result['ViolateCausality'], result['NegSound'] = CheckCausality(eos, result['PCentralMaxMass'])
+    result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = CheckCausality(eos, result['DensCentralMax'])
 
     result = {**result, **kwargs, **summary, **additional_info}
     return result
