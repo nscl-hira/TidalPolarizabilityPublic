@@ -4,6 +4,7 @@ Report/
 Plots/PFrac/
 int_talks/
 references/
+SkyrmeParameters/
 *.pyc
 *.so
 __pycache__

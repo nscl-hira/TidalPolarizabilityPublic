@@ -53,7 +53,7 @@ class EOSCreator:
             df_E = pd.read_csv('SkyrmeParameters/Rodrigo_extended.csv')
             df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym_extended.csv')
             self.ImportedEOS = sky.SplineEOS.Construct(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
-        elif EOSType == 'Power' or 'PowerNoPolyTrope':
+        elif EOSType == 'Power' or EOSType == 'PowerNoPolyTrope':
             self.ImportedEOS = sky.PowerLawEOS(self.row)
         else:
             self.ImportedEOS = sky.Skryme(self.row)
@@ -66,7 +66,7 @@ class EOSCreator:
         if 'PRCTransDensity' not in kwargs:
             kwargs['PRCTransDensity'] = 0.3
         if 'PolyTropeDensity' not in kwargs:
-            kwargs['PolyTropeDensity'] = 3*0.16
+            kwargs['PolyTropeDensity'] = 2.5*0.16
 
 
         if EOSType == 'Rod':
@@ -83,7 +83,7 @@ class EOSCreator:
         elif EOSType == 'EOSNoCrust':
             self.ImportedEOS = sky.Skryme(self.row)
             self.BENuclear = self.ImportedEOS
-        elif EOSType == 'Meta':
+        elif EOSType == 'Meta' or EOSType == 'Meta2Poly':
             if 'msat' not in self.row:
                 self.row['msat'] = 0.73
                 self.row['kv'] = 0.46
@@ -93,8 +93,9 @@ class EOSCreator:
             self.ImportedEOS = sky.Skryme(self.row)
             self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
 
-        if EOSType == "EOS2Poly":
-            kwargs = self._FindEOS2PolyTransDensity(**kwargs)
+        if EOSType == "EOS2Poly" or EOSType == 'Meta2Poly':
+            kwargs['SoundHighDensity'] = kwargs['PolyTropeDensity']
+            #kwargs = self._FindEOS2PolyTransDensity(**kwargs)
 
         if kwargs['PRCTransDensity'] > 0:
             kwargs['TranDensity'] = kwargs['PRCTransDensity']*FindCrustalTransDensity(self.ImportedEOS)
@@ -116,7 +117,7 @@ class EOSCreator:
         EOSType = kwargs['EOSType']
         if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'EOSNoCrust' or EOSType == 'Rod' or EOSType == 'Power':
             self.GetEOS(**kwargs)
-        elif EOSType == 'EOS2Poly': 
+        elif EOSType == 'EOS2Poly' or EOSType == 'Meta2Poly': 
             self.GetEOS2Poly(**kwargs)
         elif EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':
             self.GetEOSNoPolyTrope(**kwargs)

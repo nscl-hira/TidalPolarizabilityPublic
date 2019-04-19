@@ -143,8 +143,8 @@ def CalculateModel(name_and_eos, **kwargs):
         if result['MaxMass'] >= max_mass_req: 
             logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % (max_mass_req, name))
             result_max_mass_req = FindAMass(tidal_love, eos, max_mass_req, list_tran_density, x0=4*0.16)
-            result['PCentral2MOdot'] = result_max_mass_req['PCentral(%g)' % max_mass_req]
             result['MaxMassReq'] = max_mass_req
+            result = {**result, **result_max_mass_req}
 
     logger.debug('Creating summarize information for EOS %s' % name)
     summary = SummarizeSkyrme(eos_creator)
