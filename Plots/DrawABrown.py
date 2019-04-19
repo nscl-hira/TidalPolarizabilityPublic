@@ -33,7 +33,7 @@ if __name__ == '__main__':
         
     # load Skyrmes
     df = LoadSkyrmeFile('Results/ABrownUDen.csv')
-    df = pd.concat([df, LoadSkyrmeFile('Results/ABrownNewNoPolyTrope.csv')])
+    df = pd.concat([df, LoadSkyrmeFile('Results/ABrownNew.csv')])
 
     Lambda = {}
     Radius = {}
@@ -54,19 +54,21 @@ if __name__ == '__main__':
     for last_letter in Lambda:
         if(last_letter == 'u' or last_letter == 'q'):
             if(last_letter == 'u'):
+                marker = 'o'
                 color = 'r'
                 facecolors = 'red'
                 linestyle = '-'
                 label = '$m^*_n/m = 0.7$'
                 alpha = 1
             else:
+                marker = 's'
                 color = 'b'
                 facecolors = 'none'
                 linestyle = '-'
                 label = '$m^*_n/m = 0.9$'
                 alpha = None
             
-            ax.scatter(np.array(Radius[last_letter]), np.array(Lambda[last_letter]), marker='o', facecolors=facecolors, linestyle=linestyle, label=label, color=color, alpha=alpha, zorder=10)
+            ax.scatter(np.array(Radius[last_letter]), np.array(Lambda[last_letter]), marker=marker, facecolors=facecolors, linestyle=linestyle, label=label, color=color, alpha=alpha, zorder=10)
 
     ax.set_xlim([xlower, xupper])
     ax.set_ylim([ylower, yupper])
