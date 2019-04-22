@@ -122,7 +122,6 @@ class EOSCreator:
         self.eos_list = []
  
         EOSType = kwargs['EOSType']
-        print(EOSType)
         if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'Rod' or EOSType == 'Power':
             self.GetEOS(**kwargs)
         elif EOSType == 'EOS2Poly' or EOSType == 'Meta2Poly': 
@@ -133,7 +132,6 @@ class EOSCreator:
             self.GetEOSNoCrust(**kwargs)
         self.density_list[-1] = (self.density_list[-1][0], 100)
         eos = sky.EOSConnect(self.density_list, self.eos_list)
-        print(EOSType, self.density_list, self.eos_list, flush=True)
         return eos, [rho[0] for rho in self.density_list[1:][::-1]]
 
     def GetEOS(self, CrustFileName, CrustSmooth, PRCTransDensity, PressureHigh, PolyTropeDensity, TranDensity, SkyrmeDensity, **kwargs):
@@ -237,7 +235,6 @@ class EOSCreator:
 
     def Finalize(self):
          for index, ((ini_density, final_density), prap_eos) in enumerate(zip(self.density_list, self.eos_list)):
-             print(ini_density, final_density, prap_eos, flush=True)
              if isinstance(prap_eos, tuple):
                  constructor = prap_eos[0]
                  kwargs = prap_eos[1]
