@@ -53,6 +53,31 @@ class EOSDrawer:
         for drawer in other_drawers:
             self.EOS.update(drawer.EOS)
 
+    def Hist2DEOS(self, df=None, xlim=None, ylim=None, bins=50, logx=False, logy=False):
+        rho0 = 0.16
+        histogram = np.zeros((bins, bins), dtype=int)
+
+        if logx:
+            xbins = np.logspace(*np.log(xlim), num=bins+1, base=np.e)
+        else:
+            xbins = np.linspace(*xlim, num=bins+1)
+
+        if logy:
+            ybins = np.logspace(*np.log(ylim), num=bins+1, base=np.e)
+        else:
+            ybins = np.linspace(*ylim, num=bins+1)
+
+        for index, row in df.iterrows():
+            eos, trans_dens, _, _, _ = self.EOS[index]
+            trans_dens = [10*rho0] + trans_dens + [1e-9]
+            for num, (low_den, high_den) in enumerate(zip(trans_dens, trans_dens[1:])):
+                rho = np.linspace(low_den, high_den, 100)
+                y = eos.GetPressure(rho, 0)
+                newhist, xedges, yedges = np.histogram2d(rho, y, bins=[xbins, ybins])
+                histogram = histogram + newhist
+        return histogram, xedges, yedges
+        
+
     def DrawEOS(self, df=None, ax=None, xname='GetEnergyDensity', yname='GetPressure', xlim=None, ylim=None, color=['r', 'b', 'g', 'orange', 'b', 'pink'], labels=[], **kwargs):
 
         # dict containing lines and its name
@@ -74,7 +99,7 @@ class EOSDrawer:
             eos, trans_dens, _, _, _ = self.EOS[index]
             trans_dens = [10*rho0] + trans_dens + [1e-9]
             for num, (low_den, high_den) in enumerate(zip(trans_dens, trans_dens[1:])):
-                rho = np.linspace(low_den, high_den, 100)
+                rho = np.linspace(low_den, high_den, 1000)
                 if xname == 'rho':
                     x = rho
                 elif xname == 'rho/rho0':

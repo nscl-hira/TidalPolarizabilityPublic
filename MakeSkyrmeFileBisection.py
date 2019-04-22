@@ -90,8 +90,9 @@ def FindAMass(tidal_love, eos, mass, cp_density_list, x0=2*0.16):
     named_result = {'PCentral(%g)' % mass: result[0],
                     'R(%g)' % mass: result[2],
                     'lambda(%g)' % mass: result[3]}
-    for den, (index, cp_radius) in zip(cp_density_list, enumerate(result[5])):
+    for den, (index, (cp_mass, cp_radius)) in zip(cp_density_list, enumerate(zip(result[4], result[5]))):
         named_result['RadiusCheckpoint%d(%g)' % (index, mass)] = cp_radius
+        named_result['MassCheckpoint%d(%g)' % (index, mass)] = cp_mass
         named_result['DensityCheckponit%d(%g)' % (index, mass)] = den
 
     # find the central density of 1.4 star

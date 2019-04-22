@@ -35,7 +35,7 @@ class TidalLoveWrapper:
         # pressure needs to be expressed as pascal for pc
         self.max_pressure# /= 3.62704e-5
         self.ans = ()
-        self.surface_pressure = 1e-11 # default pressure defined at surface
+        self.surface_pressure = 1e-8 # default pressure defined at surface
         self.checkpoint = [1e-3]
 
     def __enter__(self):

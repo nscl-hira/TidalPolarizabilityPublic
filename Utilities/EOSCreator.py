@@ -55,8 +55,15 @@ class EOSCreator:
             self.ImportedEOS = sky.SplineEOS.Construct(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
         elif EOSType == 'Power' or EOSType == 'PowerNoPolyTrope':
             self.ImportedEOS = sky.PowerLawEOS(self.row)
+        elif EOSType == 'Meta' or EOSType == 'Meta2Poly':
+            if 'msat' not in self.row:
+                self.row['msat'] = 0.73
+                self.row['kv'] = 0.46
+            self.ImportedEOS = sky.MetaModeling(self.row)
         else:
             self.ImportedEOS = sky.Skryme(self.row)
+
+
 
 
     def PrepareEOS(self, **kwargs):
@@ -103,7 +110,7 @@ class EOSCreator:
 
 
         # Needs to fix maximum mass for the equation of state
-        if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'EOSNoCrust' or EOSType == 'Rod' or EOSType == 'Power':
+        if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'Rod' or EOSType == 'Power':
             if not 'PressureHigh' in kwargs:
                 kwargs['PressureHigh'] = 500
                 kwargs = self._FindMaxMassForEOS(**kwargs)
@@ -115,7 +122,8 @@ class EOSCreator:
         self.eos_list = []
  
         EOSType = kwargs['EOSType']
-        if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'EOSNoCrust' or EOSType == 'Rod' or EOSType == 'Power':
+        print(EOSType)
+        if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'Rod' or EOSType == 'Power':
             self.GetEOS(**kwargs)
         elif EOSType == 'EOS2Poly' or EOSType == 'Meta2Poly': 
             self.GetEOS2Poly(**kwargs)
@@ -125,6 +133,7 @@ class EOSCreator:
             self.GetEOSNoCrust(**kwargs)
         self.density_list[-1] = (self.density_list[-1][0], 100)
         eos = sky.EOSConnect(self.density_list, self.eos_list)
+        print(EOSType, self.density_list, self.eos_list, flush=True)
         return eos, [rho[0] for rho in self.density_list[1:][::-1]]
 
     def GetEOS(self, CrustFileName, CrustSmooth, PRCTransDensity, PressureHigh, PolyTropeDensity, TranDensity, SkyrmeDensity, **kwargs):
@@ -152,9 +161,9 @@ class EOSCreator:
         self.Finalize()
 
 
-    def GetEOSNoCrust(self, PolyTropeDensity, PressureHigh, **kwargs):
-        self.InsertMain(self.ImportedEOS, PolyTropeDensity)
-        self.InsertConnection(sky.PolyTrope, 7*self.ImportedEOS.rho0, final_pressure=PressureHigh)
+    def GetEOSNoCrust(self, PolyTropeDensity, **kwargs):
+        self.InsertMain(self.BENuclear, 7*self.ImportedEOS.rho0)# PolyTropeDensity)
+        #self.InsertConnection(sky.PolyTrope, 7*self.ImportedEOS.rho0, final_pressure=PressureHigh)
         self.Finalize()
 
     def _FindEOS2PolyTransDensity(self, **kwargs):
@@ -221,13 +230,14 @@ class EOSCreator:
          if len(self.density_list) > 0:
              ini_density = self.density_list[-1][1]
          else:
-             ini_density = 0
+             ini_density = -1
 
          self.density_list.append((ini_density, final_density))
          self.eos_list.append(eos)
 
     def Finalize(self):
          for index, ((ini_density, final_density), prap_eos) in enumerate(zip(self.density_list, self.eos_list)):
+             print(ini_density, final_density, prap_eos, flush=True)
              if isinstance(prap_eos, tuple):
                  constructor = prap_eos[0]
                  kwargs = prap_eos[1]
