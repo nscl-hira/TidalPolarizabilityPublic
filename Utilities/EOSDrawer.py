@@ -21,9 +21,8 @@ def GetEOS(name_and_row):
     name = name_and_row[0]
     row = name_and_row[1]
     #eos = sky.Skryme(row)
-    creator = EOSCreator(row)
-    kwargs = creator.PrepareEOS(**row) 
-    eos, trans_dens = creator.GetEOSType(**kwargs)
+    creator = EOSCreator()
+    eos, trans_dens, kwargs = creator.PrepareEOS(**row) 
     #eos.ToFile('AllSkyrmes/EOS_%s.txt' % name)
     #print('finished %s' % name)
     return name, eos, trans_dens, creator.rho, creator.pfrac, creator.mufrac

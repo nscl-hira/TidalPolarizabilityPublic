@@ -1,3 +1,5 @@
+import better_exceptions
+better_exceptions.hook()
 import os
 import sys
 import traceback
@@ -8,9 +10,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpi4py import MPI
+import configargparse
+parser = configargparse.get_argument_parser(default_config_files=['Default.ini'])
 import dill
 import logging
-
 MPI.pickle.__init__(dill.dumps, dill.loads)
 #MPI.pickle.dumps = dill.dumps
 #MPI.pickle.loads = dill.loads
@@ -140,30 +143,14 @@ logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     if rank == 0:
-        parser = argparse.ArgumentParser()
-        parser.add_argument("-i", "--Input", default="SkyrmeParameters/PawelSkyrmeNew.csv", help="Name of the Skyrme input file (Default: SkyrmeResult/PawelSkyrmeNew.csv)")
-        parser.add_argument("-o", "--Output", default="Result", help="Name of the CSV output (Default: Result)")
-        parser.add_argument("-et", "--EOSType", default="EOS", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme (Default: EOS)")
-        parser.add_argument("-sd", "--SkyrmeDensity", type=float, default=0.3, help="Density at which Skyrme takes over from crustal EOS (Default: 0.3)")
-        parser.add_argument("-pp", "--PolyTropeDensity", type=float, default=3, help="Density at which Skyrme EOS ends. (Default: 3)")
-        parser.add_argument("-td", "--TranDensity", type=float, default=0.001472, help="Density at which Crustal EOS ends (Default: 0.001472)")
-        parser.add_argument("-pd", "--PRCTransDensity", type=float, default=-1, help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
-        parser.add_argument("-cs", "--CrustSmooth", type=float, default=0., help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
-        parser.add_argument("-mm", "--MaxMassRequested", type=float, default=2, help="Maximum Mass to be achieved for EOS in unit of solar mass (Default: 2)")
-        parser.add_argument("-cf", "--CrustFileName", default='Constraints/EOSCrustOutput.dat', help="Type of crustal EoS used (Default: Constraints/EOSCrustOutput.dat)")
-        parser.add_argument("--PBar", dest='PBar', action='store_true', help="Enable if you don't need to display everything during calculation, just a progress bar")
-        parser.add_argument("-tg", "--TargetMass", type=float, nargs='+', default=[1.4], help="Target mass of the neutron star. (default: 1.4)")
+        parser.add_argument("-i", "--Input", help="Name of the Skyrme input file")
+        parser.add_argument("-o", "--Output", help="Name of the CSV output")
+        parser.add_argument("-et", "--EOSType", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme")
         parser.add_argument("--NoPPTX", dest='NoPPTX', action='store_true', help="Enable if you don't need a PowerPoint report. Recommended for HPCC calculation as it cannot make use of multicores")
-        parser.add_argument("-c", "--nCPU", type=int, default=10, help="Number of CPU used in each nodes (default: 10)")
         args = parser.parse_args()
         
         df_orig = LoadSkyrmeFile(args.Input)
         argd = vars(args)
-        rho0 = 0.16
-        argd['TranDensity'] = argd['TranDensity']*rho0
-        argd['SkyrmeDensity'] = argd['SkyrmeDensity']*rho0
-        argd['PolyTropeDensity'] = argd['PolyTropeDensity']*rho0
-        
         # divide dataframe into equal pieces
         df_orig = np.array_split(df_orig, size)
     else:

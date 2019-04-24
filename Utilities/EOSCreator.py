@@ -1,4 +1,5 @@
 #from pebble import ProcessPool
+import configargparse
 from autograd import elementwise_grad as egrad
 from copy import copy
 import matplotlib.pyplot as plt
@@ -10,6 +11,8 @@ import pandas as pd
 import scipy.optimize as opt
 from scipy.interpolate import UnivariateSpline
 import sys
+import logging
+from multiprocessing_logging import install_mp_handler, MultiProcessingHandler
 
 from TidalLove import TidalLoveWrapper as wrapper
 import Utilities as utl
@@ -17,6 +20,19 @@ import Utilities.SkyrmeEOS as sky
 from Utilities.Constants import *
 from Utilities.BetaEquilibrium import BetaEquilibrium
 
+logger = logging.getLogger(__name__)
+install_mp_handler(logger)
+
+p = configargparse.get_argument_parser()
+if len(p._default_config_files) == 0:
+    p._default_config_files.append('Default.ini')
+
+p.add_argument("-pd", "--PRCTransDensity", type=float,  help="Enable PRC automatic density transition. Value entered determine fraction of density that is represented by relativistic gas")
+p.add_argument("-cf", "--CrustFileName", help="Type of crustal EoS used")
+p.add_argument("-pp", "--PolyTropeDensity", type=float, help="Density at which Skyrme EOS ends.")
+p.add_argument("-cs", "--CrustSmooth", type=float, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
+p.add_argument("-td", "--TransDensity", type=float, help="Transition density where crustal EOS stops. Ignored if PRCTransDensity > 0")
+p.add_argument("-sd", "--SkyrmeDensity", type=float, help="Density at which Skyrme/Meta/PowerLaw/Rod EOS begins. Ignored if PRCTransDensity > 0")
 
 def FindCrustalTransDensity(Skryme):
     """
@@ -32,9 +48,8 @@ def FindCrustalTransDensity(Skryme):
 class EOSCreator:
     placeholder4connection = 13256
 
-    def __init__(self, row):
+    def __init__(self):
         self.EQType = None # type of EOS for which equilibrium is calculated
-        self.row = row
         self.BENuclear = None 
         self.rho = None 
         self.pfrac = None 
@@ -47,67 +62,51 @@ class EOSCreator:
         Only load the externally imported EOS
         No beta equilibrium for fast EOS fetching
         """
+        args, unknown = p.parse_known_args()
+        kwargs = {**vars(args), **kwargs}
+        logger.debug('Combined arguments: ' + str(kwargs))
         EOSType = kwargs['EOSType']
         if EOSType == 'Rod':
             # load Rodrigo EFT functional
             df_E = pd.read_csv('SkyrmeParameters/Rodrigo_extended.csv')
             df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym_extended.csv')
-            self.ImportedEOS = sky.SplineEOS.Construct(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
+            self.ImportedEOS = sky.SplineEOS.Construct(df_E['rho(fm-3)'], energy=df_E[kwargs['Name']] + 931.8, 
+                                                       rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[kwargs['Name']])
         elif EOSType == 'Power' or EOSType == 'PowerNoPolyTrope':
             self.ImportedEOS = sky.PowerLawEOS(self.row)
         elif EOSType == 'Meta' or EOSType == 'Meta2Poly':
-            if 'msat' not in self.row:
-                self.row['msat'] = 0.73
-                self.row['kv'] = 0.46
-            self.ImportedEOS = sky.MetaModeling(self.row)
+            if 'msat' not in kwargs:
+                kwargs['msat'] = 0.73
+                kwargs['kv'] = 0.46
+            self.ImportedEOS = sky.MetaModeling(kwargs)
         else:
-            self.ImportedEOS = sky.Skryme(self.row)
-
-
-
+            self.ImportedEOS = sky.Skryme(kwargs)
 
     def PrepareEOS(self, **kwargs):
+        args, unknown = p.parse_known_args()
+        kwargs = {**vars(args), **kwargs}
         EOSType = kwargs['EOSType']
+        self.ImportEOS(**kwargs)
        
-        # Set default values if they don't exist
-        if 'PRCTransDensity' not in kwargs:
-            kwargs['PRCTransDensity'] = 0.3
-        if 'PolyTropeDensity' not in kwargs:
-            kwargs['PolyTropeDensity'] = 2.5*0.16
-
-
-        if EOSType == 'Rod':
-            # load Rodrigo EFT functional
-            df_E = pd.read_csv('SkyrmeParameters/Rodrigo_extended.csv')
-            df_Sym = pd.read_csv('SkyrmeParameters/Rodrigo_sym_extended.csv')
-            self.ImportedEOS = sky.SplineEOS.Construct(df_E['rho(fm-3)'], energy=df_E[self.row['Name']] + 931.8, rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[self.row['Name']])
-            self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
-
-        elif EOSType == 'Power' or EOSType == 'PowerNoPolyTrope':
-            self.ImportedEOS = sky.PowerLawEOS(self.row)
-            self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
-
-        elif EOSType == 'EOSNoCrust':
-            self.ImportedEOS = sky.Skryme(self.row)
-            self.BENuclear = self.ImportedEOS
-        elif EOSType == 'Meta' or EOSType == 'Meta2Poly':
-            if 'msat' not in self.row:
-                self.row['msat'] = 0.73
-                self.row['kv'] = 0.46
-            self.ImportedEOS = sky.MetaModeling(self.row)
-            self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
-        else:
-            self.ImportedEOS = sky.Skryme(self.row)
-            self.BENuclear, self.rho, self.pfrac, self.mufrac = BetaEquilibrium(self.ImportedEOS)
-
-        if EOSType == "EOS2Poly" or EOSType == 'Meta2Poly':
-            kwargs['SoundHighDensity'] = kwargs['PolyTropeDensity']
-            #kwargs = self._FindEOS2PolyTransDensity(**kwargs)
-
         if kwargs['PRCTransDensity'] > 0:
             kwargs['TranDensity'] = kwargs['PRCTransDensity']*FindCrustalTransDensity(self.ImportedEOS)
             kwargs['SkyrmeDensity'] = FindCrustalTransDensity(self.ImportedEOS)
 
+        if EOSType != 'EOSNoCrust':
+            if EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':
+                be = BetaEquilibrium(self.ImportedEOS,
+                                     np.linspace(0.7*kwargs['SkyrmeDensity']/0.16, 10, 100))
+            else:
+                be = BetaEquilibrium(self.ImportedEOS,
+                                     np.linspace(0.7*kwargs['SkyrmeDensity']/0.16, 1.5*kwargs['PolyTropeDensity']/0.16, 100))
+
+
+            self.BENuclear = be[0]
+            self.rho = be[1] 
+            self.pfrac = be[2] 
+            self.mufrac = be[3]   
+        else:
+            self.BENuclear = self.ImportedEOS
 
         # Needs to fix maximum mass for the equation of state
         if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'Rod' or EOSType == 'Power':
@@ -115,7 +114,7 @@ class EOSCreator:
                 kwargs['PressureHigh'] = 500
                 kwargs = self._FindMaxMassForEOS(**kwargs)
 
-        return kwargs
+        return self.GetEOSType(**kwargs)
 
     def GetEOSType(self, **kwargs):
         self.density_list = []
@@ -132,27 +131,42 @@ class EOSCreator:
             self.GetEOSNoCrust(**kwargs)
         self.density_list[-1] = (self.density_list[-1][0], 100)
         eos = sky.EOSConnect(self.density_list, self.eos_list)
-        return eos, [rho[0] for rho in self.density_list[1:][::-1]]
+        # also returns the arguments such that next time some calculation needs not be done
+        return eos, [rho[0] for rho in self.density_list[1:][::-1]], kwargs
 
-    def GetEOS(self, CrustFileName, CrustSmooth, PRCTransDensity, PressureHigh, PolyTropeDensity, TranDensity, SkyrmeDensity, **kwargs):
+    def GetEOS(self, 
+               CrustFileName, 
+               CrustSmooth, 
+               PressureHigh, 
+               PolyTropeDensity, 
+               TranDensity, 
+               SkyrmeDensity, 
+               **kwargs):
         self.InsertCrust(CrustFileName, TranDensity, CrustSmooth=CrustSmooth)
         self.InsertConnection(sky.PseudoEOS, SkyrmeDensity)
         self.InsertMain(self.BENuclear, PolyTropeDensity)
         self.InsertConnection(sky.PolyTrope, 7*self.ImportedEOS.rho0, final_pressure=PressureHigh)
         self.Finalize()
 
-    def GetEOS2Poly(self, CrustFileName, CrustSmooth, SoundHighDensity, PolyTropeDensity, PRCTransDensity, TranDensity, SkyrmeDensity, **kwargs):
+    def GetEOS2Poly(self, 
+                    CrustFileName, 
+                    CrustSmooth, 
+                    PolyTropeDensity, 
+                    TranDensity, 
+                    SkyrmeDensity, 
+                    **kwargs):
         self.InsertCrust(CrustFileName, TranDensity, CrustSmooth=CrustSmooth)
         self.InsertSmoothConnection(sky.PseudoEOS, SkyrmeDensity)
         self.InsertMain(self.BENuclear, PolyTropeDensity)
-        if SoundHighDensity < PolyTropeDensity:
-            self.InsertConnection(sky.ConstSpeed, 100)
-        else:
-            self.InsertConnection(sky.PolyTrope, SoundHighDensity, final_pressure=0, gamma=14)
-            self.InsertConnection(sky.ConstSpeed, 100)
+        self.InsertConnection(sky.ConstSpeed, 100)
         self.Finalize()
 
-    def GetEOSNoPolyTrope(self, CrustFileName, CrustSmooth, PRCTransDensity, TranDensity, SkyrmeDensity, **kwargs):
+    def GetEOSNoPolyTrope(self, 
+                          CrustFileName, 
+                          CrustSmooth, 
+                          TranDensity, 
+                          SkyrmeDensity, 
+                          **kwargs):
         self.InsertCrust(CrustFileName, TranDensity, CrustSmooth=CrustSmooth)
         self.InsertSmoothConnection(sky.PseudoEOS, SkyrmeDensity)
         self.InsertMain(self.BENuclear, 100)
@@ -164,37 +178,18 @@ class EOSCreator:
         #self.InsertConnection(sky.PolyTrope, 7*self.ImportedEOS.rho0, final_pressure=PressureHigh)
         self.Finalize()
 
-    def _FindEOS2PolyTransDensity(self, **kwargs):
-       if 'SoundSpeed' not in kwargs:
-           kwargs['SoundSpeed'] = 0.8
-       if 'SoundHighDensity' not in kwargs:
-           PolyTropeDensity = kwargs['PolyTropeDensity']
-           poly1 = sky.PolyTrope(PolyTropeDensity, 
-                                 self.BENuclear.GetEnergy(PolyTropeDensity, 0), 
-                                 self.BENuclear.GetPressure(PolyTropeDensity, 0), 
-                                 1, 1, gamma=14)
-           # find where speed of sound = 95% c
-           try:
-               SoundHighDensity = opt.newton(lambda x: poly1.GetSpeedOfSound(x, 0) 
-                                             - kwargs['SoundSpeed']*kwargs['SoundSpeed'], 
-                                                  x0=PolyTropeDensity)   
-               if SoundHighDensity < PolyTropeDensity:
-                   SoundHighDensity = PolyTropeDensity
-           except RuntimeError:
-               raise ValueError('Cannot find density corresponds to 0.8c. This can be an indication that the starting energy/pressure is negative')
-           kwargs['SoundHighDensity'] = SoundHighDensity
-       return kwargs
-
 
     def _FindMaxMassForEOS(self, **kwargs):
         if not 'MaxMassRequested' in kwargs:
             kwargs['MaxMassRequested'] = 2.
 
-        eos, _ = self.GetEOSType(**kwargs)
+        eos, _, _ = self.GetEOSType(**kwargs)
         def FixMaxMass(pressure):
             eos.eos_list[-1].ChangeFinalPressure(7*self.ImportedEOS.rho0, pressure)
             with wrapper.TidalLoveWrapper(eos) as tidal_love:
-                pc, max_m, _, _, _, _ = tidal_love.FindMaxMass()
+                result = tidal_love.FindMaxMass()
+                pc = result['PCentral'] 
+                max_m = result['mass']
                 if np.isnan(max_m):
                     raise ValueError('Mass maximization failed')
             return max_m - kwargs['MaxMassRequested']
@@ -209,16 +204,25 @@ class EOSCreator:
                                                  energy_density=crust['E(MeV/fm3)'].values,
                                                  smooth=kwargs['CrustSmooth'],
                                                  pressure=crust['P(MeV/fm3)'].values)
-
+         if len(self.density_list) != 0:
+             raise RuntimeError('InsertCrust can only be used when it is the outermost layer. Are you sure that not EOS is inserted before Crust?')
          self.density_list.append((-1, final_density))
          self.eos_list.append(self.crustEOS)
 
     def InsertConnection(self, eos_type, final_density, **kwargs):
+         if len(self.density_list) == 0:
+             raise RuntimeError('Connection EOS cannot be placed at the start.')
          ini_density = self.density_list[-1][1]
          self.density_list.append((ini_density, final_density))
          self.eos_list.append((eos_type.MatchBothEnds, kwargs))
 
     def InsertSmoothConnection(self, eos_type, final_density, **kwargs):
+         """
+         Smooth connection is always spline EOS
+         It takes any EOS type, but they will be all casted into Spline for smooth connection
+         """
+         if len(self.density_list) == 0:
+             raise RuntimeError('Connection EOS cannot be placed at the start.')
          ini_density = self.density_list[-1][1]
          self.density_list.append((ini_density, final_density))
          kwargs['int_EOS_type'] = eos_type
@@ -229,7 +233,6 @@ class EOSCreator:
              ini_density = self.density_list[-1][1]
          else:
              ini_density = -1
-
          self.density_list.append((ini_density, final_density))
          self.eos_list.append(eos)
 
@@ -243,12 +246,12 @@ class EOSCreator:
                      next_eos = None
                  else:
                      next_eos = self.eos_list[index+1]
-                 self.eos_list[index] = constructor(ini_rho=ini_density, ini_eos=prev_eos, final_rho=final_density, final_eos=next_eos, **kwargs)
+                 self.eos_list[index] = constructor(ini_rho=ini_density, 
+                                                    ini_eos=prev_eos, 
+                                                    final_rho=final_density, 
+                                                    final_eos=next_eos, 
+                                                    **kwargs)
 
-
-
-
-       
             
 def SummarizeSkyrme(eos_creator):
     """

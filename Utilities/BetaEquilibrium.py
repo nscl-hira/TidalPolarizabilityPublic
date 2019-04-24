@@ -12,7 +12,7 @@ import Utilities.SkyrmeEOS as sky
 from Utilities.Constants import *
 
 
-def BetaEquilibrium(SkyrmeEOS):
+def BetaEquilibrium(SkyrmeEOS, rho=np.concatenate([np.linspace(1e-10, 0.09, 100), np.linspace(0.1,10,100)])):
     """
     This function will return a equilibrated Skyrme in terms of EOSSpline
     from 0.1rho0 to 3rho0
@@ -27,20 +27,13 @@ def BetaEquilibrium(SkyrmeEOS):
         mu_energy = mu_fermi.GetEnergyDensity(rho*pfrac*mufrac, 0)
         return nuc_energy + ele_energy + mu_energy
 
-    def GetPressure(rho, pfrac, mufrac):
-        nuc_pressure = SkyrmeEOS.GetPressure(rho, pfrac)
-        ele_pressure = ele_fermi.GetPressure(rho*pfrac*(1-mufrac), 0)
-        mu_pressure = mu_fermi.GetPressure(rho*pfrac*mufrac, 0)
-        return nuc_pressure + ele_pressure + mu_pressure
-
-    rho = np.concatenate([np.linspace(1e-10, 0.09, 100), np.linspace(0.1,10,100)])
     rho0 = SkyrmeEOS.rho0
     min_result = [optimize.minimize(lambda frac: GetEnergy(rho_*rho0, frac[0], frac[1]), [0.5, 0.5], bounds=[(1e-14, 1), (1e-14,1)], method='SLSQP', options={'disp':False}) for rho_ in rho]
 
     energy = [min_.fun for min_ in min_result]
     pfrac = np.array([min_.x[0] for min_ in min_result])
     mufrac = np.array([min_.x[1]*min_.x[0] for min_ in min_result])
-    return sky.SplineEOS.Construct(rho*rho0, energy/(rho*rho0), smooth=0.1), rho*rho0, pfrac, mufrac#, sky.EOSSpline(rho*rho0, energy_density=ele_fermi.GetEnergyDensity(rho*rho0*pfrac*(1-mufrac), 0), pressure=ele_fermi.GetPressure(rho*rho0*pfrac*(1-mufrac), 0), smooth=0), sky.EOSSpline(rho*rho0, energy_density=mu_fermi.GetEnergyDensity(rho*rho0*pfrac*mufrac, 0), pressure=mu_fermi.GetPressure(rho*rho0*pfrac*mufrac, 0), smooth=0)
+    return sky.SplineEOS.Construct(rho*rho0, energy/(rho*rho0), smooth=0.1), rho*rho0, pfrac, mufrac
 
 
 if __name__ == "__main__":
