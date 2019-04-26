@@ -94,6 +94,7 @@ class EOSCreator:
 
         if EOSType != 'EOSNoCrust':
             if EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':
+                logger.debug('Calculating Beta equilibrium for EOS')
                 be = BetaEquilibrium(self.ImportedEOS,
                                      np.linspace(0.7*kwargs['SkyrmeDensity']/0.16, 10, 100))
             else:
@@ -111,8 +112,13 @@ class EOSCreator:
         # Needs to fix maximum mass for the equation of state
         if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'Rod' or EOSType == 'Power':
             if not 'PressureHigh' in kwargs:
+                logger.debug('Looking for polytrope that forms designated neutron stars')
                 kwargs['PressureHigh'] = 500
-                kwargs = self._FindMaxMassForEOS(**kwargs)
+                try:
+                    kwargs = self._FindMaxMassForEOS(**kwargs)
+                except Exception as error:
+                    logger.exception('Polytrope cannot help EOS attend the required maximum mass')
+                    raise error
 
         return self.GetEOSType(**kwargs)
 
@@ -253,12 +259,11 @@ class EOSCreator:
                                                     **kwargs)
 
             
-def SummarizeSkyrme(eos_creator):
+def SummarizeSkyrme(sky_eos):
     """
     This function will print out the value of E0, K0, K'=-Q0, J=S(rho0), L, Ksym, Qsym, m*
     """
 
-    sky_eos = eos_creator.ImportedEOS
     try:
         rho0 = sky_eos.rho0
         E0 = sky_eos.GetEnergy(rho0, 0.5)

@@ -1,5 +1,5 @@
 from decimal import Decimal
-from TidalLove import TidalLove_analysis as tidal
+from TidalLove.TidalLoveWrapper import TidalLoveWrapper
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
@@ -23,17 +23,16 @@ def PressureComposition(ax, eos, trans_dens, eos_name, filename):
     trans_pressure = eos.GetPressure(trans_dens, 0)
 
     start = time.time()
-    for file_ in eos.ToTempFile():
-        mass, radius, pressure, y, size = tidal.tidallove_analysis(file_.name, row['PCentral'])
+    max_pressure = row['PCentral']
+    max_density = opt.newton(lambda rho: eos.GetPressure(rho, 0) - max_pressure, x0=0.16)
+    min_density = opt.newton(lambda rho: eos.GetPressure(rho, 0) - 1e-8, x0=1e-5)
 
-    radius = radius[0:size - 1]
-    num = radius.shape[0]
-    it = np.linspace(0, 0.9*(num-1), 60, dtype=np.int).tolist()
-    it = it + np.linspace(0.9*(num-1), num-1, 40, dtype=np.int).tolist()
-    mass = mass[it]
-    radius = radius[it]
-    pressure = pressure[it]
-    y = y[it]
+    with TidalLoveWrapper(eos) as tlove:
+        tlove.density_checkpoint = np.linspace(min_density, max_density, 200).tolist()
+        result = tlove.FindMass(1.4)
+        mass = result['Checkpoint_mass']
+        radius = result['Checkpoint_radius']
+        pressure = tlove.checkpoint
 
     density = []
     for pre in pressure:
@@ -45,7 +44,7 @@ def PressureComposition(ax, eos, trans_dens, eos_name, filename):
         except Exception as error:
             density.append(0)
 
-    data = pd.DataFrame.from_dict({'mass':mass, 'radius':radius, 'pressure':pressure, 'y':y, 'density':density})
+    data = pd.DataFrame.from_dict({'mass':mass, 'radius':radius, 'pressure':pressure, 'density':density})
     color = ['r', 'b', 'g', 'orange', 'b', 'pink']
     labels = ['', 'Crustal EOS', 'Electron gas', 'Skyrme'] + ['']*(len(trans_dens) - 4)
     data = data[data['pressure'] > 1e-9]

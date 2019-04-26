@@ -173,6 +173,7 @@ if __name__ == '__main__':
 
     logger.debug('Gathering results from all ranks')
     df = comm.gather(df, root=0)
+    logger.debug('Result Gathered')
     if rank == 0:
         df = [x for x in df if x is not None]
         df = pd.concat(df)
@@ -186,13 +187,14 @@ if __name__ == '__main__':
                logger.warning('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name, output_name))
                output_name = '%s_new' % output_name
  
-
         if argd['NoPPTX']:
             logger.debug('No PPTX requested. ending')
             sys.exit()
-
         print('Start creating PPTX report...')
         try:
+            if 'NoData' in df:
+                df = df[df['NoData'] == False]
+
             pars = pptx.CreateFirstSlide('EOS NS simulation', 'This is just a sample of all the results. Only intended for fast debugging')
             
             max_sample = 500 # only draw 500 EOS for efficiency considerasion
@@ -250,4 +252,3 @@ if __name__ == '__main__':
                 logger.warning('Cannot write to file %s. Will output to %s_new.pptx instead' % (output_name, output_name))
                 output_name = '%s_new' % output_name
     
-   

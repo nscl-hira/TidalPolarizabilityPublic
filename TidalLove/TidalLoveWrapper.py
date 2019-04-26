@@ -33,16 +33,55 @@ class TidalLoveWrapper:
         self.max_energy, self.max_pressure = eos.GetMaxDef()
         logger.debug('EOS is valid up till energy = %f, pressure = %f' % (self.max_energy, self.max_pressure))
         # pressure needs to be expressed as pascal for pc
-        self.max_pressure# /= 3.62704e-5
+        #self.max_pressure# /= 3.62704e-5
         self.ans = ()
         self.surface_pressure = 1e-8 # default pressure defined at surface
-        self.checkpoint = [1e-3]
+        self._checkpoint = [self.surface_pressure]
+        self._named_density_checkpoint = []
+        self._density_checkpoint = []
 
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
         self.Close()
+
+    @property
+    def checkpoint(self):
+        return self._checkpoint
+
+    @checkpoint.setter
+    def checkpoint(self, value):
+        # checkpoint list must be in desending order
+        value.sort(reverse=True)
+        self._density_checkpoint = []
+        for pre in value:
+            try:
+                self._density_checkpoint.append(opt.newton(lambda rho: self.eos.GetPressure(rho, 0) - pre, x0=self.eos.rho0))
+            except Exception:
+                self._density_checkpoint.append(0)
+        self._checkpoint = value
+
+    @property
+    def density_checkpoint(self):
+        return self._density_checkpoint
+
+    @density_checkpoint.setter
+    def density_checkpoint(self, value):
+        value.sort(reverse=True)
+        self._checkpoint = self.eos.GetPressure(np.array(value), 0).tolist()
+        self._density_checkpoint = value
+
+    @property
+    def named_density_checkpoint(self):
+        return self._named_density_checkpoint
+ 
+    @named_density_checkpoint.setter
+    def named_density_checkpoint(self, value):
+        # named checkpoints must be list of tuple
+        value.sort(reverse=True, key=lambda tup: tup[1])
+        self._named_density_checkpoint = value
+        self.density_checkpoint = [val[1] for val in value]
 
     def Calculate(self, pc):
         # return order
@@ -59,13 +98,7 @@ class TidalLoveWrapper:
             raise RuntimeError('Calculated mass smaller than zero. EOS exceed its valid range')
         return self.ans
 
-    def SetDensityCheckpoints(self, density_checkpoints):
-        self.checkpoint = self.eos.GetPressure(np.array(density_checkpoints), 0).tolist()
-
     def FindMaxMass(self, central_pressure0=500, disp=False, *args):
-        # checkpoint list must be in desending order
-        self.checkpoint.sort(reverse=True)
-         
         if central_pressure0 > self.max_pressure:
             logger.warning('Default pressure %g exceed max. valid pressure %.3f. Will ignore default pressure' % (central_pressure0, self.max_pressure))
             central_pressure0 = 0.7*self.max_pressure
@@ -88,9 +121,6 @@ class TidalLoveWrapper:
         return {'PCentral': pc['x'][0], 'DensCentral':DensCentralMax, **self.ans}
 
     def FindMass(self, central_pressure0=60, mass=1.4, *args, **kwargs):
-        # checkpoint list must be in desending order
-        self.checkpoint.sort(reverse=True)
-
         if central_pressure0 > self.max_pressure:
             logger.warning('Default pressure %g exceed max. valid pressure %.3f. Will ignore default pressure' % (central_pressure0, self.max_pressure))
             central_pressure0 = 0.7*self.max_pressure
@@ -100,9 +130,7 @@ class TidalLoveWrapper:
         except Exception as error:
             logger.exception('Failed to find NS mass %g' % mass)
             raise error
-            #self.ans = tuple([np.nan for ans in self.ans])
 
-        # infer central density from central pressure
         try:
             DensCentral = opt.newton(lambda x: self.eos.GetPressure(x, 0) - pc, x0=2*0.16)
         except Exception as error:

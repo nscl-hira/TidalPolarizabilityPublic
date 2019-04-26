@@ -52,8 +52,7 @@ def CheckCausality(eos, rho_max):
         return True, True, rho[idx][0]
  
 
-def AdditionalInfo(eos_creator):
-    eos = eos_creator.ImportedEOS
+def AdditionalInfo(eos):
     rho0 = eos.rho0
     return {'P(4rho0)':eos.GetPressure(4*rho0, 0),
             'P(3.5rho0)':eos.GetPressure(3.5*rho0, 0),
@@ -81,10 +80,18 @@ def AdditionalInfo(eos_creator):
             'L(rho0)':eos.GetL(rho0),
             'L(0.67rho0)':eos.GetL(0.67*rho0)}
 
+def dUrca(eos_creator, density):
+    xep = eos_creator.pfrac*(1-eos_creator.mufrac)/eos_creator.pfrac
+    xDU = 1./(1.+(1.+np.power(xep, 1/3.)**3))
+    idx = np.abs(eos_creator.rho - density).argmin()
+    return any(eos_creator.pfrac[:idx] > xDU[:idx])
+    
+
 def RenameResultKey(tidal_results, cp_checkpoints, mass=None):
     if mass is None:
         mass = tidal_results['mass']
     RenamedResults = {'PCentral(%g)'%mass : tidal_results['PCentral'],
+                      'DensCentral(%g)'%mass : tidal_results['DensCentral'],
                       'R(%g)'%mass : tidal_results['Radius'],
                       'lambda(%g)'%mass : tidal_results['Lambda']}
 
@@ -108,63 +115,69 @@ def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs
     Prepare EOS
     """
     logger.debug('Preparing EOS %s', name)
-    eos, list_tran_density, kwargs = eos_creator.PrepareEOS(**{'EOSType': EOSType, 
-                                                               'MaxMassRequested': MaxMassRequested,
-                                                               **name_and_eos[1], 
-                                                               **kwargs})
-
-    # insert surface density
-    list_tran_density.append(OuterCrustDensity)
-    """
-    1.4 solar mass and 2.0 solar mass calculation
-    """
     result = {}
-
-    with wrapper.TidalLoveWrapper(eos) as tidal_love:
-        tidal_love.SetDensityCheckpoints(list_tran_density)
-        logger.debug('Finding maximum mass for EOS %s', name)
-        try:
-            MaxMassResult = tidal_love.FindMaxMass()
-            result['PCentralMaxMass'] = MaxMassResult['PCentral']
-            result['MaxMass']  = MaxMassResult['mass']
-            result['DensCentralMax'] = MaxMassResult['DensCentral']
-
-            if result['MaxMass'] >= MaxMassRequested: 
-                logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % (MaxMassRequested, name))
-                TidalResult = RenameResultKey(tidal_love.FindMass(mass=MaxMassRequested), list_tran_density, MaxMassRequested)
-                result = {**result, **TidalResult}
-        except Exception as error:
-            logger.warning('Cannot find maximum mass for %s' % name)
-
-        for tg in TargetMass:
+    try:
+        eos, list_tran_density, kwargs = eos_creator.PrepareEOS(**{'EOSType': EOSType, 
+                                                                   'MaxMassRequested': MaxMassRequested,
+                                                                   **name_and_eos[1], 
+                                                                   **kwargs})
+    except Exception:
+        logger.exception('EOS cannot be created')
+    else:
+        # insert surface density
+        list_tran_density.append(OuterCrustDensity)
+        """
+        1.4 solar mass and 2.0 solar mass calculation
+        """
+    
+        with wrapper.TidalLoveWrapper(eos) as tidal_love:
+            tidal_love.density_checkpoint = list_tran_density
+            logger.debug('Finding maximum mass for EOS %s', name)
             try:
-                logger.debug('Finding NS with mass %g for %s' % (tg, name))
-                TidalResult = RenameResultKey(tidal_love.FindMass(mass=tg), list_tran_density, tg)
-                result = {**result, **TidalResult}
-            except Exception as error:
-                logger.warning('Cannot form NS with mass %g for %s' % (tg, name))
+                MaxMassResult = tidal_love.FindMaxMass()
+                result['PCentralMaxMass'] = MaxMassResult['PCentral']
+                result['MaxMass']  = MaxMassResult['mass']
+                result['DensCentralMax'] = MaxMassResult['DensCentral']
+
+                if result['MaxMass'] >= MaxMassRequested: 
+                    logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % (MaxMassRequested, name))
+                    TidalResult = RenameResultKey(tidal_love.FindMass(mass=MaxMassRequested), list_tran_density, MaxMassRequested)
+                    result = {**result, **TidalResult}
+            except:
+                logger.warning('Cannot find maximum mass for %s' % name)
+
+            for tg in TargetMass:
+                try:
+                    logger.debug('Finding NS with mass %g for %s' % (tg, name))
+                    TidalResult = RenameResultKey(tidal_love.FindMass(mass=tg), list_tran_density, tg)
+                    result = {**result, **TidalResult}
+                except:
+                    logger.warning('Cannot form NS with mass %g for %s' % (tg, name))
+        logger.debug('Causality checking for EOS %s' % name)
+        try:
+            result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = CheckCausality(eos, result['DensCentralMax'])
+            #result['dUrca'] = dUrca(eos_creator, result['DensCentral(1.4)'])
+        except Exception as error:
+            logger.exception('Causality cannot be determined')
+ 
                 
     if not bool(result):
-        raise RuntimeError('No neutron stars of any mass can be formed with %s' % name)
+        logger.debug('No NS can be formed with EOS %s' % name)
+        result['NoData'] = True
+    else:
+        result['NoData'] = False
 
-    if 'MaxMass' not in result:
-       result['MaxMass'] = 0
-       result['DensCentralMax'] = 1.6
     result['Model'] = name
-   
     logger.debug('Creating summarize information for EOS %s' % name)
-    summary = SummarizeSkyrme(eos_creator)
+    summary = SummarizeSkyrme(eos_creator.ImportedEOS)
     logger.debug('Adding P, P_sym, S_sym information for EOS %s' % name)
-    additional_info = AdditionalInfo(eos_creator)
-    logger.debug('Causality checking for EOS %s' % name)
-    result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = CheckCausality(eos, result['DensCentralMax'])
+    additional_info = AdditionalInfo(eos_creator.ImportedEOS)
 
-    result = {**result, **kwargs, **summary, **additional_info}
-    return result
+    return {**kwargs, **result, **summary, **additional_info}
 
 
 
-def CalculatePolarizability(df, Output, comm, **kwargs):
+def CalculatePolarizability(df, Output, comm, **kwargs): 
     total = df.shape[0]
     args, unknown = p.parse_known_args()
     kwargs = {**kwargs, **vars(args)}
@@ -228,13 +241,10 @@ def CalculatePolarizability(df, Output, comm, **kwargs):
         data.dropna(axis=0, how='all', inplace=True)
         data = pd.concat([df[cols_to_use].loc[data.index], data], axis=1)    
 
-        
-        data.index = data.index.map(str)
         logger.debug('merged')
+        return data
     else:
-        data = None
-
-    return data
+        return None
 
 if __name__ == "__main__":
     p.add_argument("-i", "--Input", help="Name of the Skyrme input file")
