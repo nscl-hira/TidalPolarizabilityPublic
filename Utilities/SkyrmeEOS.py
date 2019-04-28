@@ -47,6 +47,9 @@ class EOS:
         grad_edensity = egrad(self.GetEnergy, 0)(rho, pfrac)
         return rho*rho*grad_edensity
 
+    def GetdPressure(self, rho, pfrac=0):
+        return egrad(self.GetPressure, 0)(rho, pfrac)
+
     def GetEnergyDensity(self, rho, pfrac=0):
         return rho*self.GetEnergy(rho, pfrac)
 
@@ -175,6 +178,10 @@ class EOSConnect(EOS):
 
     def GetPressure(self, rho, pfrac=0):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetPressure(rho, pfrac))(eos) for eos in self.eos_list])
+
+    def GetdPressure(self, rho, pfrac=0):
+        return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.GetdPressure(rho, pfrac))(eos) for eos in self.eos_list])
+
 
     def Get2EGrad(self, rho, pfrac=0):
         return np.piecewise(rho, self._Interval(rho), [(lambda func: lambda rho: func.Get2EGrad(rho, pfrac))(eos) for eos in self.eos_list])

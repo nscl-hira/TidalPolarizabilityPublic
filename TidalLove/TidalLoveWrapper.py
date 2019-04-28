@@ -57,7 +57,8 @@ class TidalLoveWrapper:
         self._density_checkpoint = []
         for pre in value:
             try:
-                self._density_checkpoint.append(opt.newton(lambda rho: self.eos.GetPressure(rho, 0) - pre, x0=self.eos.rho0))
+                self._density_checkpoint.append(opt.newton(lambda rho: self.eos.GetPressure(rho, 0) - pre, x0=self.eos.rho0, 
+                                                           fprime=lambda x: self.eos.GetdPressure(x, 0)))
             except Exception:
                 self._density_checkpoint.append(0)
         self._checkpoint = value
@@ -95,7 +96,15 @@ class TidalLoveWrapper:
                     'Checkpoint_mass': ans[3], 
                     'Checkpoint_radius': ans[4]}
         if self.ans['mass'] < 0:
+            nan_arr = np.empty(ans[3].shape)
+            nan_arr.fill(np.nan)
+            self.ans = {'mass': np.nan, 
+                        'Radius': np.nan, 
+                        'Lambda': np.nan, 
+                        'Checkpoint_mass': nan_arr, 
+                        'Checkpoint_radius': nan_arr}
             raise RuntimeError('Calculated mass smaller than zero. EOS exceed its valid range')
+
         return self.ans
 
     def FindMaxMass(self, central_pressure0=500, disp=False, *args):
@@ -108,17 +117,18 @@ class TidalLoveWrapper:
                               x0=np.array([central_pressure0]), 
                               bounds=((0, None),), 
                               options={'eps':0.1, 'ftol':1e-3})
+            pc = pc['x'][0]
         except Exception as error:
             logger.exception('Failed to find max mass')
-            raise error
-
+            pc = np.nan
         # infer central density from central pressure
         try:
-            DensCentralMax = opt.newton(lambda x: self.eos.GetPressure(x, 0) - pc['x'][0], x0=5*0.16)
+            DensCentralMax = opt.newton(lambda x: self.eos.GetPressure(x, 0) - pc, x0=5*0.16,
+                                        fprime=lambda x: self.eos.GetdPressure(x, 0)) 
         except Exception as error:
-            logger.warning('Cannot find central density for mass %g' % self.ans['mass'])
-            DensCentralMax = 0
-        return {'PCentral': pc['x'][0], 'DensCentral':DensCentralMax, **self.ans}
+            logger.exception('Cannot find central density for mass %g' % self.ans['mass'])
+            DensCentralMax = np.nan
+        return {'PCentral': pc, 'DensCentral':DensCentralMax, **self.ans}
 
     def FindMass(self, central_pressure0=60, mass=1.4, *args, **kwargs):
         if central_pressure0 > self.max_pressure:
@@ -129,13 +139,14 @@ class TidalLoveWrapper:
                             x0=central_pressure0, *args, **kwargs)
         except Exception as error:
             logger.exception('Failed to find NS mass %g' % mass)
-            raise error
+            pc = np.nan
 
         try:
-            DensCentral = opt.newton(lambda x: self.eos.GetPressure(x, 0) - pc, x0=2*0.16)
+            DensCentral = opt.newton(lambda x: self.eos.GetPressure(x, 0) - pc, x0=1.5*0.16,
+                                     fprime=lambda x: self.eos.GetdPressure(x, 0)) 
         except Exception as error:
-            logger.warning('Cannot find central density for mass %g' % mass)
-            DensCentral = 0
+            logger.exception('Cannot find central density for mass %g' % mass)
+            DensCentral = np.nan
 
         return {'PCentral': pc, 'DensCentral':DensCentral, **self.ans}
 

@@ -142,12 +142,13 @@ logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(p
 logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
+    parser.add_argument("-i", "--Input", help="Name of the Skyrme input file")
+    parser.add_argument("-o", "--Output", help="Name of the CSV output")
+    parser.add_argument("-et", "--EOSType", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme")
+    parser.add_argument("--NoPPTX", dest='NoPPTX', action='store_true', help="Enable if you don't need a PowerPoint report. Recommended for HPCC calculation as it cannot make use of multicores")
+    args = parser.parse_args()
+
     if rank == 0:
-        parser.add_argument("-i", "--Input", help="Name of the Skyrme input file")
-        parser.add_argument("-o", "--Output", help="Name of the CSV output")
-        parser.add_argument("-et", "--EOSType", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme")
-        parser.add_argument("--NoPPTX", dest='NoPPTX', action='store_true', help="Enable if you don't need a PowerPoint report. Recommended for HPCC calculation as it cannot make use of multicores")
-        args = parser.parse_args()
         
         df_orig = LoadSkyrmeFile(args.Input)
         argd = vars(args)
@@ -166,11 +167,12 @@ if __name__ == '__main__':
     df = None
     
     try:
-        df = CalculatePolarizability(df_orig, comm=comm, **argd)
+        CalculatePolarizability(df_orig, comm=comm, **argd)
     except Exception as e:
         print('Calculation of EOS properties stop at one point. Not all info will be avaliable')
         logger.exception('Calculation error')
 
+    """
     logger.debug('Gathering results from all ranks')
     df = comm.gather(df, root=0)
     logger.debug('Result Gathered')
@@ -252,3 +254,4 @@ if __name__ == '__main__':
                 logger.warning('Cannot write to file %s. Will output to %s_new.pptx instead' % (output_name, output_name))
                 output_name = '%s_new' % output_name
     
+   """

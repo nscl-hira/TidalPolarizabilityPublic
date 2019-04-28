@@ -65,7 +65,11 @@ def FlattenListElements(df):
     df_list = []
     for key in df.columns:
         if df[key].dtype == 'O':
-            df_list.append(pd.DataFrame(np.vstack(df[key]), index=df.index))
+            values = np.vstack(df[key])
+            if values.shape[1] > 1:
+                df_list.append(pd.DataFrame(values, index=df.index))
+            else:
+                df_list.append(pd.DataFrame(values, index=df.index, columns=[key]))
         else:
             df_list.append(df[key])
     new_df = pd.concat(df_list, keys=df.columns, axis=1)

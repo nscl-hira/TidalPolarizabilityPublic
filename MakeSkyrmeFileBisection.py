@@ -91,7 +91,7 @@ def dUrca(eos_creator, density):
     return any(eos_creator.pfrac[:idx] > xDU[:idx])
     
 
-def RenameResultKey(tidal_results, cp_checkpoints, mass=None):
+def RenameResultKey(tidal_results, mass=None):
     if mass is None:
         mass = tidal_results['mass']
     RenamedResults = {'PCentral(%g)'%mass : tidal_results['PCentral'],
@@ -99,12 +99,11 @@ def RenameResultKey(tidal_results, cp_checkpoints, mass=None):
                       'R(%g)'%mass : tidal_results['Radius'],
                       'lambda(%g)'%mass : tidal_results['Lambda']}
 
-    for index, (cp_dens, cp_mass, cp_radius) in enumerate(zip(cp_checkpoints, 
-                                                              tidal_results['Checkpoint_mass'], 
+    for index, (cp_mass, cp_radius) in enumerate(zip(tidal_results['Checkpoint_mass'], 
                                                               tidal_results['Checkpoint_radius'])):
         RenamedResults['RadiusCheckpoint%d(%g)' % (index, mass)] = cp_radius
         RenamedResults['MassCheckpoint%d(%g)' % (index, mass)] = cp_mass
-        RenamedResults['DensityCheckpoint%d(%g)' % (index, mass)] = cp_dens
+        #RenamedResults['DensityCheckpoint%d(%g)' % (index, mass)] = cp_dens
     return RenamedResults
 
 
@@ -139,47 +138,47 @@ def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs
         with wrapper.TidalLoveWrapper(eos) as tidal_love:
             tidal_love.density_checkpoint = list_tran_density
             logger.debug('Finding maximum mass for EOS %s', name)
-            try:
-                MaxMassResult = tidal_love.FindMaxMass()
-                result['PCentralMaxMass'] = MaxMassResult['PCentral']
-                result['MaxMass']  = MaxMassResult['mass']
-                result['DensCentralMax'] = MaxMassResult['DensCentral']
+            MaxMassResult = tidal_love.FindMaxMass()
+            result['PCentralMaxMass'] = MaxMassResult['PCentral']
+            result['MaxMass']  = MaxMassResult['mass']
+            result['DensCentralMax'] = MaxMassResult['DensCentral']
 
-                if result['MaxMass'] >= MaxMassRequested: 
-                    logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % (MaxMassRequested, name))
-                    TidalResult = RenameResultKey(tidal_love.FindMass(mass=MaxMassRequested), list_tran_density, MaxMassRequested)
-                    result = {**result, **TidalResult}
-            except:
-                logger.warning('Cannot find maximum mass for %s' % name)
+            if result['MaxMass'] >= MaxMassRequested: 
+                logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % (MaxMassRequested, name))
+                TidalResult = RenameResultKey(tidal_love.FindMass(mass=MaxMassRequested), MaxMassRequested)
+                result = {**result, **TidalResult}
 
             for tg in TargetMass:
-                try:
-                    logger.debug('Finding NS with mass %g for %s' % (tg, name))
-                    TidalResult = RenameResultKey(tidal_love.FindMass(mass=tg), list_tran_density, tg)
-                    result = {**result, **TidalResult}
-                except:
-                    logger.warning('Cannot form NS with mass %g for %s' % (tg, name))
+                logger.debug('Finding NS with mass %g for %s' % (tg, name))
+                TidalResult = RenameResultKey(tidal_love.FindMass(mass=tg), tg)
+                result = {**result, **TidalResult}
+
+            if all(np.isnan(value) for value in result.values()):
+                 logger.debug('No NS can be formed with EOS %s' % name)
+                 result['NoData'] = True
+            else:
+                 result['NoData'] = False
+
+
         logger.debug('Causality checking for EOS %s' % name)
         try:
             result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = CheckCausality(eos, result['DensCentralMax'])
             #result['dUrca'] = dUrca(eos_creator, result['DensCentral(1.4)'])
         except Exception as error:
             logger.exception('Causality cannot be determined')
+            result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = True, True, 0
  
-                
-    if not bool(result):
-        logger.debug('No NS can be formed with EOS %s' % name)
-        result['NoData'] = True
-    else:
-        result['NoData'] = False
+    for index, cp_dens in enumerate(list_tran_density):
+        result['DensityCheckpoint%d' % index] = cp_dens
 
-    result['Model'] = name
+    #result['Model'] = name
     logger.debug('Creating summarize information for EOS %s' % name)
     summary = SummarizeSkyrme(eos_creator.ImportedEOS)
     logger.debug('Adding P, P_sym, S_sym information for EOS %s' % name)
     additional_info = AdditionalInfo(eos_creator.ImportedEOS)
 
-    return {**kwargs, **result, **summary, **additional_info}, meta_data
+    return name, kwargs, result, summary, additional_info, meta_data
+    #return {**kwargs, **result, **summary, **additional_info}, meta_data
 
 class MetaDataIO:
     def __init__(self, filename, comm, flush_interval=10):
@@ -193,42 +192,63 @@ class MetaDataIO:
         if self.rank == 0:
             current_file = os.path.dirname(os.path.realpath(__file__))
             dirname = os.path.dirname(filename)
-            self._temp = tempfile.TemporaryDirectory(dir=os.path.join(current_file, dirname))
-            self._tempname = self._temp.name
+            self._tempname = tempfile.mkdtemp(dir=os.path.join(current_file, dirname))
         self._tempname = self.comm.bcast(self._tempname, root=0) 
         self._tempfilename = os.path.join(self._tempname, 'Rank_%d.h5' % self.rank)
-        self.store = pd.HDFStore(self._tempfilename)
-        self.names = []
-        self.values = []
+        self.store = pd.HDFStore(self._tempfilename, 'w')
+        self.names = {}
+        self.values = {}
 
-    def AppendData(self, name, value):
-        self.names.append(name)
-        self.values.append(value)
-        if len(self.names) == self.flush_interval:
-            self.Flush()
-        
+    def AppendData(self, branch, name, value):
+        if branch not in self.names:
+            self.names[branch] = []
+            self.values[branch] = []
+        self.names[branch].append(name)
+        self.values[branch].append(value)
+        if len(self.names[branch]) == self.flush_interval:
+            self.Flush(branch)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.Close()
 
     def Close(self):
-        self.Flush()
+        if len(self.names) != 0:
+            self.Flush()
         self.store.close()
+        logger.debug('Closing file %s for merging' % self.store.filename)
         self.comm.Barrier()
         self._tempfilename = self.comm.gather(self._tempfilename, root=0)
         if self.rank == 0:
-            store = pd.HDFStore(self.filename, 'w')
-            for filename in self._tempfilename:
-                temp_store = pd.HDFStore(filename)
-                store.append('meta', temp_store['meta'], min_itemsize={'index' : 30})
-                temp_store.close()
-            store.close()
-            #shutil.rmtree(self._tempname)
-            
+            with pd.HDFStore(self.filename, 'w') as store:
+                logger.debug('Saving all content to %s' % self.filename)
+                for filename in self._tempfilename:
+                    logger.debug('Merging file %s' % filename)
+                    with pd.HDFStore(filename, 'r') as temp_store:
+                        for branch in temp_store.keys():
+                            data = temp_store[branch]
+                            if branch in store:
+                                data = data.astype(store[branch].dtypes.to_dict())
+                            store.append(branch, data, min_itemsize={'index' : 30})
+            shutil.rmtree(self._tempname)
 
-    def Flush(self):
-        data = pd.DataFrame.from_dict(self.values)
-        data.index = self.names
-        self.store.append('meta', FlattenListElements(data), min_itemsize={'index': 30})
-        self.names = []
-        self.values = []
+
+    def Flush(self, branches=None):
+        if branches is None:
+            branches = self.names.keys()
+        elif isinstance(branches, str):
+            branches = [branches]
+        for branch in branches:
+            data = pd.DataFrame.from_dict(self.values[branch])
+            data.index = self.names[branch]
+            data = FlattenListElements(data)
+            if branch in self.store:
+                data = data.astype(self.store[branch].dtypes.to_dict())
+            self.store.append(branch, data, min_itemsize={'index': 30})
+            self.names[branch] = []
+            self.values[branch] = []
 
 
 
@@ -260,18 +280,23 @@ def CalculatePolarizability(df, Output, comm, **kwargs):
     """
     Save meta data for every 10 EOSs
     """
-    metaIO = MetaDataIO('Results/%s.meta.h5' % Output, comm)
+    DataIO = MetaDataIO('Results/%s.h5' % Output, comm)
     with ProcessPool(max_workers=kwargs['nCPU']) as pool:
         future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
         iterator = future.result()
         while True:
             try:
                 new_result = next(iterator)
-                result.append(new_result[0])
-                printer.PrintContent(new_result[0])
+                result.append({'Model':new_result[0], **new_result[1], **new_result[2], **new_result[3], **new_result[4]})
+                printer.PrintContent(new_result[2])
                  
                 try:
-                    metaIO.AppendData(new_result[0]['Model'], new_result[1])
+                    name = new_result[0]
+                    DataIO.AppendData('meta', name, new_result[5])
+                    DataIO.AppendData('kwargs', name, new_result[1])
+                    DataIO.AppendData('result', name, new_result[2])
+                    DataIO.AppendData('summary', name, new_result[3])
+                    DataIO.AppendData('Additional_info', name, new_result[4])
                 except Exception:
                     logger.exception('Cannot save meta')
             except StopIteration:
@@ -290,27 +315,8 @@ def CalculatePolarizability(df, Output, comm, **kwargs):
                 logger.exception('General exception received')
                 printer.PrintError(error)
             printer.ListenFor(0.1)
-    metaIO.Close()
+    DataIO.Close()
     printer.Close()            
-    """
-    Merge calculation data with Skyrme loaded data
-    """
-    if len(result) > 0:
-        logger.debug('Results found. Merging.')
-
-        data = [val for val in result]
-        data = pd.DataFrame.from_dict(data)
-        data['Model'] = data['Model'].astype(str)
-        data.set_index('Model', inplace=True)
-      
-        cols_to_use = df.columns.difference(data.columns)
-        data.dropna(axis=0, how='all', inplace=True)
-        data = pd.concat([df[cols_to_use].loc[data.index], data], axis=1)    
-
-        logger.debug('merged')
-        return data
-    else:
-        return None
 
 if __name__ == "__main__":
     p.add_argument("-i", "--Input", help="Name of the Skyrme input file")
