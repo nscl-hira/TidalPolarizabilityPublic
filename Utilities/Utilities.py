@@ -61,6 +61,26 @@ import numpy as np
 import Utilities.SkyrmeEOS as sky
 from Utilities.Constants import *
 
+def FlattenListElements(df):
+    df_list = []
+    for key in df.columns:
+        if df[key].dtype == 'O':
+            df_list.append(pd.DataFrame(np.vstack(df[key]), index=df.index))
+        else:
+            df_list.append(df[key])
+    new_df = pd.concat(df_list, keys=df.columns, axis=1)
+    #new_df.index = df.index
+    return new_df
+
+def ConcatenateListElements(df):
+    df_list = []
+    for key in df.columns.levels[0]:
+        if df[key].shape[1] < 2:
+            df_list.append(df[key])
+        else:
+            df_list.append(pd.Series(tuple(df[key].values), name=key, index=df.index))
+    return pd.concat(df_list, axis=1)
+
 def GetContour(df, rho_min, rho_max):
     n = np.linspace(rho_min,rho_max,1000)
     value = []

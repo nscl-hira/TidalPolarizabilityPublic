@@ -184,7 +184,7 @@ if __name__ == '__main__':
                break
            except Exception:
                print('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name, output_name))
-               logger.warning('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name, output_name))
+               logger.exception('Cannot write to file %s. Will output to %s_new.csv instead' % (output_name, output_name))
                output_name = '%s_new' % output_name
  
         if argd['NoPPTX']:

@@ -33,7 +33,8 @@ def BetaEquilibrium(SkyrmeEOS, rho=np.concatenate([np.linspace(1e-10, 0.09, 100)
     energy = [min_.fun for min_ in min_result]
     pfrac = np.array([min_.x[0] for min_ in min_result])
     mufrac = np.array([min_.x[1]*min_.x[0] for min_ in min_result])
-    return sky.SplineEOS.Construct(rho*rho0, energy/(rho*rho0), smooth=0.1), rho*rho0, pfrac, mufrac
+    energy = energy/(rho*rho0)
+    return sky.SplineEOS.Construct(rho*rho0, energy, smooth=0.1), rho*rho0, pfrac, mufrac, energy
 
 
 if __name__ == "__main__":

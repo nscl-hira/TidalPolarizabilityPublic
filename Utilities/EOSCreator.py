@@ -44,7 +44,6 @@ def FindCrustalTransDensity(Skryme):
     
     return -3.75e-4*Skryme.GetL(Skryme.rho0) + 0.0963 # fm-3
 
-
 class EOSCreator:
     placeholder4connection = 13256
 
@@ -54,6 +53,7 @@ class EOSCreator:
         self.rho = None 
         self.pfrac = None 
         self.mufrac = None
+        self.energy = None
         self.ImportedEOS = None
         self.crustEOS = None
 
@@ -82,7 +82,7 @@ class EOSCreator:
         else:
             self.ImportedEOS = sky.Skryme(kwargs)
 
-    def PrepareEOS(self, **kwargs):
+    def PrepareEOS(self, meta_data=None, **kwargs):
         args, unknown = p.parse_known_args()
         kwargs = {**vars(args), **kwargs}
         EOSType = kwargs['EOSType']
@@ -93,19 +93,26 @@ class EOSCreator:
             kwargs['SkyrmeDensity'] = FindCrustalTransDensity(self.ImportedEOS)
 
         if EOSType != 'EOSNoCrust':
-            if EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':
-                logger.debug('Calculating Beta equilibrium for EOS')
-                be = BetaEquilibrium(self.ImportedEOS,
-                                     np.linspace(0.7*kwargs['SkyrmeDensity']/0.16, 10, 100))
+            if meta_data is None:
+                if EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':
+                    logger.debug('Calculating Beta equilibrium for EOS')
+                    be = BetaEquilibrium(self.ImportedEOS,
+                                         np.linspace(0.7*kwargs['SkyrmeDensity']/0.16, 10, 100))
+                else:
+                    be = BetaEquilibrium(self.ImportedEOS,
+                                         np.linspace(0.7*kwargs['SkyrmeDensity']/0.16, 1.5*kwargs['PolyTropeDensity']/0.16, 100))
+
+                self.BENuclear = be[0]
+                self.rho = be[1] 
+                self.pfrac = be[2] 
+                self.mufrac = be[3]   
+                self.energy = be[4]
             else:
-                be = BetaEquilibrium(self.ImportedEOS,
-                                     np.linspace(0.7*kwargs['SkyrmeDensity']/0.16, 1.5*kwargs['PolyTropeDensity']/0.16, 100))
-
-
-            self.BENuclear = be[0]
-            self.rho = be[1] 
-            self.pfrac = be[2] 
-            self.mufrac = be[3]   
+                self.rho = meta_data['rho']
+                self.pfrac = meta_data['pfrac']
+                self.mufrac = meta_data['mufrac']
+                self.energy = meta_data['energy']
+                self.BENuclear = sky.SplineEOS.Construct(self.rho, self.energy)
         else:
             self.BENuclear = self.ImportedEOS
 
@@ -121,6 +128,9 @@ class EOSCreator:
                     raise error
 
         return self.GetEOSType(**kwargs)
+
+    def GetMetaData(self):
+        return {'rho': self.rho, 'pfrac': self.pfrac, 'mufrac': self.mufrac, 'energy': self.energy}
 
     def GetEOSType(self, **kwargs):
         self.density_list = []

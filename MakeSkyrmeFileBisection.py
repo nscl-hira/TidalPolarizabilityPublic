@@ -1,3 +1,6 @@
+import shutil
+import tempfile
+import os
 #!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
 import sys
 from multiprocessing import cpu_count
@@ -12,6 +15,7 @@ import logging
 from multiprocessing_logging import install_mp_handler, MultiProcessingHandler
 import configargparse   
 
+from Utilities.Utilities import FlattenListElements, ConcatenateListElements
 import Utilities.ConsolePrinter as cp
 import TidalLove.TidalLoveWrapper as wrapper
 from Utilities.Constants import *
@@ -116,11 +120,13 @@ def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs
     """
     logger.debug('Preparing EOS %s', name)
     result = {}
+    meta_data = {}
     try:
         eos, list_tran_density, kwargs = eos_creator.PrepareEOS(**{'EOSType': EOSType, 
                                                                    'MaxMassRequested': MaxMassRequested,
                                                                    **name_and_eos[1], 
                                                                    **kwargs})
+        meta_data = eos_creator.GetMetaData()
     except Exception:
         logger.exception('EOS cannot be created')
     else:
@@ -173,7 +179,57 @@ def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs
     logger.debug('Adding P, P_sym, S_sym information for EOS %s' % name)
     additional_info = AdditionalInfo(eos_creator.ImportedEOS)
 
-    return {**kwargs, **result, **summary, **additional_info}
+    return {**kwargs, **result, **summary, **additional_info}, meta_data
+
+class MetaDataIO:
+    def __init__(self, filename, comm, flush_interval=10):
+        self.flush_interval = flush_interval
+        self.comm = comm
+        self.rank = comm.Get_rank()
+        self.size = comm.Get_size()
+        self.filename = filename
+        
+        self._tempname = None
+        if self.rank == 0:
+            current_file = os.path.dirname(os.path.realpath(__file__))
+            dirname = os.path.dirname(filename)
+            self._temp = tempfile.TemporaryDirectory(dir=os.path.join(current_file, dirname))
+            self._tempname = self._temp.name
+        self._tempname = self.comm.bcast(self._tempname, root=0) 
+        self._tempfilename = os.path.join(self._tempname, 'Rank_%d.h5' % self.rank)
+        self.store = pd.HDFStore(self._tempfilename)
+        self.names = []
+        self.values = []
+
+    def AppendData(self, name, value):
+        self.names.append(name)
+        self.values.append(value)
+        if len(self.names) == self.flush_interval:
+            self.Flush()
+        
+
+    def Close(self):
+        self.Flush()
+        self.store.close()
+        self.comm.Barrier()
+        self._tempfilename = self.comm.gather(self._tempfilename, root=0)
+        if self.rank == 0:
+            store = pd.HDFStore(self.filename, 'w')
+            for filename in self._tempfilename:
+                temp_store = pd.HDFStore(filename)
+                store.append('meta', temp_store['meta'], min_itemsize={'index' : 30})
+                temp_store.close()
+            store.close()
+            #shutil.rmtree(self._tempname)
+            
+
+    def Flush(self):
+        data = pd.DataFrame.from_dict(self.values)
+        data.index = self.names
+        self.store.append('meta', FlattenListElements(data), min_itemsize={'index': 30})
+        self.names = []
+        self.values = []
+
 
 
 
@@ -200,14 +256,24 @@ def CalculatePolarizability(df, Output, comm, **kwargs):
     result = []
     #CalculateModel(name_list[0], **kwargs)
     logger.debug('Begin multiprocess calculation')
+
+    """
+    Save meta data for every 10 EOSs
+    """
+    metaIO = MetaDataIO('Results/%s.meta.h5' % Output, comm)
     with ProcessPool(max_workers=kwargs['nCPU']) as pool:
         future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
         iterator = future.result()
         while True:
             try:
                 new_result = next(iterator)
-                result.append(new_result)
-                printer.PrintContent(new_result)
+                result.append(new_result[0])
+                printer.PrintContent(new_result[0])
+                 
+                try:
+                    metaIO.AppendData(new_result[0]['Model'], new_result[1])
+                except Exception:
+                    logger.exception('Cannot save meta')
             except StopIteration:
                 logger.debug('All calculations finished!')
                 break
@@ -224,7 +290,7 @@ def CalculatePolarizability(df, Output, comm, **kwargs):
                 logger.exception('General exception received')
                 printer.PrintError(error)
             printer.ListenFor(0.1)
-
+    metaIO.Close()
     printer.Close()            
     """
     Merge calculation data with Skyrme loaded data
