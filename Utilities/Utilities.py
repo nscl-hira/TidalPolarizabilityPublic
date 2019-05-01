@@ -76,10 +76,14 @@ def FlattenListElements(df):
     #new_df.index = df.index
     return new_df
 
+
+
 def ConcatenateListElements(df):
     df_list = []
-    for key in df.columns.levels[0]:
-        if df[key].shape[1] < 2:
+    for key in df.columns.get_level_values(0):
+        if len(df[key].shape) == 1:
+            df_list.append(df[key])
+        elif df[key].shape[1] < 2:
             df_list.append(df[key])
         else:
             df_list.append(pd.Series(tuple(df[key].values), name=key, index=df.index))
@@ -98,6 +102,79 @@ def GetContour(df, rho_min, rho_max):
     contour = np.append(contour, contour[0])
     values = np.append(values, values[0])
     return values, contour
+
+class DataIO:
+    def __init__(self, filename, comm, flush_interval=10):
+        self.flush_interval = flush_interval
+        self.comm = comm
+        self.rank = comm.Get_rank()
+        self.size = comm.Get_size()
+        self.filename = filename
+        
+        self._tempname = None
+        if self.rank == 0:
+            current_file = os.path.dirname(os.path.realpath(__file__))
+            dirname = os.path.dirname(filename)
+            self._tempname = tempfile.mkdtemp(dir=os.path.join(current_file, dirname))
+        self._tempname = self.comm.bcast(self._tempname, root=0) 
+        self._tempfilename = os.path.join(self._tempname, 'Rank_%d.h5' % self.rank)
+        self.store = pd.HDFStore(self._tempfilename, 'w')
+        self.names = {}
+        self.values = {}
+
+    def AppendData(self, branch, name, value):
+        if branch not in self.names:
+            self.names[branch] = []
+            self.values[branch] = []
+        self.names[branch].append(name)
+        self.values[branch].append(value)
+        if len(self.names[branch]) == self.flush_interval:
+            self.Flush(branch)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.Close()
+
+    def Close(self):
+        if len(self.names) != 0:
+            self.Flush()
+        self.store.close()
+        logger.debug('Closing file %s for merging' % self.store.filename)
+        self.comm.Barrier()
+        self._tempfilename = self.comm.gather(self._tempfilename, root=0)
+        if self.rank == 0:
+            with pd.HDFStore(self.filename, 'w') as store:
+                logger.debug('Saving all content to %s' % self.filename)
+                for filename in self._tempfilename:
+                    logger.debug('Merging file %s' % filename)
+                    with pd.HDFStore(filename, 'r') as temp_store:
+                        for branch in temp_store.keys():
+                            data = temp_store[branch]
+                            if branch in store:
+                                data = data.astype(store[branch].dtypes.to_dict())
+                            store.append(branch, data, min_itemsize={'index' : 30})
+            shutil.rmtree(self._tempname)
+
+
+    def Flush(self, branches=None):
+        if branches is None:
+            branches = self.names.keys()
+        elif isinstance(branches, str):
+            branches = [branches]
+        for branch in branches:
+            data = pd.DataFrame.from_dict(self.values[branch])
+            data.index = self.names[branch]
+            data = FlattenListElements(data)
+            if branch in self.store:
+                data = data.astype(self.store[branch].dtypes.to_dict())
+            self.store.append(branch, data, min_itemsize={'index': 30})
+            self.names[branch] = []
+            self.values[branch] = []
+
+
+
     
 
 def PlotSkyrmeSymEnergy(df, ax, range_=[0,3], pfrac=0, label=None, **args):

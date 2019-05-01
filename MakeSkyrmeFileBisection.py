@@ -15,7 +15,7 @@ import logging
 from multiprocessing_logging import install_mp_handler, MultiProcessingHandler
 import configargparse   
 
-from Utilities.Utilities import FlattenListElements, ConcatenateListElements
+from Utilities.Utilities import FlattenListElements, ConcatenateListElements, DataIO
 import Utilities.ConsolePrinter as cp
 import TidalLove.TidalLoveWrapper as wrapper
 from Utilities.Constants import *
@@ -180,77 +180,6 @@ def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs
     return name, kwargs, result, summary, additional_info, meta_data
     #return {**kwargs, **result, **summary, **additional_info}, meta_data
 
-class MetaDataIO:
-    def __init__(self, filename, comm, flush_interval=10):
-        self.flush_interval = flush_interval
-        self.comm = comm
-        self.rank = comm.Get_rank()
-        self.size = comm.Get_size()
-        self.filename = filename
-        
-        self._tempname = None
-        if self.rank == 0:
-            current_file = os.path.dirname(os.path.realpath(__file__))
-            dirname = os.path.dirname(filename)
-            self._tempname = tempfile.mkdtemp(dir=os.path.join(current_file, dirname))
-        self._tempname = self.comm.bcast(self._tempname, root=0) 
-        self._tempfilename = os.path.join(self._tempname, 'Rank_%d.h5' % self.rank)
-        self.store = pd.HDFStore(self._tempfilename, 'w')
-        self.names = {}
-        self.values = {}
-
-    def AppendData(self, branch, name, value):
-        if branch not in self.names:
-            self.names[branch] = []
-            self.values[branch] = []
-        self.names[branch].append(name)
-        self.values[branch].append(value)
-        if len(self.names[branch]) == self.flush_interval:
-            self.Flush(branch)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.Close()
-
-    def Close(self):
-        if len(self.names) != 0:
-            self.Flush()
-        self.store.close()
-        logger.debug('Closing file %s for merging' % self.store.filename)
-        self.comm.Barrier()
-        self._tempfilename = self.comm.gather(self._tempfilename, root=0)
-        if self.rank == 0:
-            with pd.HDFStore(self.filename, 'w') as store:
-                logger.debug('Saving all content to %s' % self.filename)
-                for filename in self._tempfilename:
-                    logger.debug('Merging file %s' % filename)
-                    with pd.HDFStore(filename, 'r') as temp_store:
-                        for branch in temp_store.keys():
-                            data = temp_store[branch]
-                            if branch in store:
-                                data = data.astype(store[branch].dtypes.to_dict())
-                            store.append(branch, data, min_itemsize={'index' : 30})
-            shutil.rmtree(self._tempname)
-
-
-    def Flush(self, branches=None):
-        if branches is None:
-            branches = self.names.keys()
-        elif isinstance(branches, str):
-            branches = [branches]
-        for branch in branches:
-            data = pd.DataFrame.from_dict(self.values[branch])
-            data.index = self.names[branch]
-            data = FlattenListElements(data)
-            if branch in self.store:
-                data = data.astype(self.store[branch].dtypes.to_dict())
-            self.store.append(branch, data, min_itemsize={'index': 30})
-            self.names[branch] = []
-            self.values[branch] = []
-
-
 
 
 def CalculatePolarizability(df, Output, comm, **kwargs): 
@@ -280,7 +209,7 @@ def CalculatePolarizability(df, Output, comm, **kwargs):
     """
     Save meta data for every 10 EOSs
     """
-    DataIO = MetaDataIO('Results/%s.h5' % Output, comm)
+    DataIO = DataIO('Results/%s.h5' % Output, comm)
     with ProcessPool(max_workers=kwargs['nCPU']) as pool:
         future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
         iterator = future.result()
