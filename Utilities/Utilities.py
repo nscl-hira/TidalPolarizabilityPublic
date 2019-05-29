@@ -1,3 +1,5 @@
+import tempfile
+import os
 import itertools
 color = itertools.cycle(('fuchsia', 'r', 'r', 'b', 'g', 'orange')) 
 #marker = itertools.cycle(('o','v','^','*','s')) 
@@ -9,6 +11,14 @@ font_dirs = ['/projects/hira/tsangc/Polarizability/fonts', ]
 font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
 font_list = font_manager.createFontList(font_files)
 font_manager.fontManager.ttflist.extend(font_list)
+
+from multiprocessing_logging import install_mp_handler, MultiProcessingHandler
+import shutil
+import logging
+logger = logging.getLogger(__name__)
+install_mp_handler(logger)
+
+
 
 
 import matplotlib.pylab as pylab
@@ -104,21 +114,10 @@ def GetContour(df, rho_min, rho_max):
     return values, contour
 
 class DataIO:
-    def __init__(self, filename, comm, flush_interval=10):
+    def __init__(self, filename, flush_interval=10):
         self.flush_interval = flush_interval
-        self.comm = comm
-        self.rank = comm.Get_rank()
-        self.size = comm.Get_size()
         self.filename = filename
-        
-        self._tempname = None
-        if self.rank == 0:
-            current_file = os.path.dirname(os.path.realpath(__file__))
-            dirname = os.path.dirname(filename)
-            self._tempname = tempfile.mkdtemp(dir=os.path.join(current_file, dirname))
-        self._tempname = self.comm.bcast(self._tempname, root=0) 
-        self._tempfilename = os.path.join(self._tempname, 'Rank_%d.h5' % self.rank)
-        self.store = pd.HDFStore(self._tempfilename, 'w')
+        self.store = pd.HDFStore(self.filename, 'w')
         self.names = {}
         self.values = {}
 
@@ -138,25 +137,8 @@ class DataIO:
         self.Close()
 
     def Close(self):
-        if len(self.names) != 0:
-            self.Flush()
+        self.Flush()
         self.store.close()
-        logger.debug('Closing file %s for merging' % self.store.filename)
-        self.comm.Barrier()
-        self._tempfilename = self.comm.gather(self._tempfilename, root=0)
-        if self.rank == 0:
-            with pd.HDFStore(self.filename, 'w') as store:
-                logger.debug('Saving all content to %s' % self.filename)
-                for filename in self._tempfilename:
-                    logger.debug('Merging file %s' % filename)
-                    with pd.HDFStore(filename, 'r') as temp_store:
-                        for branch in temp_store.keys():
-                            data = temp_store[branch]
-                            if branch in store:
-                                data = data.astype(store[branch].dtypes.to_dict())
-                            store.append(branch, data, min_itemsize={'index' : 30})
-            shutil.rmtree(self._tempname)
-
 
     def Flush(self, branches=None):
         if branches is None:
@@ -164,14 +146,27 @@ class DataIO:
         elif isinstance(branches, str):
             branches = [branches]
         for branch in branches:
-            data = pd.DataFrame.from_dict(self.values[branch])
-            data.index = self.names[branch]
-            data = FlattenListElements(data)
-            if branch in self.store:
-                data = data.astype(self.store[branch].dtypes.to_dict())
-            self.store.append(branch, data, min_itemsize={'index': 30})
-            self.names[branch] = []
-            self.values[branch] = []
+            if len(self.names[branch]) > 0:
+                data = pd.DataFrame.from_dict(self.values[branch])
+                data.index = self.names[branch]
+                data = FlattenListElements(data)
+                if branch in self.store:
+                    try:
+                        data = data.astype(self.store[branch].dtypes.to_dict(), errors='ignore')
+                    except Exception:
+                        logger.exception('Cannot set type on branch %s' % branch)
+                        try:
+                            logger.error('Dict tried')
+                            logger.error(str(self.store[branch].dtypes.to_dict()))
+                            logger.error('Data columns')
+                            logger.error(str(list(data)))
+                            logger.error(str(list(set(data) - set(self.store[branch]))))
+                            logger.error(str(list(set(self.store[branch]) - set(data))))
+                        except Exception:
+                            logger.exception('Not all data is shown')
+                self.store.append(branch, data, min_itemsize={'index': 30})
+                self.names[branch] = []
+                self.values[branch] = []
 
 
 

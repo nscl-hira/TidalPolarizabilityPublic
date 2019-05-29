@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import shutil
 import tempfile
 import os
@@ -14,11 +15,13 @@ import scipy.optimize as opt
 import logging
 from multiprocessing_logging import install_mp_handler, MultiProcessingHandler
 import configargparse   
+from mpi4py import MPI
 
 from Utilities.Utilities import FlattenListElements, ConcatenateListElements, DataIO
 import Utilities.ConsolePrinter as cp
 import TidalLove.TidalLoveWrapper as wrapper
 from Utilities.Constants import *
+from Utilities.MasterSlave import MasterSlave
 from Utilities.EOSCreator import EOSCreator, SummarizeSkyrme
 from SelectPressure import AddPressure
 
@@ -34,8 +37,37 @@ p.add_argument("-mm", "--MaxMassRequested", type=float, help="Maximum Mass to be
 
 OuterCrustDensity = 0.3e-3
 
-logger = logging.getLogger(__name__)
-install_mp_handler(logger)
+def GenerateMetaDataFrame(filename='EOSComparison.csv'):
+    df = pd.read_csv('EOSComparsion.csv')
+    pars = ['Esat', 'Esym', 'Lsym', 'Ksat', 'Ksym', 'Qsat', 'Qsym', 'Zsat', 'Zsym', 'msat', 'kv']
+    priors = []
+    for model in set(df['Name']):
+        if model == 'Total':
+            continue
+        Average = df[(df['Name'] == model) & (df['Type'] == 'Average')][pars].iloc[0]
+        Sigma = df[(df['Name'] == model) & (df['Type'] == 'Sigma')][pars].iloc[0]
+
+        Esat, Esym, Lsym, Ksat, Ksym, Qsat, Qsym, Zsat, Zsym, msat, kv = np.random.uniform(Average - 2*Sigma, Average + 2*Sigma, size=(100000, Average.shape[0])).T
+
+        new_prior = pd.DataFrame({'Esat':Esat.flatten(), 
+                                  'Esym':Esym.flatten(), 
+                                  'Lsym':Lsym.flatten(), 
+                                  'Ksat':Ksat.flatten(), 
+                                  'Ksym':Ksym.flatten(), 
+                                  'Qsat':Qsat.flatten(), 
+                                  'Qsym':Qsym.flatten(), 
+                                  'Zsat':Zsat.flatten(), 
+                                  'Zsym':Zsym.flatten(), 
+                                  'msat':msat.flatten(), 
+                                  'kv':kv.flatten()})
+        new_prior['Model_Type'] = model
+        priors.append(new_prior)
+
+    priors = pd.concat(priors)
+    priors.index = priors.index.map(str)
+    return priors.fillna(0)
+
+
 
 def LoadSkyrmeFile(filename):
     df = pd.read_csv(filename, index_col=0)
@@ -146,7 +178,14 @@ def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs
             if result['MaxMass'] >= MaxMassRequested: 
                 logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % (MaxMassRequested, name))
                 TidalResult = RenameResultKey(tidal_love.FindMass(mass=MaxMassRequested), MaxMassRequested)
-                result = {**result, **TidalResult}
+            else:
+                TidalResult = RenameResultKey({'PCentral': np.nan, 
+                                               'DensCentral': np.nan, 
+                                               'Radius': np.nan, 
+                                               'Lambda': np.nan, 
+                                               'Checkpoint_mass': [np.nan]*len(list_tran_density), 
+                                               'Checkpoint_radius': [np.nan]*len(list_tran_density)}, MaxMassRequested)
+            result = {**result, **TidalResult}
 
             for tg in TargetMass:
                 logger.debug('Finding NS with mass %g for %s' % (tg, name))
@@ -182,7 +221,7 @@ def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs
 
 
 
-def CalculatePolarizability(df, Output, comm, **kwargs): 
+def CalculatePolarizability(df, mslave, Output, **kwargs): 
     total = df.shape[0]
     args, unknown = p.parse_known_args()
     kwargs = {**kwargs, **vars(args)}
@@ -190,72 +229,58 @@ def CalculatePolarizability(df, Output, comm, **kwargs):
     """
     Tells ConsolePrinter which quantities to be printed in real time
     """
-    title = ['Model', 'R(1.4)', 'lambda(1.4)', 'PCentral(1.4)']
-    logger.debug('Calling console printer')
-    if kwargs['PBar']:
-        printer = cp.ConsolePBar(title, comm=comm, total=total, **kwargs)
-    else:
-        printer = cp.ConsolePrinter(title, comm=comm, total=total)
-    
-    
-    """
-    Create multiple pools for parallel computation
-    """
     name_list = [(index, row) for index, row in df.iterrows()]
-    result = []
     #CalculateModel(name_list[0], **kwargs)
     logger.debug('Begin multiprocess calculation')
 
     """
     Save meta data for every 10 EOSs
     """
-    DataIO = DataIO('Results/%s.h5' % Output, comm)
-    with ProcessPool(max_workers=kwargs['nCPU']) as pool:
-        future = pool.map(partial(CalculateModel, **kwargs), name_list, timeout=100)
-        iterator = future.result()
-        while True:
-            try:
-                new_result = next(iterator)
-                result.append({'Model':new_result[0], **new_result[1], **new_result[2], **new_result[3], **new_result[4]})
-                printer.PrintContent(new_result[2])
-                 
-                try:
-                    name = new_result[0]
-                    DataIO.AppendData('meta', name, new_result[5])
-                    DataIO.AppendData('kwargs', name, new_result[1])
-                    DataIO.AppendData('result', name, new_result[2])
-                    DataIO.AppendData('summary', name, new_result[3])
-                    DataIO.AppendData('Additional_info', name, new_result[4])
-                except Exception:
-                    logger.exception('Cannot save meta')
-            except StopIteration:
-                logger.debug('All calculations finished!')
-                break
-            except ValueError as error:
-                printer.PrintError(error) 
-                logger.exception('Value error')
-            except TimeoutError as error:
-                printer.PrintError(error)
-                logger.exception('Timeout')
-            except ProcessExpired as error:
-                printer.PrintError(error)
-                logger.exception('ProcessExpired')
-            except Exception as error:
-                logger.exception('General exception received')
-                printer.PrintError(error)
-            printer.ListenFor(0.1)
-    DataIO.Close()
-    printer.Close()            
+    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=500)
+    for new_result in tqdm(mslave.map(partial(CalculateModel, **kwargs), name_list, chunk_size=100), total=total, ncols=100, smoothing=0.):
+         try:
+             name = new_result[0]
+             dataIO.AppendData('meta', name, new_result[5])
+             dataIO.AppendData('kwargs', name, new_result[1])
+             dataIO.AppendData('result', name, new_result[2])
+             dataIO.AppendData('summary', name, new_result[3])
+             dataIO.AppendData('Additional_info', name, new_result[4])
+         except Exception:
+             logger.exception('Cannot save meta')
+    try:
+        dataIO.Close()
+    except Exception as error:
+        logger.exception('Cannot close dataIO')
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 
 if __name__ == "__main__":
+    mslave = MasterSlave(comm)
     p.add_argument("-i", "--Input", help="Name of the Skyrme input file")
     p.add_argument("-o", "--Output", help="Name of the CSV output (Default: Result)")
     p.add_argument("-et", "--EOSType", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme")
+    p.add_argument('--Gen', dest='Gen', action='store_true', help="Enable if need to generate random parameters")
+
+
     args, unknown = p.parse_known_args()
     argd = vars(args)
-    print(argd)
-    """
-    df = LoadSkyrmeFile(args.Input)
 
-    df = CalculatePolarizability(df, **argd)
-    """
+    num_iter = 0
+    output = argd['Output']
+    if args.Gen:
+        while True:
+            logger.debug('Generating meta file')
+            df = GenerateMetaDataFrame()
+            logger.debug('Dataframe created')
+            argd['Output'] = '%s_%d' % (output, num_iter)
+            CalculatePolarizability(df, mslave, **argd)
+            num_iter += 1
+    else:
+        df = LoadSkyrmeFile(args.Input)
+        CalculatePolarizability(df, mslave, **argd) 
+    mslave.Close()
+
