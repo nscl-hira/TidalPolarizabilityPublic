@@ -90,7 +90,7 @@ def FlattenListElements(df):
 
 def ConcatenateListElements(df):
     df_list = []
-    for key in df.columns.get_level_values(0):
+    for key in set(df.columns.get_level_values(0)):
         if len(df[key].shape) == 1:
             df_list.append(df[key])
         elif df[key].shape[1] < 2:

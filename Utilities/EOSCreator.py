@@ -31,7 +31,7 @@ p.add_argument("-pd", "--PRCTransDensity", type=float,  help="Enable PRC automat
 p.add_argument("-cf", "--CrustFileName", help="Type of crustal EoS used")
 p.add_argument("-pp", "--PolyTropeDensity", type=float, help="Density at which Skyrme EOS ends.")
 p.add_argument("-cs", "--CrustSmooth", type=float, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
-p.add_argument("-td", "--TransDensity", type=float, help="Transition density where crustal EOS stops. Ignored if PRCTransDensity > 0")
+p.add_argument("-td", "--TranDensity", type=float, help="Transition density where crustal EOS stops. Ignored if PRCTransDensity > 0")
 p.add_argument("-sd", "--SkyrmeDensity", type=float, help="Density at which Skyrme/Meta/PowerLaw/Rod EOS begins. Ignored if PRCTransDensity > 0")
 
 def FindCrustalTransDensity(Skryme):
