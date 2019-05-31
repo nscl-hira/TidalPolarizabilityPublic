@@ -117,7 +117,7 @@ class DataIO:
     def __init__(self, filename, flush_interval=10):
         self.flush_interval = flush_interval
         self.filename = filename
-        self.store = pd.HDFStore(self.filename, 'w')
+        self.store = pd.HDFStore(self.filename, 'a')
         self.names = {}
         self.values = {}
 

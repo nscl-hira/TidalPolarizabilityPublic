@@ -37,6 +37,10 @@ class FillableHist:
     self.kwargs = kwargs
     self.Append(x, weights)
 
+  def __iadd__(self, other):
+    assert np.array_equal(self.xbins, other.xbins), 'Can only add histogram with equal x-bins'
+    self.histogram = self.histogram + other.histogram
+    return self
 
   def Append(self, x, weights=None):
     x = x.flatten()
@@ -103,6 +107,10 @@ class FillableHist2D:
     self.kwargs = kwargs
     self.Append(x, y, weights)
 
+  def __iadd__(self, other):
+    assert np.array_equal(self.xbins, other.xbins) and np.array_equal(self.ybins, other.ybins), 'Only histograms with equal x and y bins can be added'
+    self.histogram = self.histogram + other.histogram
+    return self
 
   def Append(self, x, y, weights=None):
     x = np.ravel(x)
@@ -173,6 +181,12 @@ class FillablePairGrid:
     self.xranges = np.array([np.amin(self.xvalues, axis=0), np.amax(self.xvalues, axis=0)]).T
     self.yranges = np.array([np.amin(self.yvalues, axis=0), np.amax(self.yvalues, axis=0)]).T 
     self.graphs = [[None for xvar in self.x_vars] for yvar in self.y_vars]
+
+  def __iadd__(self, other):
+    assert len(self.graphs) == len(other.graphs), 'Can only add pair grid if they have identical graphs'
+    for idx in range(len(self.graphs)):
+      for idy in range(len(self.graphs[idx])):
+        self.graphs[idx][idy] += other.graphs[idx][idy]
 
   def map_lower(self, Fillable, **kwargs):
     for i in range(1, len(self.y_vars)):

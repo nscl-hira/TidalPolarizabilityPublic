@@ -78,6 +78,8 @@ class MasterSlave(object):
 
     chunks = []
     self.idle_workers = list(range(1, self.size))
+
+     
     for args in iteratable:
       if len(self.idle_workers) == 0: 
         status = MPI.Status()
@@ -92,9 +94,7 @@ class MasterSlave(object):
             for chunk in chunks:
               yield chunk
             chunks = []
-      
       self.comm.send([args, {}], tag=tags.START, dest=self.idle_workers.pop())
- 
 
     while set(self.idle_workers) != set(range(1, self.size)):
       status = MPI.Status()
@@ -109,8 +109,64 @@ class MasterSlave(object):
           for chunk in chunks:
             yield chunk
           chunks = []
-
     self.comm.send(None, tag=tags.MPIOUT, dest=worker)
+
+    # return residual chunks
+    for chunk in chunks:
+      yield chunk
+
+  def ordered_map(self, func, iteratable, chunk_size=10):
+    # no need to pip output when using map
+    if self.rank == 0:
+      if self.nworking != 0:
+        raise RuntimeError('Current working ranks > 0. Are you submitting new jobs while the old one are still running? This function is not yet supported')
+      for worker in range(1, self.size):
+        self.comm.send(None, tag=tags.STDOUT, dest=worker)
+        self.comm.send(func, tag=tags.FUNC, dest=worker)
+
+    chunks = []
+    self.idle_workers = list(range(1, self.size))
+
+    next_source = 1
+    for args in iteratable:
+      if len(self.idle_workers) == 0: 
+        status = MPI.Status()
+        result = self.comm.recv(source=next_source, tag=MPI.ANY_TAG, status=status)
+        tag = status.Get_tag()
+        source = status.Get_source()
+        
+        if tag == tags.END or tag == tags.ERROR:
+          next_source += 1
+          if next_source >= self.size:
+            next_source = 1
+          self.idle_workers.append(source)
+          chunks.append(result)
+          if len(chunks) >= chunk_size:
+            for chunk in chunks:
+              yield chunk
+            chunks = []
+      self.comm.send([args, {}], tag=tags.START, dest=self.idle_workers.pop(0))
+ 
+    while set(self.idle_workers) != set(range(1, self.size)):
+      status = MPI.Status()
+      result = self.comm.recv(source=next_source, tag=MPI.ANY_TAG, status=status)
+      tag = status.Get_tag()
+      source = status.Get_source()
+      
+      if tag == tags.END or tag == tags.ERROR:
+        next_source += 1
+        if next_source >= self.size:
+          next_source = 1
+        self.idle_workers.append(source)
+        chunks.append(result)
+        if len(chunks) >= chunk_size:
+          for chunk in chunks:
+            yield chunk
+          chunks = []
+      
+    self.comm.send(None, tag=tags.MPIOUT, dest=worker)
+
+    # return residual chunks
     for chunk in chunks:
       yield chunk
 

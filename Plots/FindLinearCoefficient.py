@@ -1,3 +1,5 @@
+import sys
+import os
 import scipy.integrate as integrate
 import numpy as np
 from astropy.convolution import convolve
@@ -7,54 +9,71 @@ from Utilities.Utilities import ConcatenateListElements
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import truncnorm
-from Plots.DrawCorrelationMatrix import GetWeight, GetDeformabilityWeight, features
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 
 if __name__ == '__main__':
-  results = ['NoData', 'ViolateFrom', 'MaxMass', 'DensCentral(2)', 'ViolateCausality'] + ['lambda(%g)' % mass for mass in [1.2, 1.4, 1.6]]
-  additional_info = ['P(1.5rho0)', 'P(2rho0)']
+  if len(sys.argv) <= 2:
+    print('This script generates pdf images for correlation matrix between variables')
+    print('Input: List of filenames from deformability calculation')
+    print('Output: csv files of the fitted coefficient')
+    print(' To use, enter\npython %s csv_name input1 input2 ....' % sys.argv[0])
+  else:
+   
+    results = ['lambda(%g)' % mass for mass in [1.2, 1.4, 1.6]]
+    additional_info = ['P(1.5rho0)', 'P(2rho0)']
+    
+    orig_df = pd.DataFrame()
+    features = ['Lsym', 'Ksym', 'Ksat', 'Qsym', 'Qsat', 'Zsym', 'Zsat', 'msat']
   
-  orig_df = pd.DataFrame()
-  features_to_be_shown = ['Lsym', 'Ksym', 'Ksat', 'Qsym', 'Qsat', 'Zsym', 'Zsat', 'msat']
+    clf = []
+    g = []
+    csv_name = sys.argv[1]
+    all_info = []
+    for filename in sys.argv[2:]:
+      head, ext = os.path.splitext(filename)
+      with pd.HDFStore(filename, 'r') as store, \
+           pd.HDFStore(head + '.Weight' + ext, 'r') as weight_store:
 
-  clf = []
-  g = []
-  mean_lambda = []
-  for i in range(0, 5):
-    with pd.HDFStore('Results/MetaNarrow5_%d.h5' % i) as store:
-      print('Loading file %d' % i)
-
-      new_df = pd.concat([ConcatenateListElements(store['kwargs'])[features], 
-                          ConcatenateListElements(store['result'])[results], 
-                          ConcatenateListElements(store['Additional_info'])[additional_info]], axis=1)
+        chunksize = 80000
+        for kwargs, result, add_info, \
+            reasonable, causality, prior_weight, \
+            post_weight in zip(store.select('kwargs', chunksize=chunksize),
+                               store.select('result', chunksize=chunksize),
+                               store.select('Additional_info', chunksize=chunksize),
+                               weight_store.select('Reasonable', chunksize=chunksize),
+                               weight_store.select('Causality', chunksize=chunksize),
+                               weight_store.select('PriorWeight', chunksize=chunksize),
+                               weight_store.select('PosteriorWeight', chunksize=chunksize)): 
  
-      chunk = new_df.copy()
-      chunk = chunk[(chunk['lambda(1.4)'] > 0) & (chunk['lambda(1.4)'] < 1200)]
-      chunk['weight'] = GetWeight(chunk)
-      chunk['Postweight'] = GetDeformabilityWeight(chunk)
+          new_df = pd.concat([ConcatenateListElements(kwargs), 
+                              ConcatenateListElements(result), 
+                              ConcatenateListElements(add_info)], axis=1)
+   
+          new_df = new_df[features + results]
+          # only select reasonable data
+          idx = reasonable & causality
+          new_df = new_df[idx]
+          prior_weight = prior_weight[idx]
+          post_weight = post_weight[idx]
 
-      def CausalityCut(df): 
-        if 'ViolateFrom' in df:
-          return ((df['ViolateFrom'] > df['DensCentral(2)']) | (df['ViolateCausality'] == False))
-        else:
-          return (df['ViolateCausality'] == False)
-  
-      chunk = chunk[CausalityCut(chunk)]
-      if len(clf) == 0:
-        for mass in [1.2, 1.4, 1.6]:
-          mean_lambda.append(np.mean(chunk['lambda(%g)' % mass]))
-          clf.append(Pipeline([('Stand', StandardScaler()), ('Reg', LinearRegression())]))
-          clf[-1].fit(chunk[features_to_be_shown], chunk['lambda(%g)' % mass]/mean_lambda[-1], **{'Reg__sample_weight': chunk['Postweight']})
-          print(clf[-1].named_steps['Reg'].coef_, features_to_be_shown)
-      if len(g) == 0:
-        for idx, mass in enumerate([1.2, 1.4, 1.6]):
-          g.append(fhist.FillableHist2D(clf[idx].predict(chunk[features_to_be_shown])*mean_lambda[idx], chunk['lambda(%g)' % mass], bins=50, weights=chunk['Postweight']))
-      else:
-        for idx, mass in enumerate([1.2, 1.4, 1.6]):
-          g[idx].Append(clf[idx].predict(chunk[features_to_be_shown])*mean_lambda[idx], chunk['lambda(%g)' % mass], weights=chunk['Postweight'])
 
-  for graph in g:
-    graph.Draw(plt.axes())
-    plt.show()
+          for mass in [1.2, 1.4, 1.6]:
+            info = {}
+            info['mean_lambda'] = np.mean(new_df['lambda(%g)' % mass])
+            clf = Pipeline([('Stand', StandardScaler()), ('Reg', LinearRegression())])
+            clf.fit(new_df[features], 
+                    new_df['lambda(%g)' % mass], 
+                    **{'Reg__sample_weight': post_weight})
+            for feature, mean in zip(features, clf.named_steps['Stand'].mean_):
+              info['%s_mean' % feature] = mean
+            for feature, var in zip(features, clf.named_steps['Stand'].var_):
+              info['%s_var' % feature] = var
+            for feature, coef in zip(features, clf.named_steps['Reg'].coef_):
+              info['%s_coef' % feature] = coef
+            info['intercept'] = clf.named_steps['Reg'].intercept_
+            info['mass'] = mass
+            all_info.append(info)
+    pd.DataFrame(all_info).to_csv(csv_name)
+

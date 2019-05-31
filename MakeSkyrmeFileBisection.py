@@ -30,16 +30,18 @@ if len(p._default_config_files) == 0:
     p._default_config_files.append('Default.ini')
 
 p.add_argument('--PBar', dest='PBar', action='store_true', help="Enable if you don't need to display everything during calculation, just a progress bar")
-p.add_argument('-c', "--nCPU", type=int, help="Number of CPU used in each nodes")
 p.add_argument('-tg', "--TargetMass", type=float, nargs='+', help="Target mass of the neutron star.")
 p.add_argument("-mm", "--MaxMassRequested", type=float, help="Maximum Mass to be achieved for EOS in unit of solar mass")
 
 
 OuterCrustDensity = 0.3e-3
 
-def GenerateMetaDataFrame(filename='EOSComparison.csv'):
-    df = pd.read_csv('EOSComparsion.csv')
-    pars = ['Esat', 'Esym', 'Lsym', 'Ksat', 'Ksym', 'Qsat', 'Qsym', 'Zsat', 'Zsym', 'msat', 'kv']
+def GenerateMetaDataFrame(filename='EOSComparsion.csv', size=100000, iter=0):
+    df = pd.read_csv(filename)
+    pars = ['Esat', 'Esym', 'Lsym', 
+            'Ksat', 'Ksym', 'Qsat', 
+            'Qsym', 'Zsat', 'Zsym', 
+            'msat', 'kv']
     priors = []
     for model in set(df['Name']):
         if model == 'Total':
@@ -47,7 +49,9 @@ def GenerateMetaDataFrame(filename='EOSComparison.csv'):
         Average = df[(df['Name'] == model) & (df['Type'] == 'Average')][pars].iloc[0]
         Sigma = df[(df['Name'] == model) & (df['Type'] == 'Sigma')][pars].iloc[0]
 
-        Esat, Esym, Lsym, Ksat, Ksym, Qsat, Qsym, Zsat, Zsym, msat, kv = np.random.uniform(Average - 2*Sigma, Average + 2*Sigma, size=(100000, Average.shape[0])).T
+        Esat, Esym, Lsym, Ksat, Ksym, Qsat, Qsym, Zsat, Zsym, msat, kv = np.random.uniform(Average - 2*Sigma, 
+                                                                                           Average + 2*Sigma, 
+                                                                                           size=(size, Average.shape[0])).T
 
         new_prior = pd.DataFrame({'Esat':Esat.flatten(), 
                                   'Esym':Esym.flatten(), 
@@ -64,6 +68,7 @@ def GenerateMetaDataFrame(filename='EOSComparison.csv'):
         priors.append(new_prior)
 
     priors = pd.concat(priors)
+    priors.index = priors.index + iter*size
     priors.index = priors.index.map(str)
     return priors.fillna(0)
 
@@ -236,8 +241,8 @@ def CalculatePolarizability(df, mslave, Output, **kwargs):
     """
     Save meta data for every 10 EOSs
     """
-    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=500)
-    for new_result in tqdm(mslave.map(partial(CalculateModel, **kwargs), name_list, chunk_size=100), total=total, ncols=100, smoothing=0.):
+    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=1000)
+    for new_result in tqdm(mslave.map(partial(CalculateModel, **kwargs), name_list, chunk_size=400), total=total, ncols=100, smoothing=0.):
          try:
              name = new_result[0]
              dataIO.AppendData('meta', name, new_result[5])
@@ -254,7 +259,7 @@ def CalculatePolarizability(df, mslave, Output, **kwargs):
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
+logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 
@@ -264,21 +269,20 @@ if __name__ == "__main__":
     p.add_argument("-o", "--Output", help="Name of the CSV output (Default: Result)")
     p.add_argument("-et", "--EOSType", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme")
     p.add_argument('--Gen', dest='Gen', action='store_true', help="Enable if need to generate random parameters")
+    p.add_argument("-s", "--Size", type=int, help="Size of the generated random parameters")
+    p.add_argument('-it', "--Iter", type=int, help='Iterations of generated random parameters.')
 
 
     args, unknown = p.parse_known_args()
     argd = vars(args)
 
-    num_iter = 0
-    output = argd['Output']
     if args.Gen:
-        while True:
+        argd['Output'] = argd['Output'] + '.Gen'
+        for num_iter in range(args.Iter):
             logger.debug('Generating meta file')
-            df = GenerateMetaDataFrame()
+            df = GenerateMetaDataFrame(size=args.Size)
             logger.debug('Dataframe created')
-            argd['Output'] = '%s_%d' % (output, num_iter)
             CalculatePolarizability(df, mslave, **argd)
-            num_iter += 1
     else:
         df = LoadSkyrmeFile(args.Input)
         CalculatePolarizability(df, mslave, **argd) 
