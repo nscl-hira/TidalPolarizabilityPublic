@@ -6,6 +6,8 @@ if __name__ == '__main__':
     pars = ['Esat', 'Esym', 'Lsym', 'Ksat', 'Ksym', 'Qsat', 'Qsym', 'Zsat', 'Zsym', 'msat', 'kv']
     priors = []
     for model in set(df['Name']):
+        if model == 'Total':
+            continue
         Average = df[(df['Name'] == model) & (df['Type'] == 'Average')][pars].iloc[0]
         Sigma = df[(df['Name'] == model) & (df['Type'] == 'Sigma')][pars].iloc[0]
 
