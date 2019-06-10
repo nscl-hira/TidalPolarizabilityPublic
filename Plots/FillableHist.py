@@ -25,7 +25,7 @@ class FillableHist:
     self.histogram = np.zeros(self.nbins, dtype=np.float)
 
     if range is None:
-      range = [np.min(x), np.max(x)]
+      range = [np.nanmin(x), np.nanmax(x)]
 
     assert len(range) == 2, 'Range should be a 1D array like indicating [minx, maxx]'
 
@@ -91,7 +91,7 @@ class FillableHist2D:
     self.histogram = np.zeros((self.nxbins, self.nybins), dtype=np.float)
 
     if range is None:
-      range = [[np.min(x), np.max(x)], [np.min(y), np.max(y)]]
+      range = [[np.nanmin(x), np.nanmax(x)], [np.nanmin(y), np.nanmax(y)]]
 
     assert len(range) == 2, 'Range should be a 2D array like indicating [minx, maxx], [miny, maxy]'
 

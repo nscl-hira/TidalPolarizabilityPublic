@@ -79,6 +79,8 @@ if __name__ == '__main__':
     df = pd.DataFrame.from_dict(corr)
     df.columns = features
     df.index = ['lambda(%g)' % mass for mass in [1.2, 1.4, 1.6]]
+
+    plt.figure(figsize=(12, 6)) 
     sns.heatmap(df, annot=True, 
                 xticklabels=features_names, 
                 yticklabels=[r'$\Lambda(%g)$' % mass for mass in [1.2, 1.4, 1.6]])

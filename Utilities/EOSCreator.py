@@ -33,6 +33,8 @@ p.add_argument("-pp", "--PolyTropeDensity", type=float, help="Density at which S
 p.add_argument("-cs", "--CrustSmooth", type=float, help="degrees of smoothing. Reduce oscillation of speed of sound near crustal volumn")
 p.add_argument("-td", "--TranDensity", type=float, help="Transition density where crustal EOS stops. Ignored if PRCTransDensity > 0")
 p.add_argument("-sd", "--SkyrmeDensity", type=float, help="Density at which Skyrme/Meta/PowerLaw/Rod EOS begins. Ignored if PRCTransDensity > 0")
+p.add_argument("-sp", "--SpeedOfSound", type=float, help="Speed of sound at transition density. Required for MetaSound")
+
 
 def FindCrustalTransDensity(Skryme):
     """
@@ -74,7 +76,7 @@ class EOSCreator:
                                                        rho_Sym=df_Sym['rho(fm-3)'], Sym=df_Sym[kwargs['Name']])
         elif EOSType == 'Power' or EOSType == 'PowerNoPolyTrope':
             self.ImportedEOS = sky.PowerLawEOS(self.row)
-        elif EOSType == 'Meta' or EOSType == 'Meta2Poly':
+        elif EOSType == 'Meta' or EOSType == 'Meta2Poly' or EOSType == 'MetaSound':
             if 'msat' not in kwargs:
                 kwargs['msat'] = 0.73
                 kwargs['kv'] = 0.46
@@ -94,7 +96,7 @@ class EOSCreator:
 
         if EOSType != 'EOSNoCrust':
             if meta_data is None:
-                if EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':
+                if EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta' or EOSType=='MetaSound':
                     logger.debug('Calculating Beta equilibrium for EOS')
                     be = BetaEquilibrium(self.ImportedEOS,
                                          np.linspace(0.7*kwargs['SkyrmeDensity']/0.16, 10, 100))
@@ -127,6 +129,16 @@ class EOSCreator:
                     logger.exception('Polytrope cannot help EOS attend the required maximum mass')
                     raise error
 
+        if EOSType == 'MetaSound':
+            if not 'SpeedOfsound' in kwargs:
+                kwargs['SpeedOfSound'] == 0.95
+            logger.debug('Finding density that corresponds to speed of sound %g c' % kwargs['SpeedOfSound'])
+            density = self._FindDensityWhenSoundEquals(kwargs['SpeedOfSound'])
+            if np.isnan(density) or density < 0: # fall back to the supplied density if it failes to find speed of sound there
+                logger.debug('Found density is not reasonable. Will not switch to the Stiffest EOS')
+                density = 99
+            kwargs['PolyTropeDensity'] = density
+
         return self.GetEOSType(**kwargs)
 
     def GetMetaData(self):
@@ -139,7 +151,7 @@ class EOSCreator:
         EOSType = kwargs['EOSType']
         if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'Rod' or EOSType == 'Power':
             self.GetEOS(**kwargs)
-        elif EOSType == 'EOS2Poly' or EOSType == 'Meta2Poly': 
+        elif EOSType == 'EOS2Poly' or EOSType == 'Meta2Poly' or EOSType == 'MetaSound': 
             self.GetEOS2Poly(**kwargs)
         elif EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':
             self.GetEOSNoPolyTrope(**kwargs)
@@ -212,6 +224,14 @@ class EOSCreator:
 
         kwargs['PressureHigh'] = opt.newton(FixMaxMass, x0=500, rtol=0.0001, tol=0.0001)
         return kwargs
+
+    def _FindDensityWhenSoundEquals(self, speed):
+        try:
+           density = opt.newton(lambda x: self.BENuclear.GetSpeedOfSound(x) - speed, x0=2*0.16)
+        except Exception as error:
+           logger.exception('Cannot find density where speed of sound = %g c' % speed)
+           density = np.nan
+        return density
 
 
     def InsertCrust(self, CrustFilename, final_density, **kwargs):

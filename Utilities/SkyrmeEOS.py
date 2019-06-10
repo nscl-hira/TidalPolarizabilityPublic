@@ -120,7 +120,7 @@ class EOS:
     
 
     def GetAsymEnergy(self, rho, *args):
-        return 1./8.*egrad(egrad(self.GetEnergy, 1), 1)(rho, 0.5)
+        return 1./8.*egrad(egrad(self.GetEnergy, 1), 1)(rho, np.full(np.array(rho).shape, 0.5))
 
 
     def GetK(self, rho, pfrac=0):

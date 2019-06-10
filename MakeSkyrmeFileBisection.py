@@ -23,7 +23,7 @@ import TidalLove.TidalLoveWrapper as wrapper
 from Utilities.Constants import *
 from Utilities.MasterSlave import MasterSlave
 from Utilities.EOSCreator import EOSCreator, SummarizeSkyrme
-from SelectPressure import AddPressure
+#from SelectPressure import AddPressure
 
 p = configargparse.get_argument_parser()
 if len(p._default_config_files) == 0:
@@ -241,7 +241,7 @@ def CalculatePolarizability(df, mslave, Output, **kwargs):
     """
     Save meta data for every 10 EOSs
     """
-    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=1000)
+    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=400)
     for new_result in tqdm(mslave.map(partial(CalculateModel, **kwargs), name_list, chunk_size=400), total=total, ncols=100, smoothing=0.):
          try:
              name = new_result[0]
@@ -280,7 +280,7 @@ if __name__ == "__main__":
         argd['Output'] = argd['Output'] + '.Gen'
         for num_iter in range(args.Iter):
             logger.debug('Generating meta file')
-            df = GenerateMetaDataFrame(size=args.Size)
+            df = GenerateMetaDataFrame(size=args.Size, iter=num_iter)
             logger.debug('Dataframe created')
             CalculatePolarizability(df, mslave, **argd)
     else:

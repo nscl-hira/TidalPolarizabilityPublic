@@ -109,7 +109,8 @@ class MasterSlave(object):
           for chunk in chunks:
             yield chunk
           chunks = []
-    self.comm.send(None, tag=tags.MPIOUT, dest=worker)
+    for worker in range(1, self.size):
+      self.comm.send(None, tag=tags.MPIOUT, dest=worker)
 
     # return residual chunks
     for chunk in chunks:

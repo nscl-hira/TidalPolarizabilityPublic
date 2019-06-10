@@ -30,10 +30,10 @@ if __name__ == '__main__':
     orig_df = pd.DataFrame()
     features = ['Lsym', 'Ksym', 'Ksat', 
                 'Qsym', 'Qsat', 'Zsym', 
-                'Zsat', 'msat', 'lambda(1.4)']
+                'Zsat', 'msat', 'lambda(1.4)', 'P(2rho0)']
     features_names = [r'$L_{sym}$', r'$K_{sym}$', r'$K_{sat}$', 
                       r'$Q_{sym}$', r'$Q_{sat}$', r'$Z_{sym}$', 
-                      r'$Z_{sat}$', r'$m^{*}_{sat}$', r'$\Lambda(1.4)$']
+                      r'$Z_{sat}$', r'$m^{*}_{sat}$', r'$\Lambda(1.4)$', r'$P(2\rho_{0})$']
 
     pdf_name = sys.argv[1]
     for filename in sys.argv[2:]:
@@ -45,15 +45,17 @@ if __name__ == '__main__':
         new_sd = weight_store.get_storer('PriorWeight').attrs.prior_sd
 
         chunksize = 8000
-        for kwargs, result, reasonable, \
+        for kwargs, result, add_info, reasonable, \
             causality, prior_weight, post_weight in zip(store.select('kwargs', chunksize=chunksize), 
                                                         store.select('result', chunksize=chunksize), 
+                                                        store.select('Additional_info', chunksize=chunksize),
                                                         weight_store.select('Reasonable', chunksize=chunksize),
                                                         weight_store.select('Causality', chunksize=chunksize),
                                                         weight_store.select('PriorWeight', chunksize=chunksize),
                                                         weight_store.select('PosteriorWeight', chunksize=chunksize)): 
           new_df = pd.concat([ConcatenateListElements(kwargs), 
-                              ConcatenateListElements(result)], axis=1)
+                              ConcatenateListElements(result),
+                              ConcatenateListElements(add_info)], axis=1)
           new_df = new_df[features]
           # only select reasonable data
           idx = reasonable & causality
@@ -75,9 +77,14 @@ if __name__ == '__main__':
     plt.subplots_adjust(hspace=0.1, wspace=0.1, bottom=0.1, left=0.1, top=0.95)  
     g.fig.set_size_inches(25,25)
     g.fig.align_labels()#tight_layout()
-    for ax in g.axes2d[-1][:-1]:
+    for ax in g.axes2d[-2][:-2]:
       ax.set_ylim([250, 800])
-    g.axes2d[-1][-1].set_xlim([250, 800])
+    g.axes2d[-2][-2].set_xlim([250, 800])
+    for ax in g.axes2d[-1][:-1]:
+      ax.set_ylim([10, 50])
+    g.axes2d[-1][-1].set_xlim([10, 50])
+
+
 
     # add prior to the plots
     for i, name in enumerate(features):
@@ -91,7 +98,7 @@ if __name__ == '__main__':
         pass
     x = np.linspace(250, 800, 100)
     y = NormalizedAsymGaussian(x, 190, 120, 390, 250, 800)
-    g.axes2d[-1, -1].plot(x, y, color='b')
+    g.axes2d[-2, -2].plot(x, y, color='b')
 
     """
     print('name\tmean\tSD')

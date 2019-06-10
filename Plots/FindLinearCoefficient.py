@@ -57,6 +57,7 @@ if __name__ == '__main__':
           new_df = new_df[idx]
           prior_weight = prior_weight[idx]
           post_weight = post_weight[idx]
+          new_df = new_df.dropna()
 
 
           for mass in [1.2, 1.4, 1.6]:
