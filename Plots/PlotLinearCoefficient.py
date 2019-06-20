@@ -18,10 +18,33 @@ if __name__ == '__main__':
     filename = sys.argv[2]
     pdf_name = sys.argv[3]
     head, ext = os.path.splitext(filename)
-    all_coef = pd.read_csv(coef_file, sep=',')
-    features = [var.replace('_mean', '') for var in list(all_coef) if var.endswith('_mean')]
+    coef_file = pd.read_csv(coef_file, sep=',')
+    features = [var.replace('_mean', '') for var in list(coef_file) if var.endswith('_mean')]
     lambda_list = ['lambda(%g)' % mass for mass in [1.2, 1.4, 1.6]]
 
+    all_mean = []
+    all_var = []
+    all_coef = []
+    all_mass = [1.2, 1.4, 1.6]
+    all_intercepts = []
+    for mass in all_mass:
+      mass_coef = coef_file[coef_file['mass'] == mass]
+      var = mass_coef.filter(regex='.*_var').mean(axis=0).values
+      mean = mass_coef.filter(regex='.*_mean').mean(axis=0).values
+      coef = mass_coef.filter(regex='.*_coef').mean(axis=0).values
+      intercept = mass_coef['intercept'].mean(axis=0)
+      print('mass %g' % mass)
+      print('\t' + '\t'.join(features))
+      print('mean\t%s' % ('\t'.join(['%.2f' % val for val in mean])))
+      print('Std\t%s' % ('\t'.join(['%.2f' % np.sqrt(val) for val in var])))
+      print('Coef\t%s' % ('\t'.join(['%.2f' % val for val in coef])))
+      print('Intercept\t%.2f' % intercept)
+      all_coef.append(coef)
+      all_mean.append(mean)
+      all_var.append(var)
+      all_intercepts.append(intercept)
+      
+ 
 
     graphs = {1.2: None, 1.4: None, 1.6: None}
     with pd.HDFStore(filename, 'r') as store, \
@@ -50,20 +73,24 @@ if __name__ == '__main__':
         prior_weight = prior_weight[idx]
         post_weight = post_weight[idx]
 
-        for mass in [1.2, 1.4, 1.6]:
-          mass_coef = all_coef[all_coef['mass'] == mass]
-          var = mass_coef.filter(regex='.*_var').mean(axis=0).values
-          mean = mass_coef.filter(regex='.*_mean').mean(axis=0).values
-          coef = mass_coef.filter(regex='.*_coef').mean(axis=0).values
-          data = (new_df[features].values - mean)/np.sqrt(var)*coef
-          data = np.sum(data, axis=1)
+        for mean, var, coef, mass, intercept in zip(all_mean, all_var, all_coef, all_mass, all_intercepts):
+          data = (new_df[features].values - mean)/np.sqrt(var)*coef 
+          data = np.sum(data, axis=1) + intercept
           if graphs[mass] is None:
-            graphs[mass] = FillableHist2D(data, new_df['lambda(%g)' % mass], post_weight, bins=50)
+            graphs[mass] = FillableHist2D(data, new_df['lambda(%g)' % mass], post_weight, bins=50, cmap='inferno')
           else:
             graphs[mass].Append(data, new_df['lambda(%g)' % mass], post_weight)
 
     for mass, graph in graphs.items():
       graph.Draw(plt.axes())
+      plt.xlabel(r'$\Lambda(%g)$' % mass)
+      plt.ylabel('Linear model')
+      lower = max([graph.xedge[0], graph.yedge[0]])
+      upper = min([graph.xedge[-1],graph.yedge[-1]])
+      plt.xlim([lower, upper])
+      plt.ylim([lower, upper])
+      line = np.linspace(lower, upper, 1000)
+      plt.plot(line, line, color='b')
       plt.savefig('%s_mass_%g.pdf' % (pdf_name, mass))
       plt.clf()
         

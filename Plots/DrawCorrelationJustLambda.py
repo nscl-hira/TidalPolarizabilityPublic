@@ -28,12 +28,13 @@ if __name__ == '__main__':
     g = None
 
     orig_df = pd.DataFrame()
-    features = ['Lsym', 'Ksym', 'Ksat', 
-                'Qsym', 'Qsat', 'Zsym', 
-                'Zsat', 'msat', 'lambda(1.4)', 'P(2rho0)']
-    features_names = [r'$L_{sym}$', r'$K_{sym}$', r'$K_{sat}$', 
-                      r'$Q_{sym}$', r'$Q_{sat}$', r'$Z_{sym}$', 
-                      r'$Z_{sat}$', r'$m^{*}_{sat}$', r'$\Lambda(1.4)$', r'$P(2\rho_{0})$']
+    x_features = ['Lsym', 'Ksym', 'P(2rho0)', 'Ksat',
+                'Qsym', 'Qsat']
+    x_features_names = [r'$L_{sym}$', r'$K_{sym}$', r'$P(2\rho_0)$', r'$K_{sat}$', 
+                        r'$Q_{sym}$', r'$Q_{sat}$']
+
+    y_features = ['lambda(1.2)', 'lambda(1.4)', 'lambda(1.6)']
+    y_features_names = [r'$\Lambda(1.2)$', r'$\Lambda(1.4)$', r'$\Lambda(1.6)$']
 
     pdf_name = sys.argv[1]
     for filename in sys.argv[2:]:
@@ -43,6 +44,14 @@ if __name__ == '__main__':
 
         new_mean = weight_store.get_storer('PriorWeight').attrs.prior_mean
         new_sd = weight_store.get_storer('PriorWeight').attrs.prior_sd
+
+        # set range to be within 2 sd
+        x_bounds = []
+        for name in x_features:
+          if name in new_mean:
+            x_bounds.append([new_mean[name] - 2*new_sd[name], new_mean[name] + 2*new_sd[name]])
+          elif name == 'P(2rho0)':
+            x_bounds.append([10, 50])
 
         chunksize = 8000
         for kwargs, result, add_info, reasonable, \
@@ -56,7 +65,7 @@ if __name__ == '__main__':
           new_df = pd.concat([ConcatenateListElements(kwargs), 
                               ConcatenateListElements(result),
                               ConcatenateListElements(add_info)], axis=1)
-          new_df = new_df[features]
+          new_df = new_df[x_features + y_features]
           # only select reasonable data
           idx = reasonable & causality
           new_df = new_df[idx]
@@ -66,45 +75,22 @@ if __name__ == '__main__':
           if g is None:
             g = fhist.FillablePairGrid(new_df, 
                                        weights=post_weight, 
-                                       x_names=features_names, 
-                                       y_names=features_names)
-            g.map_lower(fhist.FillableHist2D, bins=100, cmap='inferno')
-            g.map_upper(fhist.PearsonCorr, bins=100)
-            g.map_diag(fhist.FillableHist, bins=50, normalize=True, color='r')
+                                       x_vars=x_features,
+                                       x_names=x_features_names, 
+                                       x_ranges=x_bounds,
+                                       y_vars=y_features,
+                                       y_names=y_features_names,
+                                       y_ranges=[[1000, 2000], [250, 800], [100, 400]])
+            g.map(fhist.FillableHist2D, bins=100, cmap='inferno')
           else:
             g.Append(new_df, weights=post_weight)
     g.Draw()
-    plt.subplots_adjust(hspace=0.1, wspace=0.1, bottom=0.1, left=0.1, top=0.95)  
-    g.fig.set_size_inches(25,25)
+    plt.subplots_adjust(hspace=0.1, wspace=0.1, bottom=0.2, left=0.1, top=0.95)  
+    g.fig.set_size_inches(25,10)
     g.fig.align_labels()#tight_layout()
 
-    g.axes2d[2][0].set_ylim([249.167-2*26.833,249.167+2*26.833])
-    g.axes2d[-1][2].set_xlim([249.167-2*26.833,249.167+2*26.833])
-    for ax in g.axes2d[-2][:-2]:
-      ax.set_ylim([250, 800])
-      g.axes2d[-2][-2].set_xlim([250, 800])
-    for ax in g.axes2d[-1][:-1]:
-      ax.set_ylim([10, 50])
-    g.axes2d[-1][-1].set_xlim([10, 50])
-
-    # add prior to the plots
-    for i, name in enumerate(features):
-      try:
-        xlim = g.axes2d[i, i].get_xlim()
-        x = np.linspace(*xlim, 100)
-        a, b = (xlim[0] - new_mean[name])/new_sd[name], (xlim[1] - new_mean[name])/new_sd[name]
-        y = truncnorm.pdf(x, a, b, loc=new_mean[name], scale=new_sd[name])
-        g.axes2d[i, i].plot(x, y, color='b')
-      except:
-        pass
-    x = np.linspace(250, 800, 100)
-    y = NormalizedAsymGaussian(x, 190, 120, 390, 250, 800)
-    g.axes2d[-2, -2].plot(x, y, color='b')
-
-    """
     print('name\tmean\tSD')
-    for i, name in enumerate(features):
-      print('%s\t%f\t%f' % (name, g.graphs[i][i].GetMean(), g.graphs[i][i].GetSD()))
-    """
+    for i, name in enumerate(y_features):
+      print('%s\t%f\t%f' % (name, g.graphs[i][0].GetMean(1), g.graphs[i][0].GetSD(1)))
 
     plt.savefig(pdf_name)

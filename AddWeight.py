@@ -14,7 +14,6 @@ new_mean = {'Esym': 32.775,
             'Zsym':-3970.833333, 
             'msat': 0.731666667, 
             'kv':0.41}
-"""
 new_sd = {'Esym': 1.875, 
           'Lsym': 22.51666667,
           'Ksat': 26.83333333, 
@@ -36,6 +35,7 @@ new_sd = {'Esym': 1.875,
           'Zsym': 1754.5, 
           'msat': 0.081666667, 
           'kv': 0.216666667}
+"""
 
 def GetWeight(df, new_mean=new_mean, new_sd=new_sd):
     order = ['Esym','Lsym','Ksat','Ksym','Qsat','Qsym','Zsat','Zsym','msat','kv']

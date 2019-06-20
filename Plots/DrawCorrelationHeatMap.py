@@ -81,6 +81,7 @@ if __name__ == '__main__':
     df.index = ['lambda(%g)' % mass for mass in [1.2, 1.4, 1.6]]
 
     plt.figure(figsize=(12, 6)) 
+    plt.subplots_adjust(bottom=0.1, left=0.1, top=0.9) 
     sns.heatmap(df, annot=True, 
                 xticklabels=features_names, 
                 yticklabels=[r'$\Lambda(%g)$' % mass for mass in [1.2, 1.4, 1.6]])

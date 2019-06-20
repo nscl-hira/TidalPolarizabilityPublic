@@ -127,6 +127,23 @@ class FillableHist2D:
     else:
       Z = self.histogram.T
     ax.pcolormesh(X, Y, Z, **{**kwargs, **self.kwargs})
+    ax.set_xlim(min(self.xedge), max(self.xedge))
+    ax.set_ylim(min(self.yedge), max(self.yedge))
+
+  def GetMean(self, axis=0):
+    if axis == 0:
+      edge = self.xedge
+    else:
+      edge = self.yedge
+    return WeightedMean(0.5*(edge[:-1] + edge[1:]), np.sum(self.histogram, axis=axis))
+
+  def GetSD(self, axis=0):
+    if axis == 0:
+      edge = self.xedge
+    else:
+      edge = self.yedge
+    return np.sqrt(WeightedCov(0.5*(edge[:-1] + edge[1:]), 0.5*(edge[:-1] + edge[1:]), np.sum(self.histogram, axis=axis)))
+
 
 class PearsonCorr(FillableHist2D):
   def __init__(self, *args, **kwargs):
@@ -155,7 +172,7 @@ class PearsonCorr(FillableHist2D):
 
 class FillablePairGrid:
 
-  def __init__(self, df, weights=None, x_vars=None, y_vars=None, x_names=None, y_names=None):
+  def __init__(self, df, weights=None, x_vars=None, y_vars=None, x_names=None, y_names=None, x_ranges=None, y_ranges=None):
     if x_vars is None:
       self.x_vars = list(df)
     else:
@@ -178,8 +195,18 @@ class FillablePairGrid:
     self.xvalues = df[self.x_vars].values
     self.yvalues = df[self.y_vars].values
     self.weights = weights
-    self.xranges = np.array([np.amin(self.xvalues, axis=0), np.amax(self.xvalues, axis=0)]).T
-    self.yranges = np.array([np.amin(self.yvalues, axis=0), np.amax(self.yvalues, axis=0)]).T 
+    if x_ranges is None:
+      self.xranges = np.array([np.amin(self.xvalues, axis=0), np.amax(self.xvalues, axis=0)]).T
+    else:
+      x_ranges = np.atleast_2d(x_ranges)
+      assert x_ranges.shape == (len(self.x_vars), 2), 'The lenght of the supplied x range disagree with number of x variables'
+      self.xranges = x_ranges
+    if y_ranges is None:
+      self.yranges = np.array([np.amin(self.yvalues, axis=0), np.amax(self.yvalues, axis=0)]).T 
+    else:
+      y_ranges = np.atleast_2d(y_ranges)
+      assert y_ranges.shape == (len(self.y_vars), 2), 'The lenght of the supplied y range disagree with number of y variables'
+      self.yranges = y_ranges
     self.graphs = [[None for xvar in self.x_vars] for yvar in self.y_vars]
 
   def __iadd__(self, other):
@@ -200,7 +227,12 @@ class FillablePairGrid:
 
   def map_diag(self, Fillable, **kwargs):
     for i in range(0, len(self.x_vars)):
-      self.graphs[i][i] = Fillable(self.xvalues[:, i], weights=self.weights, **kwargs)
+      self.graphs[i][i] = Fillable(self.xvalues[:, i], weights=self.weights, range=self.xranges[i], **kwargs)
+
+  def map(self, Fillable, **kwargs):
+    for i in range(0, len(self.x_vars)):
+      for j in range(0, len(self.y_vars)):
+        self.graphs[j][i] = Fillable(self.xvalues[:, i], self.yvalues[:, j], weights=self.weights, range=[self.xranges[i], self.yranges[j]], **kwargs)
 
   def Append(self, df, weights=None):
     self.xvalues = df[self.x_vars].values
@@ -212,10 +244,12 @@ class FillablePairGrid:
             graph.Append(x=self.xvalues[:, j], y=self.yvalues[:,i], weights=weights)
           except Exception:
             graph.Append(x=self.xvalues[:, j], weights=weights)
+        else:
+          raise RuntimeError('You need to map all your graphs before appending data')
         
 
   def Draw(self):
-    self.fig, self.axes2d = plt.subplots(len(self.x_vars), len(self.y_vars))#, sharex='col', sharey='row')
+    self.fig, self.axes2d = plt.subplots(len(self.y_vars), len(self.x_vars))#, sharex='col', sharey='row')
     for i, row in enumerate(self.graphs):
       for j, graph in enumerate(row):
         cell = self.axes2d[i][j]
@@ -230,15 +264,15 @@ class FillablePairGrid:
           if j == 0:
             cell.set_ylabel(self.y_names[i])
 
-    # join axis
+    # join axis  
     for i, row in enumerate(self.axes2d):
       for j, ax in enumerate(row):
         ax.get_shared_x_axes().join(ax, self.axes2d[-1, j])
-        if i != j:
+        # don't join y-axis of the diagonal plot if the shape is square
+        if i != j and len(self.axes2d) == len(row):
           ax.get_shared_y_axes().join(ax, self.axes2d[i, 0])
         if i != len(self.axes2d) - 1:
           ax.set_xticklabels([])
         if j != 0:
           ax.set_yticklabels([])
-
 
