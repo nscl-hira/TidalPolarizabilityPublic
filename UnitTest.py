@@ -3,7 +3,7 @@ import numpy as np
 import unittest
 
 from TidalLove import TidalLoveWrapper as wrapper
-from Utilities.EOSCreator_new import EOSCreator
+from Utilities.EOSCreator import EOSCreator
 import UnitTestData as data
 
 class TestEOS(unittest.TestCase):

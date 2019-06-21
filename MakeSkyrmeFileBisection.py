@@ -84,7 +84,7 @@ def CheckCausality(eos, rho_max):
     sound = np.array(eos.GetSpeedOfSound(rho, 0))
 
     if all(sound <= 1) and all(sound >=0):
-        return False, False, 0
+        return False, False, 0.
     elif any(sound > 1):
         idx = np.where(sound > 1)
         return True, False, rho[idx][0]
@@ -137,7 +137,7 @@ def RenameResultKey(tidal_results, mass=None):
                       'lambda(%g)'%mass : tidal_results['Lambda']}
 
     for index, (cp_mass, cp_radius) in enumerate(zip(tidal_results['Checkpoint_mass'], 
-                                                              tidal_results['Checkpoint_radius'])):
+                                                     tidal_results['Checkpoint_radius'])):
         RenamedResults['RadiusCheckpoint%d(%g)' % (index, mass)] = cp_radius
         RenamedResults['MassCheckpoint%d(%g)' % (index, mass)] = cp_mass
         #RenamedResults['DensityCheckpoint%d(%g)' % (index, mass)] = cp_dens
@@ -147,8 +147,9 @@ def RenameResultKey(tidal_results, mass=None):
 """
 Print the selected EOS into a file for the tidallove script to run
 """
-def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs):
-    name = str(name_and_eos[0])
+def CalculateModel(name_and_eos, EOSType, TargetMass, MaxMassRequested, Transform_kwargs):
+    name = name_and_eos[0]
+    Backbone_kwargs = name_and_eos[1]
     eos_creator = EOSCreator()
 
     """
@@ -158,10 +159,9 @@ def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs
     result = {}
     meta_data = {}
     try:
-        eos, list_tran_density, kwargs = eos_creator.PrepareEOS(**{'EOSType': EOSType, 
-                                                                   'MaxMassRequested': MaxMassRequested,
-                                                                   **name_and_eos[1], 
-                                                                   **kwargs})
+        eos, list_tran_density, new_kwargs = eos_creator.Factory(EOSType=EOSType, 
+                                                                 Backbone_kwargs=Backbone_kwargs, 
+                                                                 Transform_kwargs=Transform_kwargs)
         meta_data = eos_creator.GetMetaData()
     except Exception:
         logger.exception('EOS cannot be created')
@@ -203,33 +203,30 @@ def CalculateModel(name_and_eos, EOSType, MaxMassRequested, TargetMass, **kwargs
             else:
                  result['NoData'] = False
 
-
         logger.debug('Causality checking for EOS %s' % name)
         try:
             result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = CheckCausality(eos, result['DensCentralMax'])
             #result['dUrca'] = dUrca(eos_creator, result['DensCentral(1.4)'])
         except Exception as error:
             logger.exception('Causality cannot be determined')
-            result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = True, True, 0
+            result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = True, True, 0.
  
     for index, cp_dens in enumerate(list_tran_density):
         result['DensityCheckpoint%d' % index] = cp_dens
 
     #result['Model'] = name
     logger.debug('Creating summarize information for EOS %s' % name)
-    summary = SummarizeSkyrme(eos_creator.ImportedEOS)
+    summary = SummarizeSkyrme(eos_creator.nuclear_eos)
     logger.debug('Adding P, P_sym, S_sym information for EOS %s' % name)
-    additional_info = AdditionalInfo(eos_creator.ImportedEOS)
+    additional_info = AdditionalInfo(eos_creator.nuclear_eos)
 
-    return name, kwargs, result, summary, additional_info, meta_data
+    return name, new_kwargs, result, summary, additional_info, meta_data, Backbone_kwargs
     #return {**kwargs, **result, **summary, **additional_info}, meta_data
 
 
 
-def CalculatePolarizability(df, mslave, Output, **kwargs): 
+def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequested, **Transform_kwargs): 
     total = df.shape[0]
-    args, unknown = p.parse_known_args()
-    kwargs = {**kwargs, **vars(args)}
 
     """
     Tells ConsolePrinter which quantities to be printed in real time
@@ -241,12 +238,22 @@ def CalculatePolarizability(df, mslave, Output, **kwargs):
     """
     Save meta data for every 10 EOSs
     """
-    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=400)
-    for new_result in tqdm(mslave.map(partial(CalculateModel, **kwargs), name_list, chunk_size=400), total=total, ncols=100, smoothing=0.):
+    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=100)
+    for new_result in tqdm(mslave.map(partial(CalculateModel, 
+                                              EOSType=EOSType,
+                                              TargetMass=TargetMass, 
+                                              MaxMassRequested=MaxMassRequested,
+                                              Transform_kwargs=Transform_kwargs),
+                                       name_list,
+                                       chunk_size=1), 
+                            total=total, 
+                            ncols=100, 
+                            smoothing=0.):
          try:
              name = new_result[0]
+             dataIO.AppendData('new_kwargs', name, None)
              dataIO.AppendData('meta', name, new_result[5])
-             dataIO.AppendData('kwargs', name, new_result[1])
+             dataIO.AppendData('kwargs', name, new_result[6])
              dataIO.AppendData('result', name, new_result[2])
              dataIO.AppendData('summary', name, new_result[3])
              dataIO.AppendData('Additional_info', name, new_result[4])
@@ -259,7 +266,7 @@ def CalculatePolarizability(df, mslave, Output, **kwargs):
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.CRITICAL)
+logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
