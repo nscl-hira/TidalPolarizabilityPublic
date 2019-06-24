@@ -21,7 +21,7 @@ if __name__ == '__main__':
   else:
     g = {}
     
-    results = ['lambda(%g)' % mass for mass in [1.2, 1.4, 1.6]]
+    results = [('Mass%g' % mass, 'Lambda') for mass in [1.2, 1.4, 1.6]]
     additional_info = ['P(1.5rho0)', 'P(2rho0)']
     
     orig_df = pd.DataFrame()
@@ -35,40 +35,33 @@ if __name__ == '__main__':
            pd.HDFStore(head + '.Weight' + ext, 'r') as weight_store:
   
         chunksize=80000
-        for kwargs, result, add_info, \
-            reasonable, causality, prior_weight, \
-            post_weight in zip(store.select('kwargs', chunksize=chunksize),
-                               store.select('result', chunksize=chunksize),
-                               store.select('Additional_info', chunksize=chunksize),
-                               weight_store.select('Reasonable', chunksize=chunksize),
-                               weight_store.select('Causality', chunksize=chunksize),
-                               weight_store.select('PriorWeight', chunksize=chunksize),
-                               weight_store.select('PosteriorWeight', chunksize=chunksize)): 
+        for kwargs, result, add_info, weight in zip(store.select('kwargs', chunksize=chunksize),
+                                                    store.select('result', chunksize=chunksize),
+                                                    store.select('Additional_info', chunksize=chunksize),
+                                                    weight_store.select('main', chunksize=chunksize)):
  
 
-          new_df = pd.concat([ConcatenateListElements(kwargs), 
-                              ConcatenateListElements(result), 
-                              ConcatenateListElements(add_info)], axis=1)
-          new_df = new_df[features + results]
+          new_df = pd.concat([kwargs, add_info], axis=1)
+          new_df = pd.concat([new_df[features], result[results]], axis=1)
           # only select reasonable data
-          idx = reasonable & causality
+          idx = (weight['Reasonable'].values & weight['Causality'].values).flatten()
           new_df = new_df[idx]
-          prior_weight = prior_weight[idx]
-          post_weight = post_weight[idx]
+          weight = weight[idx]
+          
 
           if len(g) == 0:
             for mass in [1.2, 1.4, 1.6]:
               g['lambda(%g)' % mass] = []
               for feature in features:
                 g['lambda(%g)' % mass].append(fhist.PearsonCorr(new_df[feature], 
-                                              new_df['lambda(%g)' % mass], 
-                                              post_weight, bins=100))
+                                              new_df[('Mass%g' % mass, 'Lambda')], 
+                                              weight['PosteriorWeight'], bins=100))
           else:
             for idx, feature in enumerate(features):
               for mass in [1.2, 1.4, 1.6]:
                 g['lambda(%g)' % mass][idx].Append(new_df[feature], 
-                                                   new_df['lambda(%g)' % mass], 
-                                                   post_weight) 
+                                                   new_df[('Mass%g' % mass, 'Lambda')], 
+                                                   weight['PosteriorWeight']) 
    
     corr = []
     for mass in [1.2, 1.4, 1.6]:

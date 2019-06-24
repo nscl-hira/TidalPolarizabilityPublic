@@ -48,29 +48,44 @@ def GetWeight(df, new_mean=new_mean, new_sd=new_sd):
     return exp
 
 def GetDeformabilityWeight(df):
-    exp = (df['lambda(1.4)'] > 190)*np.exp(-0.5*np.square((df['lambda(1.4)'] - 190)/390)) \
-          + (df['lambda(1.4)'] <= 190)*np.exp(-0.5*np.square((df['lambda(1.4)'] - 190)/120))
+    lambda_1_4 = df[('Mass1.4', 'Lambda')].values
+    exp = (lambda_1_4 > 190)*np.exp(-0.5*np.square((lambda_1_4 - 190)/390)) \
+          + (lambda_1_4 <= 190)*np.exp(-0.5*np.square((lambda_1_4 - 190)/120))
     return exp
 
 def CausalityCut(df): 
   if 'ViolateFrom' in df:
-    return ((df['ViolateFrom'] > df['DensCentral(2)']) | (df['ViolateCausality'] == False))
+    return ((df['ViolateFrom'] > df[('Mass2', 'DensCentral')]) | (df['ViolateCausality'] == False))
   else:
     return (df['ViolateCausality'] == False)
     
 
-features = ['Esym', 'Lsym', 'Ksym', 'Qsym', 'Ksat', 'Qsat', 'Zsat', 'Zsym', 'msat', 'kv']
-results = ['NoData', 'ViolateFrom', 'MaxMass', 'DensCentral(2)', 'ViolateCausality', 'lambda(1.4)', 'lambda(1.2)', 'lambda(1.6)']
+features = ['Esym', 'Lsym', 'Ksym', 
+            'Qsym', 'Ksat', 'Qsat', 
+            'Zsat', 'Zsym', 'msat', 
+            'kv']
+results = [('Mass1.2', 'Lambda'), 
+           ('Mass1.4', 'Lambda'), 
+           ('Mass1.6', 'Lambda'), 
+           ('MaxMass', 'DensCentral'), 
+           ('MaxMass', 'Mass'),
+           ('Mass2', 'DensCentral')]
+check_eos = ['NoData', 'ViolateFrom', 'ViolateCausality']
 
 def Summarize(args):
-  new_df = pd.concat([ConcatenateListElements(args[0])[features], 
-                      ConcatenateListElements(args[1])[results]], axis=1, sort=False)
-  reasonable = (new_df['lambda(1.4)'] > 0) & (new_df['lambda(1.4)'] < 1200) & (new_df['lambda(1.2)'] > 0) & (new_df['lambda(1.6)'] > 0)
-  prior_weight = GetWeight(new_df)
+  new_df = pd.concat([args[0][features], args[1][results], args[2][check_eos]], axis=1, sort=False)
+  reasonable = (new_df[('Mass1.4', 'Lambda')] > 0) & (new_df[('Mass1.4', 'Lambda')] < 1200) & (new_df[('Mass1.2', 'Lambda')] > 0) & (new_df[('Mass1.6', 'Lambda')] > 0) & (new_df[('MaxMass', 'Mass')] > 2)
+  prior_weight = pd.Series(GetWeight(new_df), index=new_df.index)
   posterior_weight = GetDeformabilityWeight(new_df)*prior_weight
   causality = CausalityCut(new_df)
 
-  return reasonable, pd.DataFrame(prior_weight, index=new_df.index), posterior_weight, causality
+  result = pd.concat([reasonable, 
+                      prior_weight, \
+                      posterior_weight, \
+                      causality], axis=1) 
+  result.columns = ['Reasonable', 'PriorWeight', 'PosteriorWeight', 'Causality']
+  result.index = new_df.index
+  return result
 
 if __name__ == '__main__':
   if len(sys.argv) == 1:
@@ -84,12 +99,11 @@ if __name__ == '__main__':
       with pd.HDFStore(filename, 'r') as store, \
            pd.HDFStore(head + '.Weight' + ext, 'w') as weight:
         chunksize=50000
-        for arg in zip(store.select('kwargs', chunksize=chunksize), store.select('result', chunksize=chunksize)):
+        for arg in zip(store.select('kwargs', chunksize=chunksize), 
+                       store.select('result', chunksize=chunksize),
+                       store.select('EOSCheck', chunksize=chunksize)):
           result = Summarize(arg)
-          weight.append('Reasonable', result[0], min_itemsize=10)
-          weight.append('PriorWeight', result[1], min_itemsize=10)
-          weight.append('PosteriorWeight', result[2], min_itemsize=10)
-          weight.append('Causality', result[3], min_itemsize=10)
-        weight.get_storer('PriorWeight').attrs.prior_mean = new_mean
-        weight.get_storer('PriorWeight').attrs.prior_sd = new_sd
+          weight.append('main', result, min_itemsize=30)
+        weight.get_storer('main').attrs.prior_mean = new_mean
+        weight.get_storer('main').attrs.prior_sd = new_sd
 

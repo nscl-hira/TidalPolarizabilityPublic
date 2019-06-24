@@ -74,7 +74,7 @@ from Utilities.Constants import *
 def FlattenListElements(df):
     df_list = []
     for key in df.columns:
-        if df[key].dtype == 'O':
+        if isinstance(df[key].iat[0], (list, np.ndarray)):
             values = np.vstack(df[key])
             if values.shape[1] > 1:
                 df_list.append(pd.DataFrame(values, index=df.index))
@@ -121,14 +121,29 @@ class DataIO:
         self.names = {}
         self.values = {}
 
-    def AppendData(self, branch, name, value):
-        if branch not in self.names:
-            self.names[branch] = []
-            self.values[branch] = []
-        self.names[branch].append(name)
-        self.values[branch].append(value)
-        if len(self.names[branch]) == self.flush_interval:
-            self.Flush(branch)
+    def AppendData(self, branch, name, value, second_lvl_branch=None):
+        if second_lvl_branch is None:
+            if branch not in self.names:
+                self.names[branch] = []
+                self.values[branch] = []
+            self.names[branch].append(name)
+            self.values[branch].append(value)
+            if len(self.names[branch]) == self.flush_interval:
+                self.Flush(branch)
+        else:
+            if branch not in self.names:
+                self.names[branch] = {}
+                self.values[branch] = {}
+            if second_lvl_branch not in self.values[branch]:
+                self.names[branch][second_lvl_branch] = []
+                self.values[branch][second_lvl_branch] = []
+            self.names[branch][second_lvl_branch].append(name)
+            self.values[branch][second_lvl_branch].append(value)
+            if all([len(value) == self.flush_interval for title, value in self.values[branch].items()]):
+                self.Flush(branch)
+
+    def AppendMeta(self, branch, meta_data):
+        self.store.get_storer(branch).attrs.meta_data = meta_data
 
     def __enter__(self):
         return self
@@ -146,28 +161,27 @@ class DataIO:
         elif isinstance(branches, str):
             branches = [branches]
         for branch in branches:
-            if len(self.names[branch]) > 0:
+            data = None
+            if isinstance(self.values[branch], dict):
+                dfs = {}
+                for title, value in self.values[branch].items():
+                    if len(self.names[branch][title]) > 0:
+                        temp_df = pd.DataFrame.from_dict(value)
+                        temp_df.index = self.names[branch][title]
+                        temp_df = FlattenListElements(temp_df)
+                        dfs[title] = temp_df
+                        self.names[branch][title] = []
+                        self.values[branch][title] = []
+                if len(dfs) > 0:
+                    data = pd.concat(dfs, axis=1)
+            elif len(self.names[branch]) > 0:
                 data = pd.DataFrame.from_dict(self.values[branch])
                 data.index = self.names[branch]
                 data = FlattenListElements(data)
-                if branch in self.store:
-                    try:
-                        data = data.astype(self.store[branch].dtypes.to_dict(), errors='ignore')
-                    except Exception:
-                        logger.exception('Cannot set type on branch %s' % branch)
-                        try:
-                            logger.error('Dict tried')
-                            logger.error(str(self.store[branch].dtypes.to_dict()))
-                            logger.error('Data columns')
-                            logger.error(str(list(data)))
-                            logger.error(str(list(set(data) - set(self.store[branch]))))
-                            logger.error(str(list(set(self.store[branch]) - set(data))))
-                        except Exception:
-                            logger.exception('Not all data is shown')
-                self.store.append(branch, data, min_itemsize={'index': 30})
                 self.names[branch] = []
                 self.values[branch] = []
-
+            if data is not None:
+                self.store.append(branch, data, min_itemsize={'index': 30})
 
 
     

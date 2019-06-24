@@ -20,7 +20,6 @@ if __name__ == '__main__':
     head, ext = os.path.splitext(filename)
     coef_file = pd.read_csv(coef_file, sep=',')
     features = [var.replace('_mean', '') for var in list(coef_file) if var.endswith('_mean')]
-    lambda_list = ['lambda(%g)' % mass for mass in [1.2, 1.4, 1.6]]
 
     all_mean = []
     all_var = []
@@ -29,9 +28,9 @@ if __name__ == '__main__':
     all_intercepts = []
     for mass in all_mass:
       mass_coef = coef_file[coef_file['mass'] == mass]
-      var = mass_coef.filter(regex='.*_var').mean(axis=0).values
-      mean = mass_coef.filter(regex='.*_mean').mean(axis=0).values
-      coef = mass_coef.filter(regex='.*_coef').mean(axis=0).values
+      var = mass_coef[['%s_var' % feature for feature in features]].mean(axis=0).values
+      mean = mass_coef[['%s_mean' % feature for feature in features]].mean(axis=0).values
+      coef = mass_coef[['%s_coef' % feature for feature in features]].mean(axis=0).values
       intercept = mass_coef['intercept'].mean(axis=0)
       print('mass %g' % mass)
       print('\t' + '\t'.join(features))
@@ -52,34 +51,24 @@ if __name__ == '__main__':
 
       chunksize = 80000
       
-      for kwargs, result, add_info, \
-        reasonable, causality, prior_weight, \
-        post_weight in zip(store.select('kwargs', chunksize=chunksize),
-                           store.select('result', chunksize=chunksize),
-                           store.select('Additional_info', chunksize=chunksize),
-                           weight_store.select('Reasonable', chunksize=chunksize),
-                           weight_store.select('Causality', chunksize=chunksize),
-                           weight_store.select('PriorWeight', chunksize=chunksize),
-                           weight_store.select('PosteriorWeight', chunksize=chunksize)): 
- 
-        new_df = pd.concat([ConcatenateListElements(kwargs), 
-                            ConcatenateListElements(result), 
-                            ConcatenateListElements(add_info)], axis=1)
-   
-        new_df = new_df[features + lambda_list]
+      for kwargs, result, add_info, weight in zip(store.select('kwargs', chunksize=chunksize), 
+                                                    store.select('result', chunksize=chunksize), 
+                                                    store.select('Additional_info', chunksize=chunksize),
+                                                    weight_store.select('main', chunksize=chunksize)): 
+        result.columns = [' '.join(col).strip() for col in result.columns.values]
+        new_df = pd.concat([kwargs, result, add_info], axis=1)
         # only select reasonable data
-        idx = reasonable & causality
+        idx = (weight['Reasonable'].values & weight['Causality'].values).flatten()
         new_df = new_df[idx]
-        prior_weight = prior_weight[idx]
-        post_weight = post_weight[idx]
+        weight = weight[idx]
 
         for mean, var, coef, mass, intercept in zip(all_mean, all_var, all_coef, all_mass, all_intercepts):
           data = (new_df[features].values - mean)/np.sqrt(var)*coef 
           data = np.sum(data, axis=1) + intercept
           if graphs[mass] is None:
-            graphs[mass] = FillableHist2D(data, new_df['lambda(%g)' % mass], post_weight, bins=50, cmap='inferno')
+            graphs[mass] = FillableHist2D(data, new_df['Mass%g Lambda' % mass], weight['PosteriorWeight'], bins=100, cmap='inferno')
           else:
-            graphs[mass].Append(data, new_df['lambda(%g)' % mass], post_weight)
+            graphs[mass].Append(data, new_df['Mass%g Lambda' % mass], weight['PosteriorWeight'])
 
     for mass, graph in graphs.items():
       graph.Draw(plt.axes())

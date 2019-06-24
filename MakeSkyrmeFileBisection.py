@@ -80,17 +80,21 @@ def LoadSkyrmeFile(filename):
     return df.fillna(0)
 
 def CheckCausality(eos, rho_max):
-    rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 100, base=np.exp(1)), np.linspace(3.77e-4, rho_max, 900)])
-    sound = np.array(eos.GetSpeedOfSound(rho, 0))
-
-    if all(sound <= 1) and all(sound >=0):
-        return False, False, 0.
-    elif any(sound > 1):
-        idx = np.where(sound > 1)
-        return True, False, rho[idx][0]
+    try:
+        rho = np.concatenate([np.logspace(np.log(1e-9), np.log(3.76e-4), 100, base=np.exp(1)), np.linspace(3.77e-4, rho_max, 900)])
+        sound = np.array(eos.GetSpeedOfSound(rho, 0))
+    except Exception as error:
+        logger.exception('Causality cannot be determined')
+        return {'ViolateCausality': True, 'NegSound': True, 'ViolateFrom': 0.}
     else:
-        idx = np.where(sound <= 0)
-        return True, True, rho[idx][0]
+        if all(sound <= 1) and all(sound >=0):
+            return {'ViolateCausality': False, 'NegSound': False, 'ViolateFrom': 0.}
+        elif any(sound > 1):
+            idx = np.where(sound > 1)
+            return {'ViolateCausality': True, 'NegSound': False, 'ViolateFrom': rho[idx][0]}
+        else:
+            idx = np.where(sound <= 0)
+            return {'ViolateCausality': True, 'NegSound': True, 'ViolateFrom': rho[idx][0]}
  
 
 def AdditionalInfo(eos):
@@ -127,23 +131,6 @@ def dUrca(eos_creator, density):
     idx = np.abs(eos_creator.rho - density).argmin()
     return any(eos_creator.pfrac[:idx] > xDU[:idx])
     
-
-def RenameResultKey(tidal_results, mass=None):
-    if mass is None:
-        mass = tidal_results['mass']
-    RenamedResults = {'PCentral(%g)'%mass : tidal_results['PCentral'],
-                      'DensCentral(%g)'%mass : tidal_results['DensCentral'],
-                      'R(%g)'%mass : tidal_results['Radius'],
-                      'lambda(%g)'%mass : tidal_results['Lambda']}
-
-    for index, (cp_mass, cp_radius) in enumerate(zip(tidal_results['Checkpoint_mass'], 
-                                                     tidal_results['Checkpoint_radius'])):
-        RenamedResults['RadiusCheckpoint%d(%g)' % (index, mass)] = cp_radius
-        RenamedResults['MassCheckpoint%d(%g)' % (index, mass)] = cp_mass
-        #RenamedResults['DensityCheckpoint%d(%g)' % (index, mass)] = cp_dens
-    return RenamedResults
-
-
 """
 Print the selected EOS into a file for the tidallove script to run
 """
@@ -157,6 +144,7 @@ def CalculateModel(name_and_eos, EOSType, TargetMass, MaxMassRequested, Transfor
     """
     logger.debug('Preparing EOS %s', name)
     result = {}
+    eos_check_result = {}
     meta_data = {}
     try:
         eos, list_tran_density, new_kwargs = eos_creator.Factory(EOSType=EOSType, 
@@ -176,51 +164,40 @@ def CalculateModel(name_and_eos, EOSType, TargetMass, MaxMassRequested, Transfor
             tidal_love.density_checkpoint = list_tran_density
             logger.debug('Finding maximum mass for EOS %s', name)
             MaxMassResult = tidal_love.FindMaxMass()
-            result['PCentralMaxMass'] = MaxMassResult['PCentral']
-            result['MaxMass']  = MaxMassResult['mass']
-            result['DensCentralMax'] = MaxMassResult['DensCentral']
+            result['MaxMass'] = MaxMassResult
 
-            if result['MaxMass'] >= MaxMassRequested: 
-                logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % (MaxMassRequested, name))
-                TidalResult = RenameResultKey(tidal_love.FindMass(mass=MaxMassRequested), MaxMassRequested)
+            if result['MaxMass'].mass >= MaxMassRequested: 
+                logger.debug('Finding NS of required mass %s because maximum possible mass for EOS %s is larger than required' % 
+                             (MaxMassRequested, name))
+                TidalResult = tidal_love.FindMass(mass=MaxMassRequested)
             else:
-                TidalResult = RenameResultKey({'PCentral': np.nan, 
-                                               'DensCentral': np.nan, 
-                                               'Radius': np.nan, 
-                                               'Lambda': np.nan, 
-                                               'Checkpoint_mass': [np.nan]*len(list_tran_density), 
-                                               'Checkpoint_radius': [np.nan]*len(list_tran_density)}, MaxMassRequested)
-            result = {**result, **TidalResult}
+                TidalResult = wrapper.TidalLoveResult(len(list_tran_density))
+            result['Mass%g' % MaxMassRequested] = TidalResult
 
             for tg in TargetMass:
                 logger.debug('Finding NS with mass %g for %s' % (tg, name))
-                TidalResult = RenameResultKey(tidal_love.FindMass(mass=tg), tg)
-                result = {**result, **TidalResult}
+                TidalResult = tidal_love.FindMass(mass=tg)
+                result['Mass%g' % tg] = TidalResult
 
-            if all(np.isnan(value) for value in result.values()):
+            if all(value.IsNan() for title, value in result.items()):
                  logger.debug('No NS can be formed with EOS %s' % name)
-                 result['NoData'] = True
+                 eos_check_result['NoData'] = True
             else:
-                 result['NoData'] = False
+                 eos_check_result['NoData'] = False
 
         logger.debug('Causality checking for EOS %s' % name)
-        try:
-            result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = CheckCausality(eos, result['DensCentralMax'])
-            #result['dUrca'] = dUrca(eos_creator, result['DensCentral(1.4)'])
-        except Exception as error:
-            logger.exception('Causality cannot be determined')
-            result['ViolateCausality'], result['NegSound'], result['ViolateFrom'] = True, True, 0.
- 
-    for index, cp_dens in enumerate(list_tran_density):
-        result['DensityCheckpoint%d' % index] = cp_dens
+        eos_check_result = {**eos_check_result, **CheckCausality(eos, result['MaxMass'].DensCentral)}
 
-    #result['Model'] = name
+    # expand all results are dict
+    for title, value in result.items():
+        value.Checkpoint_dens = list_tran_density
     logger.debug('Creating summarize information for EOS %s' % name)
     summary = SummarizeSkyrme(eos_creator.nuclear_eos)
     logger.debug('Adding P, P_sym, S_sym information for EOS %s' % name)
     additional_info = AdditionalInfo(eos_creator.nuclear_eos)
 
-    return name, new_kwargs, result, summary, additional_info, meta_data, Backbone_kwargs
+    # wow that's a lot of things to unpack
+    return name, result, summary, additional_info, meta_data, new_kwargs, Backbone_kwargs, eos_check_result
     #return {**kwargs, **result, **summary, **additional_info}, meta_data
 
 
@@ -238,35 +215,38 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
     """
     Save meta data for every 10 EOSs
     """
-    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=100)
+    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=300)
     for new_result in tqdm(mslave.map(partial(CalculateModel, 
                                               EOSType=EOSType,
                                               TargetMass=TargetMass, 
                                               MaxMassRequested=MaxMassRequested,
                                               Transform_kwargs=Transform_kwargs),
                                        name_list,
-                                       chunk_size=1), 
+                                       chunk_size=300), 
                             total=total, 
                             ncols=100, 
                             smoothing=0.):
          try:
              name = new_result[0]
-             dataIO.AppendData('new_kwargs', name, None)
-             dataIO.AppendData('meta', name, new_result[5])
+             for title, result in new_result[1].items():
+                 dataIO.AppendData('result', name, result.ToDict(), title)
+             dataIO.AppendData('new_kwargs', name, new_result[5])
+             dataIO.AppendData('meta', name, new_result[4])
              dataIO.AppendData('kwargs', name, new_result[6])
-             dataIO.AppendData('result', name, new_result[2])
-             dataIO.AppendData('summary', name, new_result[3])
-             dataIO.AppendData('Additional_info', name, new_result[4])
+             dataIO.AppendData('summary', name, new_result[2])
+             dataIO.AppendData('Additional_info', name, new_result[3])
+             dataIO.AppendData('EOSCheck', name, new_result[7])
          except Exception:
              logger.exception('Cannot save meta')
     try:
+        dataIO.AppendMeta('kwargs', {'EOSType': EOSType, 'MaxMassRequested': MaxMassRequested, **Transform_kwargs})
         dataIO.Close()
     except Exception as error:
         logger.exception('Cannot close dataIO')
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
+logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 

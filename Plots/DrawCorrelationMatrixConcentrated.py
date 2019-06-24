@@ -39,8 +39,8 @@ if __name__ == '__main__':
       with pd.HDFStore(filename, 'r') as store, \
            pd.HDFStore(head + '.Weight' + ext, 'r') as weight_store:
 
-        new_mean = weight_store.get_storer('PriorWeight').attrs.prior_mean
-        new_sd = weight_store.get_storer('PriorWeight').attrs.prior_sd
+        new_mean = weight_store.get_storer('main').attrs.prior_mean
+        new_sd = weight_store.get_storer('main').attrs.prior_sd
 
         # set range to be within 2 sd
         bounds = []
@@ -48,27 +48,19 @@ if __name__ == '__main__':
           bounds.append([new_mean[name] - 2*new_sd[name], new_mean[name] + 2*new_sd[name]])
 
         chunksize = 8000
-        for kwargs, result, add_info, reasonable, \
-            causality, prior_weight, post_weight in zip(store.select('kwargs', chunksize=chunksize), 
-                                                        store.select('result', chunksize=chunksize), 
-                                                        store.select('Additional_info', chunksize=chunksize),
-                                                        weight_store.select('Reasonable', chunksize=chunksize),
-                                                        weight_store.select('Causality', chunksize=chunksize),
-                                                        weight_store.select('PriorWeight', chunksize=chunksize),
-                                                        weight_store.select('PosteriorWeight', chunksize=chunksize)): 
-          new_df = pd.concat([ConcatenateListElements(kwargs), 
-                              ConcatenateListElements(result),
-                              ConcatenateListElements(add_info)], axis=1)
+        for kwargs, add_info, weight in zip(store.select('kwargs', chunksize=chunksize), 
+                                            store.select('Additional_info', chunksize=chunksize),
+                                            weight_store.select('main', chunksize=chunksize)): 
+          new_df = pd.concat([kwargs, add_info], axis=1)
           new_df = new_df[features]
           # only select reasonable data
-          idx = reasonable & causality
+          idx = (weight['Reasonable'].values & weight['Causality'].values).flatten()
           new_df = new_df[idx]
-          prior_weight = prior_weight[idx]
-          post_weight = post_weight[idx]
+          weight = weight[idx]
 
           if g is None:
             g = fhist.FillablePairGrid(new_df, 
-                                       weights=post_weight, 
+                                       weights=weight['PosteriorWeight'], 
                                        x_names=features_names, 
                                        y_names=features_names,
                                        x_ranges=bounds,
@@ -77,7 +69,7 @@ if __name__ == '__main__':
             g.map_upper(fhist.PearsonCorr, bins=100)
             g.map_diag(fhist.FillableHist, bins=50, normalize=True, color='r')
           else:
-            g.Append(new_df, weights=post_weight)
+            g.Append(new_df, weights=weight['PosteriorWeight'])
     g.Draw()
     plt.subplots_adjust(hspace=0.15, wspace=0.15, bottom=0.15, left=0.15, top=0.95)  
     g.fig.set_size_inches(25,25)

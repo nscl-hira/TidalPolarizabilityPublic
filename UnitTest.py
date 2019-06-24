@@ -46,10 +46,10 @@ class TestEOS(unittest.TestCase):
         with wrapper.TidalLoveWrapper(eos) as tidal_love:
             result = tidal_love.FindMaxMass()
             # allow for 1 percent error
-            self.assertAlmostEqual((result['mass'] - target_max_mass)/target_max_mass, 0, delta=1e-2)
+            self.assertAlmostEqual((result.mass - target_max_mass)/target_max_mass, 0, delta=1e-2)
             result = tidal_love.FindMass(1.4)
-            self.assertAlmostEqual((result['Radius'] - target_radius)/target_radius, 0, delta=1e-2)
-            self.assertAlmostEqual((result['Lambda'] - target_lambda)/target_lambda, 0, delta=1e-2)
+            self.assertAlmostEqual((result.Radius - target_radius)/target_radius, 0, delta=1e-2)
+            self.assertAlmostEqual((result.Lambda - target_lambda)/target_lambda, 0, delta=1e-2)
 
 
     def test_EOS(self):

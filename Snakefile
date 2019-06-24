@@ -1,4 +1,4 @@
-localrules: add_weight, draw_correlation, draw_corrheatmap, find_coef, draw_coef, all
+localrules: add_weight, draw_correlation, draw_corrheatmap, find_coef, draw_coef, all, draw_correlation_concentrated, draw_corrjustlambda
 
 rule all:
   input: 
@@ -15,7 +15,7 @@ rule generate:
     '''
     module load GNU/8.2.0-2.31.1
     module load OpenMPI/4.0.0
-    mpirun python -W ignore {input} -o {wildcards.name} --enable-debug
+    mpirun python -W ignore {input} -o {wildcards.name} --enable-debug --Gen
     ''' 
 
 rule add_weight:

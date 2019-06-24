@@ -21,7 +21,7 @@ if __name__ == '__main__':
     print(' To use, enter\npython %s csv_name input1 input2 ....' % sys.argv[0])
   else:
    
-    results = ['lambda(%g)' % mass for mass in [1.2, 1.4, 1.6]]
+    results = ['Mass%g Lambda' % mass for mass in [1.2, 1.4, 1.6]]
     additional_info = ['P(1.5rho0)', 'P(2rho0)']
     
     orig_df = pd.DataFrame()
@@ -36,37 +36,29 @@ if __name__ == '__main__':
       with pd.HDFStore(filename, 'r') as store, \
            pd.HDFStore(head + '.Weight' + ext, 'r') as weight_store:
 
-        chunksize = 80000
-        for kwargs, result, add_info, \
-            reasonable, causality, prior_weight, \
-            post_weight in zip(store.select('kwargs', chunksize=chunksize),
-                               store.select('result', chunksize=chunksize),
-                               store.select('Additional_info', chunksize=chunksize),
-                               weight_store.select('Reasonable', chunksize=chunksize),
-                               weight_store.select('Causality', chunksize=chunksize),
-                               weight_store.select('PriorWeight', chunksize=chunksize),
-                               weight_store.select('PosteriorWeight', chunksize=chunksize)): 
- 
-          new_df = pd.concat([ConcatenateListElements(kwargs), 
-                              ConcatenateListElements(result), 
-                              ConcatenateListElements(add_info)], axis=1)
-   
+        chunksize = 100000
+        for kwargs, result, add_info, weight in zip(store.select('kwargs', chunksize=chunksize), 
+                                                    store.select('result', chunksize=chunksize), 
+                                                    store.select('Additional_info', chunksize=chunksize),
+                                                    weight_store.select('main', chunksize=chunksize)): 
+          result.columns = [' '.join(col).strip() for col in result.columns.values]
+          new_df = pd.concat([kwargs, result, add_info], axis=1)
           new_df = new_df[features + results]
           # only select reasonable data
-          idx = reasonable & causality
+          idx = (weight['Reasonable'].values & weight['Causality'].values).flatten()
           new_df = new_df[idx]
-          prior_weight = prior_weight[idx]
-          post_weight = post_weight[idx]
-          new_df = new_df.dropna()
+          weight = weight[idx]
 
 
           for mass in [1.2, 1.4, 1.6]:
             info = {}
-            info['mean_lambda'] = np.mean(new_df['lambda(%g)' % mass])
+            info['mean_lambda'] = np.mean(new_df['Mass%g Lambda' % mass])
             clf = Pipeline([('Stand', StandardScaler()), ('Reg', LinearRegression())])
             clf.fit(new_df[features], 
-                    new_df['lambda(%g)' % mass], 
-                    **{'Reg__sample_weight': post_weight})
+                    new_df['Mass%g Lambda' % mass], 
+                    **{'Reg__sample_weight': weight['PosteriorWeight']})
+              
+            print('Mass %g score %g' % (mass, clf.score(new_df[features], new_df['Mass%g Lambda' % mass], sample_weight=weight['PosteriorWeight'])))
             for feature, mean in zip(features, clf.named_steps['Stand'].mean_):
               info['%s_mean' % feature] = mean
             for feature, var in zip(features, clf.named_steps['Stand'].var_):

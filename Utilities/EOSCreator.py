@@ -71,8 +71,8 @@ def AdjustPoly(eos, MaxMass):
         eos.eos_list[-1].ChangeFinalPressure(7*0.16, pressure)
         with wrapper.TidalLoveWrapper(eos) as tidal_love:
             result = tidal_love.FindMaxMass()
-            pc = result['PCentral']
-            max_m = result['mass']
+            pc = result.PCentral
+            max_m = result.mass
             if np.isnan(max_m): 
                 raise ValueError('Mass maximization failed')
         return max_m - MaxMass
@@ -90,10 +90,10 @@ class EOSCreator:
         self.mufrac = []
         self.energy = []
 
-    def AddBackboneEOS(self, NuclearEOS, need_be=True, meta=None):
+    def AddBackboneEOS(self, NuclearEOS, need_be=True, meta_data=None):
         self.nuclear_eos = NuclearEOS
         if need_be:
-            if meta is None:
+            if meta_data is None:
                 be = BetaEquilibrium(self.nuclear_eos, np.linspace(0.01, 10., 100))
                 self.backboneEOS = be[0]
                 self.rho = be[1]
@@ -115,6 +115,8 @@ class EOSCreator:
 
 
     def Factory(self, EOSType, Backbone_kwargs, Transform_kwargs, meta=None):
+        self.density_list = []
+        self.eos_list = []
         # combine default Transform_kwargs with default Transform_kwargs
         args, unknown = p.parse_known_args()
         Transform_kwargs = {**vars(args), **Transform_kwargs}
@@ -124,7 +126,7 @@ class EOSCreator:
         need_be = False if EOSType == 'EOSNoCrust' else True
         
         #add this to this class
-        self.AddBackboneEOS(eos, need_be, meta=meta)
+        self.AddBackboneEOS(eos, need_be, meta)
         # get to work!
         if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'Rod' or EOSType == 'Power':
             eos, new_kwargs  = self.BuildPoly(**Transform_kwargs)
@@ -156,7 +158,7 @@ class EOSCreator:
                        sky.ConstSpeed.MatchBothEnds(prev_density,
                                                     prev_eos,
                                                     next_density,
-                                                    next_eos), 10*0.16)
+                                                    next_eos), 11)
         return self.Build(), {'PolyTropeDensity': PolyTropeDensity}
 
     def BuildPoly(self, CrustFileName, CrustSmooth, PRCTransDensity, PolyTropeDensity, MaxMass, PressureHigh=None, **kwargs):

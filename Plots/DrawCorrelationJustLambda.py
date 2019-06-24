@@ -33,7 +33,7 @@ if __name__ == '__main__':
     x_features_names = [r'$L_{sym}$', r'$K_{sym}$', r'$P(2\rho_0)$', r'$K_{sat}$', 
                         r'$Q_{sym}$', r'$Q_{sat}$']
 
-    y_features = ['lambda(1.2)', 'lambda(1.4)', 'lambda(1.6)']
+    y_features = ['Mass1.2 Lambda', 'Mass1.4 Lambda', 'Mass1.6 Lambda']
     y_features_names = [r'$\Lambda(1.2)$', r'$\Lambda(1.4)$', r'$\Lambda(1.6)$']
 
     pdf_name = sys.argv[1]
@@ -42,8 +42,8 @@ if __name__ == '__main__':
       with pd.HDFStore(filename, 'r') as store, \
            pd.HDFStore(head + '.Weight' + ext, 'r') as weight_store:
 
-        new_mean = weight_store.get_storer('PriorWeight').attrs.prior_mean
-        new_sd = weight_store.get_storer('PriorWeight').attrs.prior_sd
+        new_mean = weight_store.get_storer('main').attrs.prior_mean
+        new_sd = weight_store.get_storer('main').attrs.prior_sd
 
         # set range to be within 2 sd
         x_bounds = []
@@ -54,27 +54,21 @@ if __name__ == '__main__':
             x_bounds.append([10, 50])
 
         chunksize = 8000
-        for kwargs, result, add_info, reasonable, \
-            causality, prior_weight, post_weight in zip(store.select('kwargs', chunksize=chunksize), 
-                                                        store.select('result', chunksize=chunksize), 
-                                                        store.select('Additional_info', chunksize=chunksize),
-                                                        weight_store.select('Reasonable', chunksize=chunksize),
-                                                        weight_store.select('Causality', chunksize=chunksize),
-                                                        weight_store.select('PriorWeight', chunksize=chunksize),
-                                                        weight_store.select('PosteriorWeight', chunksize=chunksize)): 
-          new_df = pd.concat([ConcatenateListElements(kwargs), 
-                              ConcatenateListElements(result),
-                              ConcatenateListElements(add_info)], axis=1)
+        for kwargs, result, add_info, weight in zip(store.select('kwargs', chunksize=chunksize), 
+                                                    store.select('result', chunksize=chunksize), 
+                                                    store.select('Additional_info', chunksize=chunksize),
+                                                    weight_store.select('main', chunksize=chunksize)): 
+          result.columns = [' '.join(col).strip() for col in result.columns.values]
+          new_df = pd.concat([kwargs, result, add_info], axis=1)
           new_df = new_df[x_features + y_features]
           # only select reasonable data
-          idx = reasonable & causality
+          idx = (weight['Reasonable'].values & weight['Causality'].values).flatten()
           new_df = new_df[idx]
-          prior_weight = prior_weight[idx]
-          post_weight = post_weight[idx]
+          weight = weight[idx]
 
           if g is None:
             g = fhist.FillablePairGrid(new_df, 
-                                       weights=post_weight, 
+                                       weights=weight['PosteriorWeight'], 
                                        x_vars=x_features,
                                        x_names=x_features_names, 
                                        x_ranges=x_bounds,
@@ -83,7 +77,7 @@ if __name__ == '__main__':
                                        y_ranges=[[1000, 2000], [250, 800], [100, 400]])
             g.map(fhist.FillableHist2D, bins=100, cmap='inferno')
           else:
-            g.Append(new_df, weights=post_weight)
+            g.Append(new_df, weights=weight['PosteriorWeight'])
     g.Draw()
     plt.subplots_adjust(hspace=0.1, wspace=0.1, bottom=0.2, left=0.1, top=0.95)  
     g.fig.set_size_inches(25,10)
