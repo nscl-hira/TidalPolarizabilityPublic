@@ -143,6 +143,8 @@ class DataIO:
                 self.Flush(branch)
 
     def AppendMeta(self, branch, meta_data):
+        if branch not in self.store.keys():
+            self.Flush(branch)
         self.store.get_storer(branch).attrs.meta_data = meta_data
 
     def __enter__(self):
