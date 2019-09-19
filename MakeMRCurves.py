@@ -19,8 +19,8 @@ import Utilities.Utilities as utl
 import Utilities.SkyrmeEOS as sky 
 from Utilities.Constants import *
 from Utilities.EOSCreator import EOSCreator
-from SelectPressure import AddPressure
 from MakeSkyrmeFileBisection import LoadSkyrmeFile
+from Utilities.EOSLoader import EOSLoader
 
 OuterCrustDensity = 0.3e-3
 SurfacePressure = 1e-8
@@ -29,14 +29,8 @@ SurfacePressure = 1e-8
 Print the selected EOS into a file for the tidallove script to run
 """
 def MRCurvesForModel(name_and_eos, pressure):
-    name = name_and_eos[0]    
-    eos_creator = EOSCreator()
-
-
-    """
-    Prepare EOS
-    """
-    eos, list_tran_density, kwargs = eos_creator.PrepareEOS(**name_and_eos[1])
+    loader = EOSLoader('Results/test.csv.h5')
+    eos, list_tran_density = loader.GetNSEOS(name_and_eos)
 
     radius = []
     mass = []
@@ -45,7 +39,7 @@ def MRCurvesForModel(name_and_eos, pressure):
         for pc in pressure:
             try:
                 result = tidal_love.Calculate(pc=pc)
-                m, r = result['mass'], result['Radius']
+                m, r = result.mass, result.Radius
                 if r > 5:
                     mass.append(m)
                     radius.append(r)
@@ -62,15 +56,16 @@ def FindIntersection(all_results, mass):
     return min(designated_radius), max(designated_radius)
 
 if __name__ == '__main__':
-    df = LoadSkyrmeFile('Results/ABrownUDen.csv')
-    df = pd.concat([df, LoadSkyrmeFile('Results/ABrownNewNoPolyTrope.csv')])
+    #df = LoadSkyrmeFile('Results/ABrownF1Den.csv')
+    loader = EOSLoader('Results/test.csv.h5')
+    #df = pd.concat([df, LoadSkyrmeFile('Results/ABrownNewNoPolyTrope.csv')])
 
     #pressure = np.concatenate((np.linspace(2, 500, 50), np.linspace(500, 5000, 100)), axis=None)
-    pressure = np.logspace(np.log(1.), np.log(1000), num=100, base=np.exp(1))
-    labelq = r'$m^{*}_{n}/m = 0.85$'
-    labelu = r'$m^{*}_{n}/m = 0.60 - 0.65$'
-    q_arglist = [([name, row], pressure) for name, row in df.iterrows() if name[-1] == 'q']
-    u_arglist = [([name, row], pressure) for name, row in df.iterrows() if name[-1] == 'u']
+    pressure = np.logspace(np.log(1.), np.log(1000), num=50, base=np.exp(1))
+    labelq = r'*w.den'
+    labelu = r'*v.den'
+    q_arglist = [(i, pressure) for i, (name, row) in enumerate(loader.Backbone_kwargs.iterrows()) if name[-1] == 'w']
+    u_arglist = [(i, pressure) for i, (name, row) in enumerate(loader.Backbone_kwargs.iterrows()) if name[-1] == 'v']
       
     with Pool(processes=10) as pool:
          q_result = pool.starmap(MRCurvesForModel, q_arglist)
@@ -78,10 +73,10 @@ if __name__ == '__main__':
 
 
     for result in q_result:
-         plt.plot(result[1], result[0], color='b', label=labelq, linestyle='--')
+         plt.plot(result[1], result[0], color='steelblue', label=labelq, linestyle='--')
          labelq = None
     for result in u_result:
-         plt.plot(result[1], result[0], color='r', label=labelu)
+         plt.plot(result[1], result[0], color='orange', label=labelu)
          labelu = None
 
     # draw verticl line corresponds to 1.4 solar mass NS
@@ -89,8 +84,8 @@ if __name__ == '__main__':
     plt.axhline(y=highlighted_mass, color='grey', linestyle='-', alpha=0.2)
     q_min, q_max = FindIntersection(q_result, highlighted_mass)
     u_min, u_max = FindIntersection(u_result, highlighted_mass)
-    plt.axvspan(q_min, q_max, color='b', alpha=0.2, lw=0)
-    plt.axvspan(u_min, u_max, color='r', alpha=0.2, lw=0)
+    plt.axvspan(q_min, q_max, color='steelblue', alpha=0.2, lw=0)
+    plt.axvspan(u_min, u_max, color='orange', alpha=0.2, lw=0)
 
     plt.xlabel('Radius (km)')
     plt.ylabel(r'Mass ($M_{\odot}$)')
