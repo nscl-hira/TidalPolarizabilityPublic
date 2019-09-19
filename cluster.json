@@ -1,8 +1,16 @@
 {
   "__default__":
   {
-    "time": "10:00:0",
-    "mem": "5G",
+    "time": "00:15:00",
+    "mem" : "10G",
+    "ntasks" : "1",
+    "output": "Log/{rule}.{wildcards}.out",
+    "error" : "Log/{rule}.{wildcards}.err"
+  },
+  "generate":
+  {
+    "time": "15:00:0",
+    "mem": "10G",
     "ntasks": "200",
     "output": "Log/{wildcards.name}.out",
     "error": "Log/{wildcards.name}.err"

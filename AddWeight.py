@@ -4,6 +4,8 @@ import os
 from Utilities.Utilities import ConcatenateListElements
 import pandas as pd
 
+     
+
 new_mean = {'Esym': 32.775, 
             'Lsym': 69.86666667, 
             'Ksat':249.1666667, 
@@ -87,6 +89,55 @@ def Summarize(args):
   result.index = new_df.index
   return result
 
+class AnalyzeGenData:
+
+  def __init__(self, data_file, gen_weight_file=False, chunksize=50000):
+    self.filename = data_file
+    self.head, self.ext = os.path.splitext(self.filename)
+    # generate weight file it does not exist
+    if not os.path.exists(self.head + '.Weight' + self.ext):
+      if gen_weight_file:
+        with pd.HDFStore(self.filename, 'r') as store, \
+             pd.HDFStore(self.head + '.Weight' + self.ext, 'w') as weight:
+          for arg in zip(store.select('kwargs', chunksize=chunksize), 
+                         store.select('result', chunksize=chunksize),
+                         store.select('EOSCheck', chunksize=chunksize)):
+            result = Summarize(arg)
+            weight.append('main', result, min_itemsize=30)
+          weight.get_storer('main').attrs.prior_mean = new_mean
+          weight.get_storer('main').attrs.prior_sd = new_sd
+      else:
+        raise RuntimeError('Cannot find weight files with gen_weight_file disabled. It cannot generate or read weight files. Abort')
+
+  def __enter__(self):
+    self.store = pd.HDFStore(self.filename, 'r')
+    self.weight = pd.HDFStore(self.head + '.Weight' + self.ext, 'r')
+    self.new_mean = self.weight.get_storer('main').attrs.prior_mean
+    self.new_sd = self.weight.get_storer('main').attrs.prior_sd
+    return self
+
+  def __exit__(self, type, value, traceback):
+    self.store.close()
+    self.weight.close()
+
+  def ReasonableData(self, needed_features=None, chunksize=8000):
+    for kwargs, result, add_info, weight in zip(self.store.select('kwargs', chunksize=chunksize),
+                                                self.store.select('result', chunksize=chunksize),
+                                                self.store.select('Additional_info', chunksize=chunksize),
+                                                self.weight.select('main', chunksize=chunksize)):
+      result.columns = [' '.join(col).strip() for col in result.columns.values]
+      idx = (weight['Reasonable'].values & weight['Causality'].values).flatten()
+      new_df = pd.concat([kwargs, result, add_info], axis=1)
+      new_df = new_df[idx]
+      weight = weight[idx]
+
+      if needed_features is not None:
+        new_df = new_df[needed_features]
+  
+      yield new_df, weight
+
+ 
+
 if __name__ == '__main__':
   if len(sys.argv) == 1:
     print('This script adds weight to the calculation result.')
@@ -95,15 +146,5 @@ if __name__ == '__main__':
     print(' To use, enter\npython %s file1 file2 ....' % sys.argv[0])
   else:
     for filename in sys.argv[1:]:
-      head, ext = os.path.splitext(filename)
-      with pd.HDFStore(filename, 'r') as store, \
-           pd.HDFStore(head + '.Weight' + ext, 'w') as weight:
-        chunksize=50000
-        for arg in zip(store.select('kwargs', chunksize=chunksize), 
-                       store.select('result', chunksize=chunksize),
-                       store.select('EOSCheck', chunksize=chunksize)):
-          result = Summarize(arg)
-          weight.append('main', result, min_itemsize=30)
-        weight.get_storer('main').attrs.prior_mean = new_mean
-        weight.get_storer('main').attrs.prior_sd = new_sd
-
+      print(filename)
+      AnalyzeGenData(filename, True)

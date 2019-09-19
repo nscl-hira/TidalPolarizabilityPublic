@@ -5,8 +5,12 @@ import sys
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+from prettytable import PrettyTable
+
 from Plots.FillableHist import FillableHist2D
 from Utilities.Utilities import ConcatenateListElements
+from Plots.FindLinearCoefficient import all_masses
 
 
 if __name__ == '__main__':
@@ -14,6 +18,8 @@ if __name__ == '__main__':
     print('This script is used to plot the goodness of the linear fit')
     print('python %s Coefficient_csv data pdf_names' % sys.argv[0])
   else:
+
+
     coef_file = sys.argv[1]
     filename = sys.argv[2]
     pdf_name = sys.argv[3]
@@ -21,31 +27,49 @@ if __name__ == '__main__':
     coef_file = pd.read_csv(coef_file, sep=',')
     features = [var.replace('_mean', '') for var in list(coef_file) if var.endswith('_mean')]
 
+    all_mean_lambda = []
+    all_std_lambda = []
     all_mean = []
     all_var = []
     all_coef = []
-    all_mass = [1.2, 1.4, 1.6]
     all_intercepts = []
-    for mass in all_mass:
+
+    x = PrettyTable()
+    x.title = 'Parameter statistics'
+    x.field_names = ['type'] + features
+    var = coef_file[['%s_var' % feature for feature in features]].mean(axis=0).values
+    mean = coef_file[['%s_mean' % feature for feature in features]].mean(axis=0).values
+    x.add_row(['mean'] + ['%.2f' % val for val in mean])
+    x.add_row(['Std'] + ['%.2f' % val for val in np.sqrt(var)])
+    print(x)
+    
+    x = PrettyTable()
+    x.field_names = ['Mass'] + features + ['Intercept', 'Mean lambda', 'Std lambda']
+ 
+    for mass in all_masses:
+
       mass_coef = coef_file[coef_file['mass'] == mass]
-      var = mass_coef[['%s_var' % feature for feature in features]].mean(axis=0).values
-      mean = mass_coef[['%s_mean' % feature for feature in features]].mean(axis=0).values
       coef = mass_coef[['%s_coef' % feature for feature in features]].mean(axis=0).values
       intercept = mass_coef['intercept'].mean(axis=0)
-      print('mass %g' % mass)
-      print('\t' + '\t'.join(features))
-      print('mean\t%s' % ('\t'.join(['%.2f' % val for val in mean])))
-      print('Std\t%s' % ('\t'.join(['%.2f' % np.sqrt(val) for val in var])))
-      print('Coef\t%s' % ('\t'.join(['%.2f' % val for val in coef])))
-      print('Intercept\t%.2f' % intercept)
+      mean_lambda = mass_coef['mean_lambda'].mean(axis=0)
+      std_lambda = mass_coef['std_lambda'].mean(axis=0)
+
+      x.add_row(['%g' % mass] +['%.2f' % val for val in coef] + ['%.2f' % intercept, '%.2f' % mean_lambda, '%.2f' % std_lambda])
+
+      all_mean_lambda.append(mean_lambda)
+      all_std_lambda.append(std_lambda)
       all_coef.append(coef)
       all_mean.append(mean)
       all_var.append(var)
       all_intercepts.append(intercept)
-      
- 
 
-    graphs = {1.2: None, 1.4: None, 1.6: None}
+
+    x.title = 'Coefficients'
+    print(x)
+
+
+
+    graphs = None#{1.2: None, 1.4: None, 1.6: None}
     with pd.HDFStore(filename, 'r') as store, \
          pd.HDFStore(head + '.Weight' + ext, 'r') as weight_store:
 
@@ -62,26 +86,40 @@ if __name__ == '__main__':
         new_df = new_df[idx]
         weight = weight[idx]
 
-        for mean, var, coef, mass, intercept in zip(all_mean, all_var, all_coef, all_mass, all_intercepts):
+        for mean, var, coef, mass, intercept, mean_lambda, std_lambda in zip(all_mean, all_var, all_coef, all_masses, all_intercepts, all_mean_lambda, all_std_lambda):
           data = (new_df[features].values - mean)/np.sqrt(var)*coef 
           data = np.sum(data, axis=1) + intercept
-          if graphs[mass] is None:
-            graphs[mass] = FillableHist2D(data, new_df['Mass%g Lambda' % mass], weight['PosteriorWeight'], bins=100, cmap='inferno')
+          standarded_lambda = (new_df['Mass%g Lambda' % mass] - mean_lambda)/std_lambda
+          intensity_factor = 1.
+          """
+          if mass == 1.2:
+            intensity_factor = 5.
+          elif mass == 1.4:
+            intensity_factor = 2
+          elif mass == 1.6:
+            intensity_factor = 1.
+          elif mass == 1.8:
+            intensity_factor = 0.5
+          elif mass == 2.:
+            intensity_factor = 0.25
+          """
+          if graphs is None:
+            graphs = FillableHist2D(standarded_lambda, data, intensity_factor*weight['PosteriorWeight'], bins=100, cmap='Reds', range=[[-2,2],[-2,2]])#, range=[[0,2000],[0,2000]])
           else:
-            graphs[mass].Append(data, new_df['Mass%g Lambda' % mass], weight['PosteriorWeight'])
+            graphs.Append(standarded_lambda, data, intensity_factor*weight['PosteriorWeight'])
 
-    for mass, graph in graphs.items():
-      graph.Draw(plt.axes())
-      plt.xlabel(r'$\Lambda(%g)$' % mass)
-      plt.ylabel('Linear model')
-      lower = max([graph.xedge[0], graph.yedge[0]])
-      upper = min([graph.xedge[-1],graph.yedge[-1]])
-      plt.xlim([lower, upper])
-      plt.ylim([lower, upper])
-      line = np.linspace(lower, upper, 1000)
-      plt.plot(line, line, color='b')
-      plt.savefig('%s_mass_%g.pdf' % (pdf_name, mass))
-      plt.clf()
+    graphs.Draw(plt.axes())
+    plt.ylabel(r'$\hat{\Lambda}$ (TOV)')
+    plt.xlabel(r'$\hat{\Lambda}$ (Linear model in equation (21))')
+    #lower = max([graph.xedge[0], graph.yedge[0]])
+    #upper = min([graph.xedge[-1],graph.yedge[-1]])
+    #plt.xlim([lower, upper])
+    #plt.ylim([lower, upper])
+    line = np.linspace(-2, 2, 100)
+    plt.plot(line, line, color='b')
+    plt.tight_layout()
+    plt.savefig('%s_linear_model.pdf' % pdf_name)
+    #plt.clf()
         
         
 

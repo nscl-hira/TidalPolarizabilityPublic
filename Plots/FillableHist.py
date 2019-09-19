@@ -96,11 +96,19 @@ class FillableHist2D:
     assert len(range) == 2, 'Range should be a 2D array like indicating [minx, maxx], [miny, maxy]'
 
     if logx:
+      if range[0][0] < 0: 
+        range[0][0] = np.nanmin(x[x > 0])
+      if range[0][1] < 0:
+        range[0][1] = np.nanmax(x[x > 0])
       self.xbins = np.logspace(*np.log(range[0]), num=self.nxbins+1, base=np.e)
     else:
       self.xbins = np.linspace(*range[0], num=self.nxbins+1)
 
     if logy:
+      if range[1][0] < 0: 
+        range[1][0] = np.nanmin(y[y > 0])
+      if range[1][1] < 0:
+        range[1][1] = np.nanmax(y[y > 0])
       self.ybins = np.logspace(*np.log(range[1]), num=self.nybins+1, base=np.e)
     else:
       self.ybins = np.linspace(*range[1], num=self.nxbins+1)
@@ -156,7 +164,7 @@ class PearsonCorr(FillableHist2D):
 
 
   def Draw(self, ax, **kwargs):
-    corr_text = f"{self.corr_r:2.2f}".replace("0.", ".") if abs(self.corr_r) > 0.1 else '<0.1'
+    corr_text = f"{self.corr_r:2.2f}".replace("0.", ".") if abs(self.corr_r) > 0.1 else r'···'
     shay = ax.get_shared_y_axes()
     shay.remove(ax)
     #ax.clear()
@@ -165,7 +173,7 @@ class PearsonCorr(FillableHist2D):
     if abs(self.corr_r) > 0.1:
         ax.scatter([.5], [.5], marker_size, [self.corr_r], alpha=0.6, cmap="coolwarm",
                    vmin=-1, vmax=1, transform=ax.transAxes)
-    font_size = abs(self.corr_r) * 40 + 5 + 20 if abs(self.corr_r) > 0.1 else 25
+    font_size = abs(self.corr_r) * 40 + 5 + 20 if abs(self.corr_r) > 0.1 else 75
     ax.annotate(corr_text, [.5, .5,],  xycoords="axes fraction",
     ha='center', va='center', fontsize=font_size)
 
@@ -248,7 +256,7 @@ class FillablePairGrid:
           raise RuntimeError('You need to map all your graphs before appending data')
         
 
-  def Draw(self):
+  def Draw(self, fontsize=40):
     self.fig, self.axes2d = plt.subplots(len(self.y_vars), len(self.x_vars))#, sharex='col', sharey='row')
     for i, row in enumerate(self.graphs):
       for j, graph in enumerate(row):
@@ -257,12 +265,13 @@ class FillablePairGrid:
         if graph is not None:
           graph.Draw(cell)
           if i == len(self.graphs) - 1:
-            cell.set_xlabel(self.x_names[j])
-            cell.tick_params(axis='x', rotation=45)
+            cell.set_xlabel(self.x_names[j], rotation=0, fontsize=fontsize)
+            cell.tick_params(axis='x', rotation=45, labelsize=fontsize)
             for x in cell.get_xticklabels():
               x.set_ha('right')
           if j == 0:
-            cell.set_ylabel(self.y_names[i])
+            cell.tick_params(axis='y', labelsize=fontsize)
+            cell.set_ylabel(self.y_names[i], rotation=90, fontsize=fontsize)
 
     # join axis  
     for i, row in enumerate(self.axes2d):
