@@ -20,9 +20,11 @@ class EOSLoader:
   def __init__(self, filename):
     self.store = pd.HDFStore(filename, 'r')
     head, ext = os.path.splitext(filename)
-    self.weight_store = pd.HDFStore(head + '.Weight' + ext, 'r')
-    self.reasonable = self.weight_store['main']['Reasonable']
-    self.weight = self.weight_store['main']['PosteriorWeight']
+    self.weight_score = None
+    if os.path.exists(head + '.Weight' + ext):
+      self.weight_store = pd.HDFStore(head + '.Weight' + ext, 'r')
+      self.reasonable = self.weight_store['main']['Reasonable']
+      self.weight = self.weight_store['main']['PosteriorWeight']
 
     self.meta_data = self.store['meta']
     self.Backbone_kwargs = self.store['kwargs']
@@ -56,7 +58,8 @@ class EOSLoader:
 
   def Close(self):
     self.store.close()
-    self.weight_store.close()
+    if self.weight_score:
+      self.weight_store.close()
 
 
 
