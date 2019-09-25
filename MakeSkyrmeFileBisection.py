@@ -16,6 +16,7 @@ import logging
 from multiprocessing_logging import install_mp_handler, MultiProcessingHandler
 import configargparse   
 from mpi4py import MPI
+from collections import namedtuple
 
 from Utilities.Utilities import FlattenListElements, ConcatenateListElements, DataIO
 import Utilities.ConsolePrinter as cp
@@ -197,8 +198,8 @@ def CalculateModel(name_and_eos, EOSType, TargetMass, MaxMassRequested, Transfor
     additional_info = AdditionalInfo(eos_creator.nuclear_eos)
 
     # wow that's a lot of things to unpack
-    return name, result, summary, additional_info, meta_data, new_kwargs, Backbone_kwargs, eos_check_result
-    #return {**kwargs, **result, **summary, **additional_info}, meta_data
+    eos_info = namedtuple('EOSInfo', ['name', 'TOVresults', 'EOSDeriv', 'EOSValues', 'Meta', 'NewKwargs', 'BackboneKwargs', 'Causality'])
+    return eos_info(name, result, summary, additional_info, meta_data, new_kwargs, Backbone_kwargs, eos_check_result)
 
 
 
@@ -227,17 +228,17 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
                             ncols=100, 
                             smoothing=0.):
          try:
-             name = new_result[0]
-             for title, result in new_result[1].items():
+             name = new_result.name
+             for title, result in new_result.TOVresults.items():
                  dataIO.AppendData('result', name, result.ToDict(), title)
-             dataIO.AppendData('new_kwargs', name, new_result[5])
-             dataIO.AppendData('meta', name, new_result[4])
-             dataIO.AppendData('kwargs', name, new_result[6])
-             dataIO.AppendData('summary', name, new_result[2])
-             dataIO.AppendData('Additional_info', name, new_result[3])
-             dataIO.AppendData('EOSCheck', name, new_result[7])
+             dataIO.AppendData('new_kwargs', name, new_result.NewKwargs)
+             dataIO.AppendData('meta', name, new_result.Meta)
+             dataIO.AppendData('kwargs', name, new_result.BackboneKwargs)
+             dataIO.AppendData('summary', name, new_result.EOSDeriv)
+             dataIO.AppendData('Additional_info', name, new_result.EOSValues)
+             dataIO.AppendData('EOSCheck', name, new_result.Causality)
          except Exception:
-             logger.exception('Cannot save meta')
+             logger.exception('Cannot save data')
     try:
         dataIO.AppendMeta('kwargs', {'EOSType': EOSType, 'MaxMassRequested': MaxMassRequested, **Transform_kwargs})
         dataIO.Close()
@@ -247,6 +248,7 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.CRITICAL)
+#logging.basicConfig(format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 

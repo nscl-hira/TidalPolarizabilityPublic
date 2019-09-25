@@ -118,18 +118,27 @@ class DataIO:
         self.flush_interval = flush_interval
         self.filename = filename
         self.store = pd.HDFStore(self.filename, 'a')
+        # names: Index of a table for each branch
+        # Should be the same for all branches, but different branch flush at different time so it is more convinent ot just save names for each branch
         self.names = {}
+        # values: Value of each branch. DataFrame will be made out of it
         self.values = {}
+        if flush_interval <= 0:
+            logger.error('Invalid flush_interval. It must be larger than zero.')
+
 
     def AppendData(self, branch, name, value, second_lvl_branch=None):
+        # names can only be 30 characters long
+        name = name[:30]
         if second_lvl_branch is None:
             if branch not in self.names:
                 self.names[branch] = []
                 self.values[branch] = []
-            self.names[branch].append(name)
-            self.values[branch].append(value)
             if len(self.names[branch]) == self.flush_interval:
                 self.Flush(branch)
+
+            self.names[branch].append(name)
+            self.values[branch].append(value)
         else:
             if branch not in self.names:
                 self.names[branch] = {}
@@ -137,11 +146,14 @@ class DataIO:
             if second_lvl_branch not in self.values[branch]:
                 self.names[branch][second_lvl_branch] = []
                 self.values[branch][second_lvl_branch] = []
+            # need to flush before appending data
+            # such that the list of second_lvl_branch can be completed before flushing
+            if len(self.names[branch][second_lvl_branch]) == self.flush_interval:
+                self.Flush(branch)
             self.names[branch][second_lvl_branch].append(name)
             self.values[branch][second_lvl_branch].append(value)
-            if all([len(value) == self.flush_interval for title, value in self.values[branch].items()]):
-                self.Flush(branch)
-
+            # Warning: Flush won't always flush second level branch unless each second level branch has the same length
+           
     def AppendMeta(self, branch, meta_data):
         if branch not in self.store.keys():
             self.Flush(branch)
@@ -160,26 +172,38 @@ class DataIO:
     def Flush(self, branches=None):
         if branches is None:
             branches = self.names.keys()
+        # need to loop through branches even if it is just one. Make it list if branches is a string
         elif isinstance(branches, str):
             branches = [branches]
+        # store the supplied branch
         for branch in branches:
             data = None
+            # this branch has second level if the content is a dictionary
             if isinstance(self.values[branch], dict):
-                dfs = {}
-                for title, value in self.values[branch].items():
-                    if len(self.names[branch][title]) > 0:
-                        temp_df = pd.DataFrame.from_dict(value)
-                        temp_df.index = self.names[branch][title]
-                        temp_df = FlattenListElements(temp_df)
-                        dfs[title] = temp_df
+                # flush only when all second level branches reaches the same length
+                # because we need to combine all second level branches into one dataframe. 
+                # if the length of second lvl branches are not aligned, the dataframe won't be rectanglar
+                if len(set(len(value) for title, value in self.values[branch].items())) == 1: # won't even save if the list is empty
+                    # create dataframe for each second lvl branch and concat at the end
+                    dfs = {}
+                    for title, value in self.values[branch].items():
+                        if len(self.names[branch][title]) > 0:
+                            temp_df = pd.DataFrame.from_dict(value)
+                            temp_df.index = self.names[branch][title]
+                            temp_df = FlattenListElements(temp_df)
+
+                            dfs[title] = temp_df
                         self.names[branch][title] = []
                         self.values[branch][title] = []
-                if len(dfs) > 0:
-                    data = pd.concat(dfs, axis=1)
+                    if len(dfs) > 0:
+                        data = pd.concat(dfs, axis=1)
+                else:
+                    logger.warning('Lengths of the second lvl branches are not identical. Will not flush')
             elif len(self.names[branch]) > 0:
                 data = pd.DataFrame.from_dict(self.values[branch])
                 data.index = self.names[branch]
                 data = FlattenListElements(data)
+
                 self.names[branch] = []
                 self.values[branch] = []
             if data is not None:
