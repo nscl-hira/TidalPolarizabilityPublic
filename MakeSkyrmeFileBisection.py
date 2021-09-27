@@ -247,7 +247,7 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
 #logging.basicConfig(format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     p.add_argument("-i", "--Input", help="Name of the Skyrme input file")
     p.add_argument("-o", "--Output", help="Name of the CSV output (Default: Result)")
     p.add_argument("-et", "--EOSType", help="Type of EOS. It can be: EOS, EOSNoPolyTrope, BESkyrme, OnlySkyrme")
-    p.add_argument('--Gen', dest='Gen', action='store_true', help="Enable if need to generate random parameters")
+    p.add_argument('--Gen', dest='Gen', default=False, action='store_true', help="Enable if need to generate random parameters")
     p.add_argument("-s", "--Size", type=int, help="Size of the generated random parameters")
     p.add_argument('-it', "--Iter", type=int, help='Iterations of generated random parameters.')
 

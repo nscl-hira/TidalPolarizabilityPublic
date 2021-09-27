@@ -10,13 +10,14 @@ dependencies:
   - blosc=1.21.0=h9c3ff4c_0
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.17.2=h7f98852_0
-  - ca-certificates=2021.5.30=ha878542_0
-  - certifi=2021.5.30=py39hf3d152e_0
+  - ca-certificates=2021.7.5=h06a4308_1
+  - certifi=2021.5.30=py39h06a4308_0
   - colorama=0.4.4=pyh9f0ad1d_0
   - configargparse=1.5.2=pyhd8ed1ab_0
   - cycler=0.10.0=py_2
   - dbus=1.13.6=h48d8840_2
   - dill=0.3.4=pyhd8ed1ab_0
+  - et_xmlfile=1.1.0=py39h06a4308_0
   - expat=2.4.1=h9c3ff4c_0
   - fontconfig=2.13.1=hba837de_1005
   - freetype=2.10.4=h0708190_1
@@ -29,6 +30,7 @@ dependencies:
   - hdf5=1.12.1=nompi_h2750804_100
   - icu=68.1=h58526e2_0
   - jbig=2.1=h7f98852_2003
+  - jdcal=1.4.1=pyhd3eb1b0_0
   - jpeg=9d=h36c2ea0_0
   - kiwisolver=1.3.2=py39h1a9c180_0
   - krb5=1.19.2=hcc1bbae_1
@@ -81,7 +83,8 @@ dependencies:
   - numpy=1.20.3=py39hdbf815f_0
   - olefile=0.46=pyh9f0ad1d_1
   - openjpeg=2.4.0=hb52868f_1
-  - openssl=1.1.1l=h7f98852_0
+  - openpyxl=3.0.7=pyhd3eb1b0_0
+  - openssl=1.1.1l=h7f8727e_0
   - pandas=1.3.3=py39hde0f152_0
   - pcre=8.45=h9c3ff4c_0
   - pillow=8.3.2=py39ha612740_0
@@ -115,7 +118,6 @@ dependencies:
   - zlib=1.2.11=h516909a_1010
   - zstd=1.5.0=ha95c52a_0
   - pip:
-    - mpi4py==4.0.0.dev0
+    - mpi4py==3.1.1
     - multiprocessing-logging==0.3.1
-prefix: /mnt/home/tsangchu/anaconda2/envs/TidalTest
-
+prefix: /mnt/analysis/hira/tsangc/anaconda2/envs/TidalTest

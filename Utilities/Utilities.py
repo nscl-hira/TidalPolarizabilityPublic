@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import matplotlib.font_manager as font_manager
 
-font_dirs = ['/projects/hira/tsangc/Polarizability/fonts', ]
-font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
-
-for font_file in font_files:
-  font_list = font_manager.FontManager.addfont(font_file)
+#font_dirs = ['/projects/hira/tsangc/Polarizability/fonts', ]
+#font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
+#
+#for font_file in font_files:
+#  font_list = font_manager.FontManager.addfont(font_file)
 #font_list = font_manager.createFontList(font_files)
 #font_manager.fontManager.ttflist.extend(font_list)
 
