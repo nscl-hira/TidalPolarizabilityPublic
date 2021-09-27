@@ -147,6 +147,7 @@ def CalculateModel(name_and_eos, EOSType, TargetMass, MaxMassRequested, Transfor
     result = {}
     eos_check_result = {}
     meta_data = {}
+    Transform_kwargs['MaxMass'] = MaxMassRequested
     try:
         eos, list_tran_density, new_kwargs = eos_creator.Factory(EOSType=EOSType, 
                                                                  Backbone_kwargs=Backbone_kwargs, 
@@ -223,7 +224,7 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
                                               MaxMassRequested=MaxMassRequested,
                                               Transform_kwargs=Transform_kwargs),
                                        name_list,
-                                       chunk_size=300), 
+                                       chunk_size=1), 
                             total=total, 
                             ncols=100, 
                             smoothing=0.):
@@ -247,7 +248,7 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.CRITICAL)
+logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.INFO)
 #logging.basicConfig(format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
