@@ -5,7 +5,6 @@ import os
 #!/projects/hira/tsangc/Polarizability/myPy/bin/python -W ignore
 import sys
 from multiprocessing import cpu_count
-from pebble import ProcessPool, ProcessExpired
 from concurrent.futures import TimeoutError
 import autograd.numpy as np
 import pandas as pd
