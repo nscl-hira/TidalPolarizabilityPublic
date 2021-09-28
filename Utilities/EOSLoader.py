@@ -29,6 +29,8 @@ class EOSLoader:
     self.meta_data = self.store['meta']
     self.Backbone_kwargs = self.store['kwargs']
     self.Transform_kwargs = self.store.get_storer('kwargs').attrs.meta_data
+    if 'MaxMassRequested' in self.Transform_kwargs:
+      self.Transform_kwargs['MaxMass'] = self.Transform_kwargs['MaxMassRequested']
     self.EOSType = self.Transform_kwargs['EOSType']
     self.NoData = self.store['EOSCheck']['NoData']
     self.Causality = self.store['EOSCheck']['ViolateCausality']
@@ -55,6 +57,9 @@ class EOSLoader:
                                                 self.Transform_kwargs,
                                                 UnrollMeta(self.meta_data, i))
     return eos, [1e-9] + density_list + [10*0.16]
+
+  def GetName(self, i):
+    return self.store['kwargs'].index[i]
 
   def Close(self):
     self.store.close()
