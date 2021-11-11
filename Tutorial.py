@@ -17,8 +17,8 @@ if __name__ == '__main__':
                                                   'sigma3': 0, 'rho0': 0.159282694})
   SkyrmeAfterBetaEqualibrium, _, _, _, _ = BetaEquilibrium(SkyrmeBeforeBetaEqualibrium, np.linspace(0.01, 10., 100))
   density = np.linspace(0.1, 3, 100)*0.16
-  plt.plot(density, SkyrmeAfterBetaEqualibrium.GetPressure(density))
-  plt.show()
+  # plt.plot(density, SkyrmeAfterBetaEqualibrium.GetPressure(density))
+  # plt.show()
  
   # density at which green transition to blue
   crustEndDensity = FindCrustalTransDensity(SkyrmeBeforeBetaEqualibrium)
@@ -29,8 +29,8 @@ if __name__ == '__main__':
   crustEOS = creator.ConstructCrust('Constraints/EOSCrustOutput.dat', CrustSmooth=0.)
 
   creator.InsertEOS(crustEOS, connectStartDensity)
-  creator.InsertConnection(crustEndDensity)
-  creator.InsertEOS(SkyrmeAfterBetaEqualibrium, 30*0.16)#3*SkyrmeBeforeBetaEqualibrium.rho0)
+  creator.InsertSmoothConnection(crustEndDensity)
+  creator.InsertEOS(SkyrmeAfterBetaEqualibrium, 3*SkyrmeBeforeBetaEqualibrium.rho0)
   creator.InsertEOS(lambda prev_density, prev_eos, next_density, next_eos:
                     sky.ConstSpeed.MatchBothEnds(prev_density,
                                                  prev_eos,
