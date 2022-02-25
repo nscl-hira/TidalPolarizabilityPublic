@@ -16,9 +16,9 @@ if __name__ == '__main__':
                                                   'x32': 0, 'x33': 0, 'sigma1': 0.333333, 'sigma2': 0, 
                                                   'sigma3': 0, 'rho0': 0.159282694})
   SkyrmeAfterBetaEqualibrium, _, _, _, _ = BetaEquilibrium(SkyrmeBeforeBetaEqualibrium, np.linspace(0.01, 10., 100))
-  density = np.linspace(0.1, 3, 100)*0.16
-  plt.plot(density, SkyrmeAfterBetaEqualibrium.GetPressure(density))
-  plt.show()
+  #density = np.linspace(0.1, 3, 100)*0.16
+  #plt.plot(density, SkyrmeAfterBetaEqualibrium.GetPressure(density))
+  #plt.show()
  
   # density at which green transition to blue
   crustEndDensity = FindCrustalTransDensity(SkyrmeBeforeBetaEqualibrium)
@@ -29,13 +29,24 @@ if __name__ == '__main__':
   crustEOS = creator.ConstructCrust('Constraints/EOSCrustOutput.dat', CrustSmooth=0.)
 
   creator.InsertEOS(crustEOS, connectStartDensity)
-  creator.InsertConnection(crustEndDensity)
-  creator.InsertEOS(SkyrmeAfterBetaEqualibrium, 30*0.16)#3*SkyrmeBeforeBetaEqualibrium.rho0)
+  #creator.InsertConnection(crustEndDensity)
+  creator.InsertEOS(lambda prev_density, prev_eos, next_density, next_eos:
+                    sky.PseudoEOS.MatchBothEnds(prev_density,
+                                                prev_eos,
+                                                next_density, 
+                                                next_eos), crustEndDensity)
+
+  creator.InsertEOS(SkyrmeAfterBetaEqualibrium, 3*SkyrmeBeforeBetaEqualibrium.rho0)
   creator.InsertEOS(lambda prev_density, prev_eos, next_density, next_eos:
                     sky.ConstSpeed.MatchBothEnds(prev_density,
                                                  prev_eos,
                                                  next_density,
                                                  next_eos), 30)
+  #creator.InsertEOS(lambda prev_density, prev_eos, next_density, next_eos:
+  #                  sky.PolyTrope(prev_density, prev_eos.GetEnergy(prev_density), 
+  #                  prev_eos.GetPressure(prev_density), 7*0.16, PressureHigh), 
+  #                  100)
+ 
   eosFinal = creator.Build()
 
   with wrapper.TidalLoveWrapper(eosFinal) as tidal_love:

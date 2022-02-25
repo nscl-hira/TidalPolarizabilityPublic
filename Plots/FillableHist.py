@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoLocator
 import pandas as pd
 from astropy.convolution import convolve
-from astropy.convolution.kernels import Gaussian2DKernel
+from astropy.convolution.kernels import Gaussian1DKernel, Gaussian2DKernel
 
 
 def WeightedMean(x, w):
@@ -18,7 +18,8 @@ def WeightedCorr(x, y, w):
 
 class FillableHist:
 
-  def __init__(self, x, weights=None, bins=10, range=None, logx=False, **kwargs):
+  def __init__(self, x, weights=None, bins=10, range=None, logx=False, smooth=False, **kwargs):
+    self.smooth = smooth
     x = np.ravel(x)
     
     self.nbins = bins
@@ -48,16 +49,20 @@ class FillableHist:
       new_hist, self.edge = np.histogram(x, bins=self.xbins, weights=weights)
       self.histogram = self.histogram + new_hist
 
-  def Draw(self, ax, **kwargs):
+  def Draw(self, ax, s=2, **kwargs):
     #ax.bar(self.edge[:-1], self.histogram, width=np.diff(self.edge), align='edge', **{**kwargs, **self.kwargs})
-    ax.grid(which='minor', alpha=0.2)
-    ax.grid(which='major', alpha=0.5)
+    #ax.grid(which='minor', alpha=0.2)
+    #ax.grid(which='major', alpha=0.5)
     mean_x = 0.5*(self.edge[:-1] + self.edge[1:])
     tot_vol = 1
     if 'normalize' in self.kwargs:
       dx = np.diff(self.edge)
       tot_vol = np.sum(dx*self.histogram)
       self.kwargs.pop('normalize')
+
+    if self.smooth:
+      self.histogram = convolve(self.histogram, Gaussian1DKernel(s))
+
     ax.step(mean_x, self.histogram/tot_vol, **{**kwargs, **self.kwargs})
     ax.set_xlim(min(self.edge), max(self.edge))
     ax.set_ylim(bottom=0)
@@ -111,7 +116,7 @@ class FillableHist2D:
         range[1][1] = np.nanmax(y[y > 0])
       self.ybins = np.logspace(*np.log(range[1]), num=self.nybins+1, base=np.e)
     else:
-      self.ybins = np.linspace(*range[1], num=self.nxbins+1)
+      self.ybins = np.linspace(*range[1], num=self.nybins+1)
     self.kwargs = kwargs
     self.Append(x, y, weights)
 
@@ -128,10 +133,10 @@ class FillableHist2D:
     new_hist, self.xedge, self.yedge = np.histogram2d(x, y, bins=[self.xbins, self.ybins], weights=weights)
     self.histogram = self.histogram + new_hist
 
-  def Draw(self, ax, **kwargs):
+  def Draw(self, ax, s=3, **kwargs):
     X, Y = np.meshgrid(self.xedge, self.yedge)
     if self.smooth:
-      Z = convolve(np.pad(self.histogram.T, pad_width=4, mode='edge'), Gaussian2DKernel(x_stddev=3))[4:-4, 4:-4]
+      Z = convolve(np.pad(self.histogram.T, pad_width=4, mode='edge'), Gaussian2DKernel(x_stddev=s))[4:-4, 4:-4]
     else:
       Z = self.histogram.T
     ax.pcolormesh(X, Y, Z, **{**kwargs, **self.kwargs})
@@ -164,7 +169,7 @@ class PearsonCorr(FillableHist2D):
 
 
   def Draw(self, ax, **kwargs):
-    corr_text = f"{self.corr_r:2.2f}".replace("0.", ".") if abs(self.corr_r) > 0.1 else r'···'
+    corr_text = f"{self.corr_r:2.2f}" if abs(self.corr_r) > 0.1 else r'···'
     shay = ax.get_shared_y_axes()
     shay.remove(ax)
     #ax.clear()
@@ -173,7 +178,7 @@ class PearsonCorr(FillableHist2D):
     if abs(self.corr_r) > 0.1:
         ax.scatter([.5], [.5], marker_size, [self.corr_r], alpha=0.6, cmap="coolwarm",
                    vmin=-1, vmax=1, transform=ax.transAxes)
-    font_size = abs(self.corr_r) * 40 + 5 + 20 if abs(self.corr_r) > 0.1 else 75
+    font_size = abs(self.corr_r) * 40 + 5 + 10 if abs(self.corr_r) > 0.1 else 75
     ax.annotate(corr_text, [.5, .5,],  xycoords="axes fraction",
     ha='center', va='center', fontsize=font_size)
 
@@ -252,12 +257,13 @@ class FillablePairGrid:
             graph.Append(x=self.xvalues[:, j], y=self.yvalues[:,i], weights=weights)
           except Exception:
             graph.Append(x=self.xvalues[:, j], weights=weights)
-        else:
-          raise RuntimeError('You need to map all your graphs before appending data')
+        #else:
+        #  raise RuntimeError('You need to map all your graphs before appending data')
         
 
   def Draw(self, fontsize=40):
     self.fig, self.axes2d = plt.subplots(len(self.y_vars), len(self.x_vars))#, sharex='col', sharey='row')
+    self.axes2d = np.atleast_2d(self.axes2d)
     for i, row in enumerate(self.graphs):
       for j, graph in enumerate(row):
         cell = self.axes2d[i][j]
@@ -272,6 +278,8 @@ class FillablePairGrid:
           if j == 0:
             cell.tick_params(axis='y', labelsize=fontsize)
             cell.set_ylabel(self.y_names[i], rotation=90, fontsize=fontsize)
+        else:
+            cell.axis('off')
 
     # join axis  
     for i, row in enumerate(self.axes2d):

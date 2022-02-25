@@ -2,7 +2,7 @@
   "__default__":
   {
     "time": "00:15:00",
-    "mem" : "10G",
+    "mem_per_cpu" : "10G",
     "ntasks" : "1",
     "output": "Log/{rule}.{wildcards}.out",
     "error" : "Log/{rule}.{wildcards}.err"
@@ -10,9 +10,35 @@
   "generate":
   {
     "time": "15:00:0",
-    "mem": "10G",
-    "ntasks": "200",
+    "mem_per_cpu": "1G",
+    "ntasks": "300",
     "output": "Log/{wildcards.name}.out",
     "error": "Log/{wildcards.name}.err"
-  }
+  },
+  "draw_SymPressure":
+  {
+    "time": "00:30:0",
+    "mem_per_cpu": "2G",
+    "ntasks": "100",
+    "output": "Log/{rule}.{wildcards.name}.out",
+    "error": "Log/{rule}.{wildcards.name}.err"
+  },
+  "draw_Pressure":
+  {
+    "time": "00:30:0",
+    "mem_per_cpu": "2G",
+    "ntasks": "100",
+    "output": "Log/{rule}.{wildcards.name}.out",
+    "error": "Log/{rule}.{wildcards.name}.err"
+  },
+  "draw_AsymPost":
+  {
+    "time": "00:30:0",
+    "mem_per_cpu": "2G",
+    "ntasks": "100",
+    "output": "Log/{rule}.{wildcards.name}.out",
+    "error": "Log/{rule}.{wildcards.name}.err"
+  },
+
+
 }

@@ -4,11 +4,11 @@
 #SBATCH --mem=3G
 
 source /mnt/home/tsangchu/.bashrc_temp
-module unload Python
+#module unload Python
 export OMPI_MCA_btl_openib_allow_ib=1
-module load GNU/8.2.0-2.31.1
-module load OpenMPI/4.0.0
+#module load GNU/8.2.0-2.31.1
+#module load OpenMPI/4.0.0
 
 conda activate Tidal3
 
-snakemake -j 10 --cluster-config cluster.json --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --output={cluster.output} --error={cluster.error} --ntasks={cluster.ntasks} --exclude=lac-040" -p --config name='SmoothSound2'
+snakemake -j 10 --cluster-config cluster.json --cluster "sbatch --mem-per-cpu={cluster.mem_per_cpu} --time={cluster.time} --output={cluster.output} --error={cluster.error} --ntasks={cluster.ntasks} --exclude=lac-040" -p --config name='dump'

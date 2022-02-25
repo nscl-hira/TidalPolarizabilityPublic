@@ -127,24 +127,28 @@ class TidalLoveWrapper:
             self.ans.Checkpoint_mass = ans[3]
             self.ans.Checkpoint_radius = ans[4]
         else:
-            raise RuntimeError('Calculated mass smaller than zero. EOS exceed its valid range')
+            raise RuntimeError('Calculated mass smaller than zero. EOS exceed its valid range at pc = %f, maxp = %f' % (pc, self.max_pressure))
 
         return self.ans
 
-    def FindMaxMass(self, central_pressure0=500, disp=False, *args):
+    def FindMaxMass(self, central_pressure0=10, disp=False, *args):
         if central_pressure0 > self.max_pressure:
             logger.warning('Default pressure %g exceed max. valid pressure %.3f. Will ignore default pressure' % (central_pressure0, self.max_pressure))
             central_pressure0 = 0.7*self.max_pressure
         # try finding the maximum mass
-        try:
-            pc = opt.minimize(lambda x: -1e6*self.Calculate(float(x)).mass, 
-                              x0=np.array([central_pressure0]), 
-                              bounds=((0, None),), 
-                              options={'eps':0.1, 'ftol':1e-3})
-            pc = pc['x'][0]
-        except Exception as error:
-            logger.exception('Failed to find max mass')
-            pc = np.nan
+        pc = np.nan
+        while central_pressure0 < self.max_pressure:
+            try:
+                pc = opt.minimize(lambda x: -1e6*self.Calculate(float(x)).mass, 
+                                  x0=np.array([central_pressure0]), 
+                                  bounds=((0.01, 0.95*self.max_pressure),), 
+                                  options={'eps':0.1, 'ftol':1e-3})
+                pc = pc['x'][0]
+            except Exception as error:
+                central_pressure0 = central_pressure0*2
+                logger.exception('Failed to find max mass with central_pressure %f' % central_pressure0)
+            else:
+                break
         # infer central density from central pressure
         try:
             DensCentralMax = opt.newton(lambda x: self.eos.GetPressure(x, 0) - pc, x0=5*0.16,
@@ -157,7 +161,7 @@ class TidalLoveWrapper:
         self.ans.DensCentral = DensCentralMax
         return copy(self.ans)
 
-    def FindMass(self, central_pressure0=60, mass=1.4, *args, **kwargs):
+    def FindMass(self, central_pressure0=10, mass=1.4, *args, **kwargs):
         if central_pressure0 > self.max_pressure:
             logger.warning('Default pressure %g exceed max. valid pressure %.3f. Will ignore default pressure' % (central_pressure0, self.max_pressure))
             central_pressure0 = 0.7*self.max_pressure

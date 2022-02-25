@@ -40,14 +40,14 @@ new_sd = {'Esym': 1.875,
 """
 
 def GetWeight(df, new_mean=new_mean, new_sd=new_sd):
-    order = ['Esym','Lsym','Ksat','Ksym','Qsat','Qsym','Zsat','Zsym','msat','kv']
-    data = np.array([df[name] for name in order]).T
-    ordered_mean = np.array([new_mean[name] for name in order]).reshape(1,-1)
-    ordered_sd = np.array([new_sd[name] for name in order]).reshape(1,-1)
+    #order = ['Esym','Lsym','Ksat','Ksym','Qsat','Qsym','Zsat','Zsym','msat','kv']
+    #data = np.array([df[name] for name in order]).T
+    #ordered_mean = np.array([new_mean[name] for name in order]).reshape(1,-1)
+    #ordered_sd = np.array([new_sd[name] for name in order]).reshape(1,-1)
 
-    deg_freedom = len(order)
-    exp = np.exp(-0.5*np.sum(np.square((data - ordered_mean)/ordered_sd), axis=1))
-    return exp
+    #deg_freedom = len(order)
+    #exp = np.exp(-0.5*np.sum(np.square((data - ordered_mean)/ordered_sd), axis=1))
+    return 1#exp
 
 def GetDeformabilityWeight(df):
     lambda_1_4 = df[('Mass1.4', 'Lambda')].values
@@ -62,10 +62,10 @@ def CausalityCut(df):
     return (df['ViolateCausality'] == False)
     
 
-features = ['Esym', 'Lsym', 'Ksym', 
-            'Qsym', 'Ksat', 'Qsat', 
-            'Zsat', 'Zsym', 'msat', 
-            'kv']
+features = ['Esym']#, 'Lsym', 'Ksym', 
+            #'Qsym', 'Ksat', 'Qsat', 
+            #'Zsat', 'Zsym', 'msat', 
+            #'kv']
 results = [('Mass1.2', 'Lambda'), 
            ('Mass1.4', 'Lambda'), 
            ('Mass1.6', 'Lambda'), 
@@ -135,6 +135,21 @@ class AnalyzeGenData:
         new_df = new_df[needed_features]
   
       yield new_df, weight
+
+
+  def AllData(self, needed_features=None, chunksize=8000):
+    for kwargs, result, add_info in zip(self.store.select('kwargs', chunksize=chunksize),
+                                        self.store.select('result', chunksize=chunksize),
+                                        self.store.select('Additional_info', chunksize=chunksize)):
+      result.columns = [' '.join(col).strip() for col in result.columns.values]
+      new_df = pd.concat([kwargs, result, add_info], axis=1)
+
+      if needed_features is not None:
+        new_df = new_df[needed_features]
+  
+      yield new_df
+
+
 
  
 

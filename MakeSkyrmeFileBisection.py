@@ -38,32 +38,24 @@ OuterCrustDensity = 0.3e-3
 
 def GenerateMetaDataFrame(filename='EOSComparsion.csv', size=100000, iter=0):
     df = pd.read_csv(filename)
-    pars = ['Esat', 'Esym', 'Lsym', 
-            'Ksat', 'Ksym', 'Qsat', 
-            'Qsym', 'Zsat', 'Zsym', 
-            'msat', 'kv']
+    pars = list(df.columns)
+    pars.remove('Name')
+    pars.remove('Type')
     priors = []
     for model in set(df['Name']):
         if model == 'Total':
             continue
-        Average = df[(df['Name'] == model) & (df['Type'] == 'Average')][pars].iloc[0]
-        Sigma = df[(df['Name'] == model) & (df['Type'] == 'Sigma')][pars].iloc[0]
+        Average = df[(df['Name'] == model) & (df['Type'] == 'Average')][pars].iloc[0].values
+        Sigma = df[(df['Name'] == model) & (df['Type'] == 'Sigma')][pars].iloc[0].values
 
-        Esat, Esym, Lsym, Ksat, Ksym, Qsat, Qsym, Zsat, Zsym, msat, kv = np.random.uniform(Average - 2*Sigma, 
-                                                                                           Average + 2*Sigma, 
-                                                                                           size=(size, Average.shape[0])).T
+        values = np.random.uniform(Average - 4*Sigma, 
+                                   Average + 4*Sigma, 
+                                   size=(size, Average.shape[0])).T
 
-        new_prior = pd.DataFrame({'Esat':Esat.flatten(), 
-                                  'Esym':Esym.flatten(), 
-                                  'Lsym':Lsym.flatten(), 
-                                  'Ksat':Ksat.flatten(), 
-                                  'Ksym':Ksym.flatten(), 
-                                  'Qsat':Qsat.flatten(), 
-                                  'Qsym':Qsym.flatten(), 
-                                  'Zsat':Zsat.flatten(), 
-                                  'Zsym':Zsym.flatten(), 
-                                  'msat':msat.flatten(), 
-                                  'kv':kv.flatten()})
+        new_prior = {}
+        for key, value in zip(pars, values):
+            new_prior[key] = value.flatten()
+        new_prior = pd.DataFrame(new_prior)
         new_prior['Model_Type'] = model
         priors.append(new_prior)
 
@@ -216,14 +208,14 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
     """
     Save meta data for every 10 EOSs
     """
-    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=300)
+    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=1000)
     for new_result in tqdm(mslave.map(partial(CalculateModel, 
                                               EOSType=EOSType,
                                               TargetMass=TargetMass, 
                                               MaxMassRequested=MaxMassRequested,
                                               Transform_kwargs=Transform_kwargs),
                                        name_list,
-                                       chunk_size=1), 
+                                       chunk_size=1000), 
                             total=total, 
                             ncols=100, 
                             smoothing=0.):
@@ -260,6 +252,7 @@ if __name__ == "__main__":
     p.add_argument('--Gen', dest='Gen', default=False, action='store_true', help="Enable if need to generate random parameters")
     p.add_argument("-s", "--Size", type=int, help="Size of the generated random parameters")
     p.add_argument('-it', "--Iter", type=int, help='Iterations of generated random parameters.')
+    p.add_argument('--GenFile', help='Range of parameters for parameter generation.')
 
 
     args, unknown = p.parse_known_args()
@@ -269,7 +262,7 @@ if __name__ == "__main__":
         argd['Output'] = argd['Output'] + '.Gen'
         for num_iter in range(args.Iter):
             logger.debug('Generating meta file')
-            df = GenerateMetaDataFrame(size=args.Size, iter=num_iter)
+            df = GenerateMetaDataFrame(args.GenFile, size=args.Size, iter=num_iter)
             logger.debug('Dataframe created')
             CalculatePolarizability(df, mslave, **argd)
     else:

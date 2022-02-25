@@ -130,8 +130,8 @@ class EOSCreator:
         # get to work!
         if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'Rod' or EOSType == 'Power':
             eos, new_kwargs  = self.BuildPoly(**Transform_kwargs)
-        elif EOSType == 'EOS2Poly' or EOSType == 'Meta2Poly' or EOSType == 'MetaSound': 
-            if EOSType == 'MetaSound':
+        elif EOSType == 'EOS2Poly' or EOSType == 'Meta2Poly' or EOSType == 'MetaSound' or EOSType == 'EOSSound': 
+            if EOSType == 'MetaSound' or EOSType == 'EOSSound':
                 Transform_kwargs['PolyTropeDensity'] = None
             eos, new_kwargs = self.BuildSound(**Transform_kwargs)
         elif EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':
@@ -148,7 +148,7 @@ class EOSCreator:
         if PolyTropeDensity is None:
             PolyTropeDensity = FindDensityWhenSoundEquals(self.backboneEOS, SpeedOfSound)
             if np.isnan(PolyTropeDensity):
-                PolyTropeDensity = 10.
+                PolyTropeDensity = 30.
 
         #construct EOS
         self.InsertEOS(self.ConstructCrust(CrustFileName, CrustSmooth), TranDensity) 
@@ -158,7 +158,7 @@ class EOSCreator:
                        sky.ConstSpeed.MatchBothEnds(prev_density,
                                                     prev_eos,
                                                     next_density,
-                                                    next_eos), 11)
+                                                    next_eos), 30)
         return self.Build(), {'PolyTropeDensity': PolyTropeDensity}
 
     def BuildPoly(self, CrustFileName, CrustSmooth, PRCTransDensity, PolyTropeDensity, MaxMass, PressureHigh=None, **kwargs):

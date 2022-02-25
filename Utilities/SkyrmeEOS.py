@@ -479,7 +479,12 @@ class MetaModeling(EOS):
         Esat = para['Esat']
         Ksat = para['Ksat']
         Qsat = para['Qsat']
-        Zsat = para['Zsat']
+        if 'Zsat' in para:
+            Zsat = para['Zsat']
+        else:
+            Psym = para['Psym']
+            Zsat = 0
+            
 
         Esym = para['Esym']
         Lsym = para['Lsym']
@@ -513,6 +518,15 @@ class MetaModeling(EOS):
         self.viv[2] = Ksym - 10./9.*self.tFG_sat*(-1 + 5*(self.ksat + 3*self.ksym))
         self.viv[3] = Qsym - 10./9.*self.tFG_sat*(4 - 5*(self.ksat+3*self.ksym))
         self.viv[4] = Zsym - 40./9.*self.tFG_sat*(-7 + 5*(self.ksat + 3*self.ksym))
+
+        if 'Zsat' not in para:
+            from scipy.optimize import fsolve
+            def func(Zsat):
+                self.vis[4] = Zsat - 8*self.tFG_sat*(-7+5*self.ksat)
+                return self.GetPressure(4*self.rho0, 0.5) - Psym
+            root = fsolve(func, 0)
+            Zsat = root[0]
+            self.vis[4] = Zsat - 8*self.tFG_sat*(-7+5*self.ksat)
 
     def _f1(self, delta):
         return np.power(1+delta, 5./3.) + np.power(1-delta, 5./3.)

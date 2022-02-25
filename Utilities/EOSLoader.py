@@ -17,23 +17,27 @@ def UnrollMeta(meta, i):
 
 class EOSLoader:
 
-  def __init__(self, filename):
+  def __init__(self, filename, start=0, end=None):
     self.store = pd.HDFStore(filename, 'r')
+    length = self.store.get_storer('kwargs').nrows
+    if end is None:
+        end = length
+
     head, ext = os.path.splitext(filename)
     self.weight_score = None
     if os.path.exists(head + '.Weight' + ext):
-      self.weight_store = pd.HDFStore(head + '.Weight' + ext, 'r')
-      self.reasonable = self.weight_store['main']['Reasonable']
-      self.weight = self.weight_store['main']['PosteriorWeight']
+      self.weight_store = pd.HDFStore(head + '.Weight' + ext, mode='r')
+      self.reasonable = self.weight_store.select('main', start=start, stop=end)['Reasonable']
+      self.weight = self.weight_store.select('main', start=start, stop=end)['PosteriorWeight']
 
-    self.meta_data = self.store['meta']
-    self.Backbone_kwargs = self.store['kwargs']
+    self.meta_data = self.store.select('meta', start=start, stop=end)
+    self.Backbone_kwargs = self.store.select('kwargs', start=start, stop=end)
     self.Transform_kwargs = self.store.get_storer('kwargs').attrs.meta_data
     if 'MaxMassRequested' in self.Transform_kwargs:
       self.Transform_kwargs['MaxMass'] = self.Transform_kwargs['MaxMassRequested']
     self.EOSType = self.Transform_kwargs['EOSType']
-    self.NoData = self.store['EOSCheck']['NoData']
-    self.Causality = self.store['EOSCheck']['ViolateCausality']
+    self.NoData = self.store.select('EOSCheck', start=start, stop=end)['NoData']
+    self.Causality = self.store.select('EOSCheck', start=start, stop=end)['ViolateCausality']
     self.creator = EOSCreator()
 
   def __len__(self):
@@ -59,11 +63,11 @@ class EOSLoader:
     return eos, [1e-9] + density_list + [10*0.16]
 
   def GetName(self, i):
-    return self.store['kwargs'].index[i]
+    return self.Backbone_kwargs.index[i]
 
   def Close(self):
     self.store.close()
-    if self.weight_score:
+    if self.weight_score is not None:
       self.weight_store.close()
 
 
