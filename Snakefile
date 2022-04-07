@@ -41,7 +41,7 @@ rule add_weight:
 
 rule draw_SymPressure:
   input:
-    wc = 'Plots/DrawAcceptedEOSSymPressure2.py',
+    wc = 'Plots/DrawAcceptedEOSSymPressure.py',
     data = 'Results/{name}.Gen.h5',
     weight = 'Results/{name}.Gen.Weight.h5'
   output: 
@@ -54,12 +54,12 @@ rule draw_SymPressure:
     #module load GNU/8.2.0-2.31.1
     #module load OpenMPI/4.0.0
     export OMPI_MCA_btl_openib_allow_ib=1
-    mpirun python -m Plots.DrawAcceptedEOSSymPressure2 {output.pdf} {input.data} {params.prior}
+    mpirun python -m Plots.DrawAcceptedEOSSymPressure {output.pdf} {input.data} {params.prior}
     '''
 
 rule draw_AsymPressure:
   input:
-    wc = 'Plots/DrawAcceptedEOSAsymPressure2.py',
+    wc = 'Plots/DrawAcceptedEOSAsymPressure.py',
     data = 'Results/{name}.Gen.h5',
     weight = 'Results/{name}.Gen.Weight.h5'
   output: 
@@ -72,13 +72,13 @@ rule draw_AsymPressure:
     #module load GNU/8.2.0-2.31.1
     #module load OpenMPI/4.0.0
     export OMPI_MCA_btl_openib_allow_ib=1
-    mpirun python -m Plots.DrawAcceptedEOSAsymPressure2 {output.pdf} {input.data} {params.prior}
+    mpirun python -m Plots.DrawAcceptedEOSAsymPressure {output.pdf} {input.data} {params.prior}
     python -m Plots.OverlaySymPressure {output.pkl} {output.pdf}
     '''
 
 rule draw_Pressure:
   input:
-    wc = 'Plots/DrawAcceptedEOSSpiRIT2.py',
+    wc = 'Plots/DrawAcceptedEOSSpiRIT.py',
     data = 'Results/{name}.Gen.h5',
     weight = 'Results/{name}.Gen.Weight.h5'
   output: 
@@ -91,13 +91,13 @@ rule draw_Pressure:
     #source /mnt/home/tsangchu/.bashrc_temp
     export OMPI_MCA_btl_openib_allow_ib=1
     #conda activate Tidal3
-    mpirun python -m Plots.DrawAcceptedEOSSpiRIT2 {output.pdf} {input.data} {params.prior}
+    mpirun python -m Plots.DrawAcceptedEOSSpiRIT {output.pdf} {input.data} {params.prior}
     python -m Plots.OverlayNICER {output.pkl} {output.pdf}
     '''
 
 rule draw_AsymPost:
   input:
-    wc = 'Plots/DrawAcceptedEOSSymTerm2.py',
+    wc = 'Plots/DrawAcceptedEOSSymTerm.py',
     data = 'Results/{name}.Gen.h5',
     weight = 'Results/{name}.Gen.Weight.h5'
   output: 
@@ -110,13 +110,13 @@ rule draw_AsymPost:
     #source /mnt/home/tsangchu/.bashrc_temp
     export OMPI_MCA_btl_openib_allow_ib=1
     #conda activate Tidal3
-    mpirun python -m Plots.DrawAcceptedEOSSymTerm2 {output.pdf} {input.data} {params.prior}
+    mpirun python -m Plots.DrawAcceptedEOSSymTerm {output.pdf} {input.data} {params.prior}
     python -m Plots.OverlayAsym {output.pkl} {output.pdf}
     '''
 
 rule draw_MR:
   input:
-    wc = 'Plots/DrawAcceptedEOSMR2.py',
+    wc = 'Plots/DrawAcceptedEOSMR.py',
     data = 'Results/{name}.Gen.h5',
     weight = 'Results/{name}.Gen.Weight.h5'
   output: 
@@ -128,7 +128,7 @@ rule draw_MR:
     #source /mnt/home/tsangchu/.bashrc_temp
     export OMPI_MCA_btl_openib_allow_ib=1
     #conda activate Tidal3
-    mpirun python -m Plots.DrawAcceptedEOSMR2 {output.pdf} {input.data} {params.prior}
+    mpirun python -m Plots.DrawAcceptedEOSMR {output.pdf} {input.data} {params.prior}
     '''
 
 
