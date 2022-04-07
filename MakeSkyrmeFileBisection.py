@@ -48,8 +48,8 @@ def GenerateMetaDataFrame(filename='EOSComparsion.csv', size=100000, iter=0):
         Average = df[(df['Name'] == model) & (df['Type'] == 'Average')][pars].iloc[0].values
         Sigma = df[(df['Name'] == model) & (df['Type'] == 'Sigma')][pars].iloc[0].values
 
-        values = np.random.uniform(Average - 4*Sigma, 
-                                   Average + 4*Sigma, 
+        values = np.random.uniform(Average - Sigma, 
+                                   Average + Sigma, 
                                    size=(size, Average.shape[0])).T
 
         new_prior = {}
@@ -91,7 +91,7 @@ def CheckCausality(eos, rho_max):
 
 def AdditionalInfo(eos):
     rho0 = eos.rho0
-    return {'P(4rho0)':eos.GetPressure(4*rho0, 0),
+    data = {'P(4rho0)':eos.GetPressure(4*rho0, 0),
             'P(3.5rho0)':eos.GetPressure(3.5*rho0, 0),
             'P(3rho0)':eos.GetPressure(3*rho0, 0),
             'P(2rho0)':eos.GetPressure(2*rho0, 0),
@@ -116,6 +116,10 @@ def AdditionalInfo(eos):
             'L(1.5rho0)':eos.GetL(1.5*rho0),
             'L(rho0)':eos.GetL(rho0),
             'L(0.67rho0)':eos.GetL(0.67*rho0)}
+    for density in [0.027, 0.033, 0.038, 0.044, 0.05, 0.069, 0.101, 0.106, 0.115, 0.232]:
+        data['Sym(%g)' % density] = eos.GetAsymEnergy(density)
+    data['L(0.1)'] = eos.GetL(0.1)
+    return data
 
 def dUrca(eos_creator, density):
     xep = eos_creator.pfrac*(1-eos_creator.mufrac)/eos_creator.pfrac
@@ -208,14 +212,14 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
     """
     Save meta data for every 10 EOSs
     """
-    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=1000)
+    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=100)
     for new_result in tqdm(mslave.map(partial(CalculateModel, 
                                               EOSType=EOSType,
                                               TargetMass=TargetMass, 
                                               MaxMassRequested=MaxMassRequested,
                                               Transform_kwargs=Transform_kwargs),
                                        name_list,
-                                       chunk_size=1000), 
+                                       chunk_size=100), 
                             total=total, 
                             ncols=100, 
                             smoothing=0.):

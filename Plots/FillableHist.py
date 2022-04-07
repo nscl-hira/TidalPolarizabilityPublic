@@ -27,6 +27,7 @@ class FillableHist:
 
     if range is None:
       range = [np.nanmin(x), np.nanmax(x)]
+    self.range = range
 
     assert len(range) == 2, 'Range should be a 1D array like indicating [minx, maxx]'
 
@@ -261,7 +262,7 @@ class FillablePairGrid:
         #  raise RuntimeError('You need to map all your graphs before appending data')
         
 
-  def Draw(self, fontsize=40):
+  def Draw(self, fontsize=40, **kwargs):
     self.fig, self.axes2d = plt.subplots(len(self.y_vars), len(self.x_vars))#, sharex='col', sharey='row')
     self.axes2d = np.atleast_2d(self.axes2d)
     for i, row in enumerate(self.graphs):
@@ -269,7 +270,7 @@ class FillablePairGrid:
         cell = self.axes2d[i][j]
 
         if graph is not None:
-          graph.Draw(cell)
+          graph.Draw(cell, **kwargs)
           if i == len(self.graphs) - 1:
             cell.set_xlabel(self.x_names[j], rotation=0, fontsize=fontsize)
             cell.tick_params(axis='x', rotation=45, labelsize=fontsize)
