@@ -22,9 +22,9 @@ data['Mass Skyrme'] = DataStruct("0.63 0.03 24.7 0.8", "blue", "blue", "s", "Mas
 data['IAS'] = DataStruct("0.66 0.04 25.5 1.1", "blue", "white", "^", "IAS")
 data['HIC isodiff'] = DataStruct("0.24 0.07 10.6 1", "magenta", "white", "*", "HIC(isodiff)")
 data['HIC n/p'] = DataStruct("0.43 0.05 16.8 1.2", "magenta", "magenta", "*", "HIC(n/p)")
-data['PREXII'] = DataStruct("1 0 38.09 4.73", "red", "red", "v", "PREX-II")
-#data['Pion'] = DataStruct("1.5 0.1 52 13", "red", "white", "v", r"HIC($\pi$)")
-data['Pion'] = DataStruct("1.5 0.1 45.7 7.9", "red", "white", "v", r"HIC($\pi$)")
+#data['PREXII'] = DataStruct("1 0 38.09 4.73", "red", "red", "v", "PREX-II")
+data['Pion'] = DataStruct("1.45 0.1 52 13", "red", "white", "v", r"HIC($\pi$)")
+#data['Pion'] = DataStruct("1.5 0.1 45.7 7.9", "red", "white", "v", r"HIC($\pi$)")
 data['Mass DFT'] = DataStruct("0.72 0.01 25.4 1.1", "blue", "blue", "o", "Mass(DFT)")
 data['polarizability'] = DataStruct("0.31 0.03 15.9 1", "green", "green", "D", r"$\alpha_D$")
 
@@ -38,23 +38,25 @@ else:
     fig, ax = plt.subplots(figsize=(11, 9))
     pdf_name = sys.argv[1]
 
-
+plots = []
+labels = []
 for key, content in data.items():
     value = [float(text) for text in content.data.split()]
     value[0] = value[0]*0.16
     value[1] = value[1]*0.016
-    ax.errorbar(x=value[0], y=value[2], yerr=value[3], 
-                markerfacecolor=content.facecolor,
-                ecolor=content.edgecolor,
-                markeredgecolor=content.edgecolor,
-                marker=content.style,
-                markersize=20 if content.style != "*" else 30,
-                elinewidth=2,
-                markeredgewidth=2,
-                capsize=2,
-                capthick=2,
-                label=content.label,
-                linewidth=0)
+    p = ax.errorbar(x=value[0], y=value[2], yerr=value[3], 
+                    markerfacecolor=content.facecolor,
+                    ecolor=content.edgecolor,
+                    markeredgecolor=content.edgecolor,
+                    marker=content.style,
+                    markersize=20 if content.style != "*" else 30,
+                    elinewidth=2,
+                    markeredgewidth=2,
+                    capsize=2,
+                    capthick=2,
+                    linewidth=0)
+    labels.append(content.label)
+    plots.append(p)
 
 # Bill's fit
 content = """ 0 0 0
@@ -100,15 +102,26 @@ content = """ 0 0 0
 0.32   29.63 58.46"""
 
 content = np.array([[float(value) for value in line.split()] for line in content.split('\n')])
-ax.fill_between(np.linspace(0, 2, content.shape[0])*0.16, content[:, 1], content[:, 2], facecolor='none', edgecolor='red', alpha=1, label="Quadratic best fit")
+#ax.fill_between(np.linspace(0, 2, content.shape[0])*0.16, content[:, 1], content[:, 2], facecolor='none', edgecolor='red', alpha=1, label="Quadratic best fit")
 ax.set_xlabel(r'$\rho$ (fm$^{-3}$)')
 ax.set_ylabel(r'S($\rho$) (MeV)')
-plt.xlim(0, 2*0.16)
-plt.ylim(bottom=0)
-#plt.tight_layout()
+plt.xlim(0, 2.5*0.16)
+plt.ylim(0, 80)
+#plt.yscale('log')
+plt.ylim(bottom=1)
+
+leg = plt.legend(loc='upper left')
+for h, t in zip(leg.legendHandles, leg.texts):
+    plots = [h] + plots
+    labels = [t.get_text()] + labels
 
 
-plt.legend(frameon=False, fontsize=20, ncol=2, loc='upper left')
+halfPlots = int(len(plots)/2)
+legend1 = plt.legend([plots[i] for i in range(halfPlots)], [labels[i] for i in range(halfPlots)], loc='upper left', frameon=False, fontsize=20)
+plt.legend([plots[i] for i in range(halfPlots, len(plots))], [labels[i] for i in range(halfPlots, len(plots))], loc='lower right', frameon=False, fontsize=20)
+#plt.legend(frameon=False, fontsize=20, ncol=2, loc='upper left')
+plt.gca().add_artist(legend1)
 fig = mpl.pyplot.gcf()
 fig.set_size_inches(11, 9)
+plt.subplots_adjust(right=0.95)
 plt.savefig(pdf_name)

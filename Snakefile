@@ -1,3 +1,6 @@
+#prior = 'Results/BillEOSWidePsym2.Gen.h5'
+prior = 'Results/BillEOSWidePsymMoreMass.Gen.h5'
+
 rule all:
   input: 
     #expand('Report/{name}_Corr.pdf', name=config['name']),
@@ -9,9 +12,12 @@ rule all:
     #expand('Report/{name}_rejected_EOS.pdf', name=config['name']),
     #expand('Report/{name}_accepted_EOS.pdf', name=config['name']),
     expand('Report/{name}_SymPressure.pdf', name=config['name']),
+    expand('Report/{name}_AsymPressure.pdf', name=config['name']),
     expand('Report/{name}_PostPressure.pdf', name=config['name']),
     expand('Report/{name}_AsymPost.pdf', name=config['name']),
     expand('Report/{name}_Post.pdf', name=config['name']),
+    expand('Report/{name}_MR.pdf', name=config['name']),
+
 
 
 
@@ -20,9 +26,6 @@ rule generate:
   output: 'Results/{name}.Gen.h5'
   shell:
     '''
-    #module load GNU/8.2.0-2.31.1
-    #module load OpenMPI/4.0.0
-    export OMPI_MCA_btl_openib_allow_ib=1
     mpirun python -W ignore {input} -o {wildcards.name} --enable-debug --Gen
     ''' 
 
@@ -42,15 +45,35 @@ rule draw_SymPressure:
     data = 'Results/{name}.Gen.h5',
     weight = 'Results/{name}.Gen.Weight.h5'
   output: 
-    pdf = 'Report/{name}_PostPressure.pdf',
-    pkl = 'Report/{name}_PostPressure.pkl'
+    pdf = 'Report/{name}_SymPressure.pdf',
+    pkl = 'Report/{name}_SymPressure.pkl'
+  params:
+    prior = '' if prior is None else prior
   shell:
     '''
     #module load GNU/8.2.0-2.31.1
     #module load OpenMPI/4.0.0
     export OMPI_MCA_btl_openib_allow_ib=1
-    mpirun python -m Plots.DrawAcceptedEOSSymPressure2 {output.pdf} {input.data}
-    python -m Plots.OverlayNICER {output.pkl} {output.pdf}
+    mpirun python -m Plots.DrawAcceptedEOSSymPressure2 {output.pdf} {input.data} {params.prior}
+    '''
+
+rule draw_AsymPressure:
+  input:
+    wc = 'Plots/DrawAcceptedEOSAsymPressure2.py',
+    data = 'Results/{name}.Gen.h5',
+    weight = 'Results/{name}.Gen.Weight.h5'
+  output: 
+    pdf = 'Report/{name}_AsymPressure.pdf',
+    pkl = 'Report/{name}_AsymPressure.pkl'
+  params:
+    prior = '' if prior is None else prior
+  shell:
+    '''
+    #module load GNU/8.2.0-2.31.1
+    #module load OpenMPI/4.0.0
+    export OMPI_MCA_btl_openib_allow_ib=1
+    mpirun python -m Plots.DrawAcceptedEOSAsymPressure2 {output.pdf} {input.data} {params.prior}
+    python -m Plots.OverlaySymPressure {output.pkl} {output.pdf}
     '''
 
 rule draw_Pressure:
@@ -59,33 +82,56 @@ rule draw_Pressure:
     data = 'Results/{name}.Gen.h5',
     weight = 'Results/{name}.Gen.Weight.h5'
   output: 
-    pdf = 'Report/{name}_SymPressure.pdf',
-    pkl = 'Report/{name}_SymPressure.pkl'
+    pdf = 'Report/{name}_PostPressure.pdf',
+    pkl = 'Report/{name}_PostPressure.pkl'
+  params:
+    prior = '' if prior is None else prior
   shell:
     '''
     #source /mnt/home/tsangchu/.bashrc_temp
-    #export OMPI_MCA_btl_openib_allow_ib=1
+    export OMPI_MCA_btl_openib_allow_ib=1
     #conda activate Tidal3
-    mpirun python -m Plots.DrawAcceptedEOSSpiRIT2 {output.pdf} {input.data}
+    mpirun python -m Plots.DrawAcceptedEOSSpiRIT2 {output.pdf} {input.data} {params.prior}
     python -m Plots.OverlayNICER {output.pkl} {output.pdf}
     '''
 
 rule draw_AsymPost:
   input:
-    wc = 'Plots/DrawAcceptedEOSSymTerm.py',
+    wc = 'Plots/DrawAcceptedEOSSymTerm2.py',
     data = 'Results/{name}.Gen.h5',
     weight = 'Results/{name}.Gen.Weight.h5'
   output: 
     pdf = 'Report/{name}_AsymPost.pdf',
     pkl = 'Report/{name}_AsymPost.pkl'
+  params:
+    prior = '' if prior is None else prior
   shell:
     '''
-    source /mnt/home/tsangchu/.bashrc_temp
+    #source /mnt/home/tsangchu/.bashrc_temp
     export OMPI_MCA_btl_openib_allow_ib=1
-    conda activate Tidal3
-    mpirun python -m Plots.DrawAcceptedEOSSymTerm {output.pdf} {input.data}
-    python -m OverlayAsym {output.pkl} {output.pdf}
+    #conda activate Tidal3
+    mpirun python -m Plots.DrawAcceptedEOSSymTerm2 {output.pdf} {input.data} {params.prior}
+    python -m Plots.OverlayAsym {output.pkl} {output.pdf}
     '''
+
+rule draw_MR:
+  input:
+    wc = 'Plots/DrawAcceptedEOSMR2.py',
+    data = 'Results/{name}.Gen.h5',
+    weight = 'Results/{name}.Gen.Weight.h5'
+  output: 
+    pdf = 'Report/{name}_MR.pdf',
+  params:
+    prior = '' if prior is None else prior
+  shell:
+    '''
+    #source /mnt/home/tsangchu/.bashrc_temp
+    export OMPI_MCA_btl_openib_allow_ib=1
+    #conda activate Tidal3
+    mpirun python -m Plots.DrawAcceptedEOSMR2 {output.pdf} {input.data} {params.prior}
+    '''
+
+
 
 
 
@@ -96,13 +142,15 @@ rule draw_Post:
     weight = 'Results/{name}.Gen.Weight.h5'
   output: 
     pdf = 'Report/{name}_Post.pdf',
-    pkl = 'Report/{name}_Post.pkl'
+  params:
+    prior = '' if prior is None else prior
   shell:
     '''
-    source /mnt/home/tsangchu/.bashrc_temp
-    export OMPI_MCA_btl_openib_allow_ib=1
-    conda activate Tidal3
-    python -m Plots.DrawSym15 {output.pdf} {input.data}
+    #source /mnt/home/tsangchu/.bashrc_temp
+    #export OMPI_MCA_btl_openib_allow_ib=1
+    #conda activate Tidal3
+    echo TEST
+    python -m Plots.DrawSym15 {output.pdf} {input.data} {params.prior}
     '''
 
 

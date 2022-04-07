@@ -46,8 +46,9 @@ ax[0].set_xlabel(r'$\rho$ (fm$^{-3}$)')
 ax[0].set_ylabel(r'P$_{NS}$($\rho$) (MeV/fm$^3$)')
 
 plt.legend(frameon=False, fontsize=20, loc='upper left')
-ax[0].set_xlim(1e-2,2*0.16)
-ax[0].set_ylim(1e-1, 1e2)
+ax[0].set_xlim(1e-2,3*0.16)
+ax[0].set_ylim(1e-1, 2e2)
+#ax[0].set_yscale('linear')
 fig = mpl.pyplot.gcf()
 fig.set_size_inches(11, 9)
 
