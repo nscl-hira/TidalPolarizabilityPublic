@@ -9,15 +9,23 @@
   },
   "generate":
   {
-    "time": "15:00:0",
-    "mem_per_cpu": "1G",
-    "ntasks": "300",
+    "time": "15:00:00",
+    "mem_per_cpu": "4G",
+    "ntasks": "200",
     "output": "Log/{wildcards.name}.out",
     "error": "Log/{wildcards.name}.err"
   },
   "draw_SymPressure":
   {
-    "time": "00:30:0",
+    "time": "00:30:00",
+    "mem_per_cpu": "2G",
+    "ntasks": "100",
+    "output": "Log/{rule}.{wildcards.name}.out",
+    "error": "Log/{rule}.{wildcards.name}.err"
+  },
+  "draw_AsymPressure":
+  {
+    "time": "00:30:00",
     "mem_per_cpu": "2G",
     "ntasks": "100",
     "output": "Log/{rule}.{wildcards.name}.out",
@@ -25,7 +33,7 @@
   },
   "draw_Pressure":
   {
-    "time": "00:30:0",
+    "time": "00:30:00",
     "mem_per_cpu": "2G",
     "ntasks": "100",
     "output": "Log/{rule}.{wildcards.name}.out",
@@ -33,12 +41,19 @@
   },
   "draw_AsymPost":
   {
-    "time": "00:30:0",
+    "time": "00:30:00",
     "mem_per_cpu": "2G",
     "ntasks": "100",
     "output": "Log/{rule}.{wildcards.name}.out",
     "error": "Log/{rule}.{wildcards.name}.err"
   },
-
+  "draw_MR":
+  {
+    "time": "00:30:00",
+    "mem_per_cpu": "10G",
+    "ntasks": "20",
+    "output": "Log/{rule}.{wildcards.name}.out",
+    "error": "Log/{rule}.{wildcards.name}.err"
+  }
 
 }
