@@ -19,6 +19,17 @@ from scipy import interpolate
 
 logging.basicConfig(level=logging.CRITICAL)
 
+def weighted_avg_and_std(values, weights):
+    """
+    Return the weighted average and standard deviation.
+
+    values, weights -- Numpy ndarrays with the same shape.
+    """
+    average = np.average(values, weights=weights)
+    # Fast and numerically precise:
+    variance = np.average((values-average)**2, weights=weights)
+    return (average, np.sqrt(variance))
+
 if __name__ == '__main__':
   if len(sys.argv) <= 2:
     print('This script generates pdf images for rejected EOS')
@@ -38,6 +49,8 @@ if __name__ == '__main__':
     # draw example EOSs
     # draw boundary
     g = None 
+    E_sym_2rho0 = []
+    E_sym_weight = []
     for i in range(num_load):
       #if not loader.NoNSEOS(i):
       if loader.reasonable.iloc[i]:
@@ -46,12 +59,21 @@ if __name__ == '__main__':
         pressure = eos.GetPressure(density)
         energy = eos.GetEnergyDensity(density) 
         weight = loader.weight.iloc[i]
+ 
         if np.isnan(weight) or weight == 0:
           continue
         if g is None:
           g = FillableHist2D(energy, pressure, bins=100, logx=True, logy=True, range=[[1e1, 5e2], [1e-2, 3e2]], smooth=False, weights=[weight]*energy.shape[0])
         else:
           g.Append(energy, pressure, weights=[weight]*energy.shape[0])
+        eos = loader.GetNuclearEOS(i)
+        E_sym_2rho0.append(eos.GetAsymEnergy(2*0.16))
+        E_sym_weight.append(weight)
+    E_sym_2rho0 = np.array(E_sym_2rho0)
+    E_sym_weight = np.array(E_sym_weight)
+    print('Mean Esym(2rho0) : %f' % np.average(E_sym_2rho0))
+    print('Esym(2rho0) STD : %f' % weighted_avg_and_std(E_sym_2rho0, E_sym_weight)[1])
+
     fig, ax = plt.subplots(figsize=(7,5))
     y_repeated = np.tile(0.5*(g.yedge[1:] + g.yedge[:-1]).reshape(-1,1), (1, g.histogram.T.shape[1]))
     mean = np.average(y_repeated, axis=0, weights=g.histogram.T)
