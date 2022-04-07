@@ -62,6 +62,8 @@ def NuclearEOSFactory(EOSType, kwargs):
         eos = sky.PowerLawEOS(kwargs)
     elif EOSType == 'Meta' or EOSType == 'Meta2Poly' or EOSType == 'MetaSound':
         eos = sky.MetaModeling(kwargs)
+    elif EOSType == 'BillSound':
+        eos = sky.BillEOS(kwargs)
     else: # default Nuclear EOS is Skyrme
         eos = sky.Skryme(kwargs)
     return eos
@@ -130,8 +132,8 @@ class EOSCreator:
         # get to work!
         if EOSType == 'EOS' or EOSType == '3Poly' or EOSType == 'Rod' or EOSType == 'Power':
             eos, new_kwargs  = self.BuildPoly(**Transform_kwargs)
-        elif EOSType == 'EOS2Poly' or EOSType == 'Meta2Poly' or EOSType == 'MetaSound' or EOSType == 'EOSSound': 
-            if EOSType == 'MetaSound' or EOSType == 'EOSSound':
+        elif EOSType == 'EOS2Poly' or EOSType == 'Meta2Poly' or EOSType == 'MetaSound' or EOSType == 'EOSSound' or EOSType == 'BillSound': 
+            if EOSType == 'MetaSound' or EOSType == 'EOSSound' or EOSType == 'BillSound':
                 Transform_kwargs['PolyTropeDensity'] = None
             eos, new_kwargs = self.BuildSound(**Transform_kwargs)
         elif EOSType == 'EOSNoPolyTrope' or EOSType == 'PowerNoPolyTrope' or EOSType == 'Meta':

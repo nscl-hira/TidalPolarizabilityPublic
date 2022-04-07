@@ -1,3 +1,4 @@
+import copy
 from decimal import Decimal
 import tempfile
 import types
@@ -548,6 +549,33 @@ class MetaModeling(EOS):
         for alpha in range(5):
             energy += (self.vis[alpha] + self.viv[alpha]*delta*delta)*np.power(x, alpha)*self._u_N_alpha(4, alpha, x, rho)/math.factorial(alpha)
         return energy + 938.27
+
+class BillEOS(MetaModeling):
+    def __init__(self, para):
+        para = copy.deepcopy(para)
+        self.SINT0 = para['SINT0']
+        self.SINT1 = para['SINT1']
+        self.SINT2 = para['SINT2']
+        self.SINT3 = 0 # will be fixed by condition S(0) = 0
+        self.rho01 = 0.1
+        self.C = 12.5
+
+        para['Esym'] = 0
+        para['Lsym'] = 0
+        para['Ksym'] = 0
+        para['Qsym'] = 0
+        para['Zsym'] = 0
+        super().__init__(para)
+        Sym0 = self.GetAsymEnergy(0)
+        self.SINT3 = -Sym0*6/np.power(-self.rho01, 3)
+
+    def GetEnergy(self, rho, pfrac):
+        delta = 1 - 2*pfrac
+        symEnergy = super().GetEnergy(rho, pfrac=0.5)
+        Skin = self.C*np.power(rho/self.rho0, 2/3.)
+        Sint = self.SINT0 + self.SINT1*(rho - self.rho01) + 1/2*self.SINT2*np.power(rho - self.rho01, 2) + 1/6*self.SINT3*np.power(rho - self.rho01, 3)
+        return symEnergy + delta*delta*(Skin + Sint)
+
  
 class Skryme(EOS):
 
