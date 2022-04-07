@@ -71,12 +71,15 @@ results = [('Mass1.2', 'Lambda'),
            ('Mass1.6', 'Lambda'), 
            ('MaxMass', 'DensCentral'), 
            ('MaxMass', 'Mass'),
-           ('Mass2', 'DensCentral')]
+           ('Mass2', 'DensCentral'),
+           ('Mass1.4', 'R')]
 check_eos = ['NoData', 'ViolateFrom', 'ViolateCausality']
 
 def Summarize(args):
-  new_df = pd.concat([args[0][features], args[1][results], args[2][check_eos]], axis=1, sort=False)
-  reasonable = (new_df[('Mass1.4', 'Lambda')] > 0) & (new_df[('Mass1.4', 'Lambda')] < 1200) & (new_df[('Mass1.2', 'Lambda')] > 0) & (new_df[('Mass1.6', 'Lambda')] > 0) & (new_df[('MaxMass', 'Mass')] > 2)
+  #new_df = pd.concat([args[0][features], args[1][results], args[2][check_eos]], axis=1, sort=False)
+  new_df = pd.concat([args[1][results], args[2][check_eos]], axis=1, sort=False)
+  #reasonable = (new_df[('Mass1.4', 'Lambda')] > 0) & (new_df[('Mass1.4', 'Lambda')] < 1200) & (new_df[('Mass1.2', 'Lambda')] > 0) & (new_df[('Mass1.6', 'Lambda')] > 0) & (new_df[('MaxMass', 'Mass')] > 2)
+  reasonable = (new_df[('Mass1.4', 'Lambda')] < 1500) & (new_df[('Mass1.4', 'Lambda')] > -500) & (new_df[('MaxMass', 'Mass')] > 2.17) & (new_df[('Mass1.4', 'R')] < 20)
   prior_weight = pd.Series(GetWeight(new_df), index=new_df.index)
   posterior_weight = GetDeformabilityWeight(new_df)*prior_weight
   causality = CausalityCut(new_df)
