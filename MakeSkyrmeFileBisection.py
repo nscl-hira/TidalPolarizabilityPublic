@@ -212,7 +212,7 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
     """
     Save meta data for every 10 EOSs
     """
-    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=100)
+    dataIO = DataIO('Results/%s.h5' % Output, flush_interval=1000)
     for new_result in tqdm(mslave.map(partial(CalculateModel, 
                                               EOSType=EOSType,
                                               TargetMass=TargetMass, 

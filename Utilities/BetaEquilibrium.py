@@ -12,7 +12,7 @@ import Utilities.SkyrmeEOS as sky
 from Utilities.Constants import *
 
 
-def BetaEquilibrium(SkyrmeEOS, rho=np.concatenate([np.linspace(1e-10, 0.09, 100), np.linspace(0.1,10,100)])):
+def BetaEquilibrium(SkyrmeEOS, rho=np.concatenate([np.linspace(1e-10, 0.09, 100), np.linspace(0.1,10,100)]), need_be=True):
     """
     This function will return a equilibrated Skyrme in terms of EOSSpline
     from 0.1rho0 to 3rho0
@@ -28,11 +28,17 @@ def BetaEquilibrium(SkyrmeEOS, rho=np.concatenate([np.linspace(1e-10, 0.09, 100)
         return nuc_energy + ele_energy + mu_energy
 
     rho0 = SkyrmeEOS.rho0
-    min_result = [optimize.minimize(lambda frac: GetEnergy(rho_*rho0, frac[0], frac[1]), [0.5, 0.5], bounds=[(1e-14, 1), (1e-14,1)], method='SLSQP', options={'disp':False}) for rho_ in rho]
+    if need_be:
+        min_result = [optimize.minimize(lambda frac: GetEnergy(rho_*rho0, frac[0], frac[1]), [0.5, 0.5], bounds=[(1e-14, 1), (1e-14,1)], method='SLSQP', options={'disp':False}) for rho_ in rho]
+    
+        energy = [min_.fun for min_ in min_result]
+        pfrac = np.array([min_.x[0] for min_ in min_result])
+        mufrac = np.array([min_.x[1]*min_.x[0] for min_ in min_result])
+    else:
+        energy = [GetEnergy(rho_*rho0, 0, 0) for rho_ in rho]
+        pfrac = [0]*rho.shape[0]
+        mufrac = pfrac
 
-    energy = [min_.fun for min_ in min_result]
-    pfrac = np.array([min_.x[0] for min_ in min_result])
-    mufrac = np.array([min_.x[1]*min_.x[0] for min_ in min_result])
     energy = energy/(rho*rho0)
     return sky.SplineEOS.Construct(rho*rho0, energy, smooth=0.1), rho*rho0, pfrac, mufrac, energy
 

@@ -51,5 +51,7 @@ ax[0].set_ylim(1e-1, 2e2)
 #ax[0].set_yscale('linear')
 fig = mpl.pyplot.gcf()
 fig.set_size_inches(11, 9)
+#plt.subplots_adjust(right=0.95)
+plt.subplots_adjust(left=0.15, right=0.9, top=0.95, bottom=0.15)
 
 plt.savefig(pdf_name)

@@ -1,6 +1,7 @@
 import math
 import numpy as np
-import Utilities.EOSCreator as ec
+#import Utilities.EOSCreator as ec
+import Utilities.SkyrmeEOS as sky
 
 
 # suppose to be input
@@ -60,15 +61,14 @@ t2=(3*d_sky-(b_sky-2*c_sky)-6*t1)/6.
 x2=(d_sky-3*t1-5*t2)/(4.*t2)
 x1=(c_sky+5*x2*t2+4*t2)/(3*t1)
 
+
 print('t0,t1,t2,t3,x0,x1,x2,x3,gamma')
 print('%f,%f,%f,%f,%f,%f,%f,%f,%f' % (t0,t1,t2,t3,x0,x1,x2,x3,gamma))
 
 row = {'t0': t0, 't1':t1, 't2':t2, 't31':t3, 't32':0, 't33':0,
        'x0': x0, 'x1':x1, 'x2':x2, 'x31':x1, 'x32':0, 'x33':0,
        'sigma1':gamma-1, 'sigma2':0, 'sigma3':0}
-creator = ec.EOSCreator(row)
-creator.ImportEOS(EOSType='EOS')
-eos = creator.ImportedEOS
+eos = sky.Skryme(row)
 print('Supplied L %f, Skyrme L %f' % (L, eos.GetL(rho0)))
 print('Supplied E0 %f, Skyrme E0 %f' % (E0, eos.GetEnergy(rho0, 0.5)-mn))
 print('Supplied K0 %f, Skyrme K0 %f' % (K0, eos.GetK(rho0, 0.5)))

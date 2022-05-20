@@ -6,7 +6,7 @@ mpl.use('Agg')
 from Utilities.EOSLoader import EOSLoader
 from Plots.FillableHist import FillableHist2D
 from Plots.DrawSym15 import target_name, target_mean, target_sd, GausProd
-from Plots.DrawAcceptedEOSSpiRIT2 import GetMeanAndBounds, GetRanges
+from Plots.DrawAcceptedEOSSpiRIT import GetMeanAndBounds, GetRanges
 import numpy as np
 import pandas as pd
 import sys
@@ -73,7 +73,7 @@ def GetHist(name, weighted, ranges):
         if np.isnan(weight) or weight == 0:
           continue
         if g_Post is None:
-          g_Post = FillableHist2D(density, pressure, bins=[100,10000], logy=False, range=[[0, 3*0.16], [-100, 1e3]], smooth=True, weights=[weight]*density.shape[0])
+          g_Post = FillableHist2D(density, pressure, bins=[100,10000], logy=False, range=[[0, 3*0.16], [-100, 1e3]], smooth=False, weights=[weight]*density.shape[0])
         else:
           g_Post.Append(density, pressure, weights=[weight]*density.shape[0])
     loader.Close()
@@ -124,26 +124,26 @@ if __name__ == '__main__':
 
     fig, ax = plt.subplots(figsize=(11,9))
     #import matplotlib as mpl
-    #g.Draw(ax)#, norm=mpl.colors.LogNorm())#, cmap=mpl.cm.gray)
+    #g.Draw(ax, norm=mpl.colors.LogNorm())#, cmap=mpl.cm.gray)
 
-    #x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=0.68)
+    x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=0.68)
     #plt.plot(x, mean, label='medium', zorder=2)
-    #ax.fill_between(x, lowerB, upperB, alpha=1, color='skyblue', label='68%% C.I. with constraints', zorder=1)
+    ax.fill_between(x, lowerB, upperB, alpha=1, color='skyblue', label='68%% C.I. posterior', zorder=1)
     x, mean, lowerB, upperB = GetMeanAndBounds(g, CI=CI)
-    ax.fill_between(x, lowerB, upperB, alpha=1, edgecolor='blue', facecolor='none', linestyle='--', label='%g%% C.I. without constraints' % (CI*100), zorder=3)
+    ax.fill_between(x, lowerB, upperB, alpha=1, edgecolor='blue', facecolor='none', linestyle='--', label='%g%% C.I. prior' % (CI*100), zorder=3)
 
     x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=CI)
-    ax.fill_between(x, lowerB, upperB, alpha=1, color='aqua', label='%g%% C.I. with constraints' % (CI*100), zorder=0)
+    ax.fill_between(x, lowerB, upperB, alpha=1, color='aqua', label='%g%% C.I. posterior' % (CI*100), zorder=0)
     CI = 0.68
     x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=CI)
-    ax.fill_between(x, lowerB, upperB, alpha=1, color='green', label='%g%% C.I. with constraints' % (CI*100), zorder=1)
+    ax.fill_between(x, lowerB, upperB, alpha=1, color='green', label='%g%% C.I. posterior' % (CI*100), zorder=1)
 
 
 
     plt.yscale('log')
     plt.xlabel(r'$\rho$ (fm$^{-3}$)')
     plt.ylabel(r'P$_{sym}$($\rho$) (MeV/fm$^{3}$)')
-    plt.ylim(1, 2e2)
+    plt.ylim(1e-1, 2e2)
     plt.xlim(0., 3*0.16)
     plt.legend(loc='lower right', fontsize=20)
     plt.tight_layout()

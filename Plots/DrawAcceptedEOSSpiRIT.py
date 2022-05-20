@@ -122,7 +122,7 @@ def GetHist(name, weighted, ranges):
         
         if g_Post is None:
           #g = FillableHist2D(density, pressure, bins=[100,10000], logy=False, range=[[1e-2, 5*0.16], [-100, 1e3]], smooth=False, weights=[1]*density.shape[0])
-          g_Post = FillableHist2D(density, pressure, bins=[100,10000], logy=False, range=[[1e-2, 5*0.16], [-100, 1e3]], smooth=False, weights=[weight]*density.shape[0])
+          g_Post = FillableHist2D(density, pressure, bins=[100,10000], logy=True, range=[[1e-2, 5*0.16], [1e-3, 1e3]], smooth=False, weights=[weight]*density.shape[0])
         else:
           #g.Append(density, pressure, weights=[1]*density.shape[0])
           g_Post.Append(density, pressure, weights=[weight]*density.shape[0])
@@ -180,15 +180,15 @@ if __name__ == '__main__':
     #import matplotlib as mpl
     #g.Draw(ax, norm=mpl.colors.LogNorm())#, cmap=mpl.cm.gray)
     x, mean, lowerB, upperB = GetMeanAndBounds(g, CI=CI)
-    ax.fill_between(x, lowerB, upperB, alpha=1, edgecolor='blue', facecolor='none', linestyle='--', label='%g%% C.I. without constraints' % (CI*100))
+    ax.fill_between(x, lowerB, upperB, alpha=1, edgecolor='blue', facecolor='none', linestyle='--', label='%g%% C.I. prior' % (CI*100))
 
     x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=CI)#_Post)
     #plt.plot(x, mean, label='mean', color='green')
-    ax.fill_between(x, lowerB, upperB, alpha=1, color='aqua', label='%g%% C.I. with constraints' % (CI*100))
+    ax.fill_between(x, lowerB, upperB, alpha=1, color='aqua', label='%g%% C.I. posterior' % (CI*100))
 
     CI = 0.68
     x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=CI)
-    ax.fill_between(x, lowerB, upperB, alpha=1, color='green', label='%g%% C.I. with constraints' % (CI*100))
+    ax.fill_between(x, lowerB, upperB, alpha=1, color='green', label='%g%% C.I. posterior' % (CI*100))
 
 
     plt.yscale('log')

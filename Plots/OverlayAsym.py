@@ -19,13 +19,13 @@ DataStruct = namedtuple("DataStruct", ["data", "edgecolor", "facecolor", "style"
 
 data = {}
 data['Mass Skyrme'] = DataStruct("0.63 0.03 24.7 0.8", "blue", "blue", "s", "Mass(Skyrme)")
+data['Mass DFT'] = DataStruct("0.72 0.01 25.4 1.1", "blue", "blue", "o", "Mass(DFT)")
 data['IAS'] = DataStruct("0.66 0.04 25.5 1.1", "blue", "white", "^", "IAS")
 data['HIC isodiff'] = DataStruct("0.24 0.07 10.6 1", "magenta", "white", "*", "HIC(isodiff)")
 data['HIC n/p'] = DataStruct("0.43 0.05 16.8 1.2", "magenta", "magenta", "*", "HIC(n/p)")
 #data['PREXII'] = DataStruct("1 0 38.09 4.73", "red", "red", "v", "PREX-II")
 data['Pion'] = DataStruct("1.45 0.1 52 13", "red", "white", "v", r"HIC($\pi$)")
 #data['Pion'] = DataStruct("1.5 0.1 45.7 7.9", "red", "white", "v", r"HIC($\pi$)")
-data['Mass DFT'] = DataStruct("0.72 0.01 25.4 1.1", "blue", "blue", "o", "Mass(DFT)")
 data['polarizability'] = DataStruct("0.31 0.03 15.9 1", "green", "green", "D", r"$\alpha_D$")
 
 if len(sys.argv) == 3:
@@ -105,10 +105,9 @@ content = np.array([[float(value) for value in line.split()] for line in content
 #ax.fill_between(np.linspace(0, 2, content.shape[0])*0.16, content[:, 1], content[:, 2], facecolor='none', edgecolor='red', alpha=1, label="Quadratic best fit")
 ax.set_xlabel(r'$\rho$ (fm$^{-3}$)')
 ax.set_ylabel(r'S($\rho$) (MeV)')
-plt.xlim(0, 2.5*0.16)
+plt.xlim(0, 3*0.16)
 plt.ylim(0, 80)
 #plt.yscale('log')
-plt.ylim(bottom=1)
 
 leg = plt.legend(loc='upper left')
 for h, t in zip(leg.legendHandles, leg.texts):

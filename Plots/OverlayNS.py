@@ -18,9 +18,11 @@ plt.rcParams['font.serif'] = ['Times New Roman'] + plt.rcParams['font.serif']
 DataStruct = namedtuple("DataStruct", ["data", "edgecolor", "facecolor", "style", "label"])
 
 data = {}
-data['PREXII'] = DataStruct("0.625 0 2.38 0.75", "magenta", "white", "*", "PREX-II")
-data['pi'] = DataStruct("1.45 0 10.9 8.7", "red", "white", "v", r"HIC($\pi$)")
-data['np'] = DataStruct("1.5 0 12.1 8.8", "blue", "white", "s", "HIC(n/p flow)")
+data['RileyM14'] = DataStruct("12.71 1.14 1.19 1.34 0.15 0.16", "red", "white", "*", r"Riley $1.4M_\odot$")
+
+data['RileyM2'] = DataStruct("12.39 1.3 0.98 2.07 0.07 0.07", "red", "white", "s", r"Riley $2.1M_\odot$")
+data['MillerM14'] = DataStruct("13.02 1.24 1.06 1.44 0.15 0.14", "black", "white", "*", r"Miller $1.4M_\odot$")
+data['MillerM2'] = DataStruct("13.7 2.6 1.5 2.08 0.07 0.07", "black", "white", "s", r"Miller $2.1M_\odot$")
 
 
 if len(sys.argv) == 3:
@@ -33,12 +35,9 @@ else:
     fig, ax = plt.subplots(figsize=(11, 9))
     pdf_name = sys.argv[1]
 
-plots = []
-labels = []
 for key, content in data.items():
     value = [float(text) for text in content.data.split()]
-    value[0] = value[0]*0.16
-    p = ax.errorbar(x=value[0], y=value[2], yerr=value[3], 
+    p = ax.errorbar(x=value[0], xerr=[[value[2]], [value[1]]], y=value[3], yerr=[[value[5]], [value[4]]], 
                     markerfacecolor=content.facecolor,
                     ecolor=content.edgecolor,
                     markeredgecolor=content.edgecolor,
@@ -51,16 +50,8 @@ for key, content in data.items():
                     label=content.label,
                     linewidth=0)
 
-ax.set_xlabel(r'$\rho$ (fm$^{-3}$)')
-ax.set_ylabel(r'P$_{sym}$($\rho$) (MeV/fm$^2$)')
-plt.xlim(1e-2, 3*0.16)
-plt.ylim(1e-1, 2e2)
-plt.yscale('log')
-#plt.ylim(bottom=1)
-
-plt.legend(frameon=False, fontsize=20, loc='lower right')
+plt.legend(frameon=False, fontsize=20, loc='upper right')
 fig = mpl.pyplot.gcf()
 fig.set_size_inches(11, 9)
 plt.subplots_adjust(right=0.95)
-plt.subplots_adjust(left=0.15, right=0.9, top=0.95, bottom=0.15)
 plt.savefig(pdf_name)

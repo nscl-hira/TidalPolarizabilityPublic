@@ -21,13 +21,13 @@ results = []#['Mass%g R' % mass for mass in all_masses] + ['Mass%g Lambda' % mas
 results_names = []#[r'R(%gM$_\odot$)' % m for m in all_masses] + [r'$\Lambda$(%gM$_\odot$)' % mass for mass in all_masses]
 
 target_dens = [0.038, 0.05, 0.069, 0.101, 0.106, 0.115]
-features = ['Sym(%g)' % d for d in target_dens] + ['L(0.1)', 'P_Sym(2rho0)', 'Sym(0.232)', 'Ksat', 'L(1.5rho0)', 'Mass1.4 R', 'Mass1.4 Lambda', 'Mass2.1 R']#
+features = ['Sym(%g)' % d for d in target_dens] + ['L(0.1)', 'P_Sym(2rho0)', 'Sym(0.232)', 'Ksat', 'L(1.5rho0)', 'Mass1.4 R', 'Mass1.4 R', 'Mass1.4 Lambda', 'Mass2.1 R', 'Mass2.1 R']#
 features_names = features
 
 target_name = features
-target_mean = [10.3, 15.9, 16.8, 24.7, 25.5, 25.4, 71.5, 10.245, 52, 230, 143.75, 13.02, 190, 12.39]#, 143.75]#61]
-target_sd_low = [1, 1, 1.2, 0.8, 1.1, 1.1, 22.6, 2.90, 13, 30, 76.75, 1.06, 120, 0.98]#, 76.75]#51*1.37]
-target_sd_high = [1, 1, 1.2, 0.8, 1.1, 1.1, 22.6, 2.90, 13, 30, 76.75, 1.24, 390, 1.3]#, 76.75]#51*1.37]
+target_mean = [10.3, 15.9, 16.8, 24.7, 25.5, 25.4, 71.5, 10.245, 52, 220, 143.75, 13.02, 12.71, 190, 12.39, 13.7]#, 143.75]#61]
+target_sd_low = [1, 1, 1.2, 0.8, 1.1, 1.1, 22.6, 2.90, 13, 40, 76.75, 1.06*math.sqrt(2), 1.19*math.sqrt(2), 120, 0.98*math.sqrt(2), 1.5*math.sqrt(2)]#, 76.75]#51*1.37]
+target_sd_high = [1, 1, 1.2, 0.8, 1.1, 1.1, 22.6, 2.90, 13, 40, 76.75, 1.24*math.sqrt(2), 1.14*math.sqrt(2), 390, 1.3*math.sqrt(2), 2.6*math.sqrt(2)]#, 76.75]#51*1.37]
 
 
 target_mean = np.atleast_1d(target_mean)
@@ -56,9 +56,9 @@ if __name__ == '__main__':
 
     orig_df = pd.DataFrame()
 
-    all_obs = ['Sym(rho0)', 'L(rho0)', 'L(1.5rho0)', 'Ksat', 'Mass1.4 R', 'Mass1.4 Lambda', 'Mass1.4 DensCentral']#    
-    all_names = [r'$S_0$', r'L', r'L(1.5$\rho_0$)', 'K$_{sat}$', r'R(1.4M$_{\odot}$)', r'$\Lambda$(1.4M$_{\odot}$)', 'densc']
-    all_units = ['MeV', 'MeV', 'MeV', 'Mev', 'km', ' ', ' ']
+    all_obs = ['Sym(rho0)', 'L(rho0)', 'L(1.5rho0)', 'Ksat', 'Mass1.4 R', 'Mass1.4 Lambda']#, 'Mass1.4 DensCentral']#    
+    all_names = [r'$S_0$', r'L', r'L(1.5$\rho_0$)', 'K$_{sat}$', r'R(1.4M$_{\odot}$)', r'$\Lambda$(1.4M$_{\odot}$)']#, r'$\rho_c(1.4M_\odot)$']
+    all_units = ['MeV', 'MeV', 'MeV', 'Mev', 'km', ' ', 'fm$^{-3}$']
     #all_obs = ['Ksat', 'Qsat', 'Psym', 'SINT0', 'SINT1', 'SINT2']#features + results
     #all_names = all_obs
     #all_units = ['', '', '', '', '', '']
@@ -129,15 +129,20 @@ if __name__ == '__main__':
         else:
             try:
                 pol,_ = curve_fit(asymGaus, xmean, prior[i].histogram, p0=[max(prior[i].histogram), np.average(xmean), 0.5*(xmean[-1] - xmean[0]),  0.5*(xmean[-1] - xmean[0])])
-                row.append(r'$%.1f^{+%.1f}_{-%.1f}$' % (pol[1], abs(pol[3]), abs(pol[2])))
-
+                if abs(pol[3]) > 1:
+                    row.append(r'$%.1f^{+%.1f}_{-%.1f}$' % (pol[1], abs(pol[3]), abs(pol[2])))
+                else:
+                    row.append(r'$%.2f^{+%.2f}_{-%.2f}$' % (pol[1], abs(pol[3]), abs(pol[2])))
             except Exception:
                 row.append('N.A.')
 
         xmean = 0.5*(g.graphs[i][i].edge[:-1] + g.graphs[i][i].edge[1:])
         try:
             pol,_ = curve_fit(asymGaus, xmean, g.graphs[i][i].histogram, p0=[max(g.graphs[i][i].histogram), np.average(xmean, weights=g.graphs[i][i].histogram), 0.5*(xmean[-1] - xmean[0]),  0.5*(xmean[-1] - xmean[0])])
-            row.append(r'$%.1f^{+%.1f}_{-%.1f}$' % (pol[1], abs(pol[3]), abs(pol[2])))
+            if abs(pol[3]) > 1:
+                row.append(r'$%.1f^{+%.1f}_{-%.1f}$' % (pol[1], abs(pol[3]), abs(pol[2])))
+            else:
+                row.append(r'$%.2f^{+%.2f}_{-%.2f}$' % (pol[1], abs(pol[3]), abs(pol[2])))
         except Exception:
             row.append('N.A.')
         row.append(all_units[i])
@@ -146,7 +151,7 @@ if __name__ == '__main__':
     gs = g.axes2d[0, 4].get_gridspec()
     axbig = g.fig.add_subplot(gs[0:3, 3:])
     table= axbig.table(cellText=cell_text, 
-                       colLabels=['Before', 'After', ''],
+                       colLabels=['Prior', 'Posterior', ''],
                        colWidths=[0.4, 0.4, 0.2],
                        rowLabels=all_names,
                        loc='center right',

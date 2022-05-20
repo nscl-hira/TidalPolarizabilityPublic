@@ -94,22 +94,22 @@ class EOSCreator:
 
     def AddBackboneEOS(self, NuclearEOS, need_be=True, meta_data=None):
         self.nuclear_eos = NuclearEOS
-        if need_be:
-            if meta_data is None:
-                be = BetaEquilibrium(self.nuclear_eos, np.linspace(0.01, 10., 100))
-                self.backboneEOS = be[0]
-                self.rho = be[1]
-                self.pfrac = be[2]
-                self.mufrac = be[3]
-                self.energy = be[4]
-            else:
-                self.rho = meta_data['rho']
-                self.pfrac = meta_data['pfrac']
-                self.mufrac = meta_data['mufrac']
-                self.energy = meta_data['energy']
-                self.backboneEOS = sky.SplineEOS.Construct(self.rho, self.energy)
+        #if need_be:
+        if meta_data is None:
+            be = BetaEquilibrium(self.nuclear_eos, np.linspace(0.01, 10., 100), need_be)
+            self.backboneEOS = be[0]
+            self.rho = be[1]
+            self.pfrac = be[2]
+            self.mufrac = be[3]
+            self.energy = be[4]
         else:
-            self.backboneEOS = self.nuclear_eos
+            self.rho = meta_data['rho']
+            self.pfrac = meta_data['pfrac']
+            self.mufrac = meta_data['mufrac']
+            self.energy = meta_data['energy']
+            self.backboneEOS = sky.SplineEOS.Construct(self.rho, self.energy)
+        #else:
+        #    self.backboneEOS = self.nuclear_eos
 
     def GetMetaData(self):
         return {'rho': self.rho, 'pfrac': self.pfrac, 'mufrac': self.mufrac, 'energy': self.energy}

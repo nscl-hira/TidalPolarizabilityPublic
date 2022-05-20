@@ -31,6 +31,15 @@
     "output": "Log/{rule}.{wildcards.name}.out",
     "error": "Log/{rule}.{wildcards.name}.err"
   },
+  "draw_NeutronMatterPressure":
+  {
+    "time": "00:30:00",
+    "mem_per_cpu": "2G",
+    "ntasks": "100",
+    "output": "Log/{rule}.{wildcards.name}.out",
+    "error": "Log/{rule}.{wildcards.name}.err"
+  },
+ 
   "draw_Pressure":
   {
     "time": "00:30:00",

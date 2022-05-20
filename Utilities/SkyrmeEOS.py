@@ -334,8 +334,8 @@ class ConstSpeed(EOS):
 
     @classmethod
     def MatchBothEnds(cls, ini_rho, ini_eos, final_rho, final_eos, **kwargs):
-        ini_energy = ini_eos.GetEnergy(ini_rho)
-        ini_pressure = ini_eos.GetPressure(ini_rho)
+        ini_energy = ini_eos.GetEnergy(ini_rho, 0)
+        ini_pressure = ini_eos.GetPressure(ini_rho, 0)
         return cls(ini_rho, ini_energy, ini_pressure, **kwargs)
  
 
@@ -484,6 +484,10 @@ class MetaModeling(EOS):
             Zsat = para['Zsat']
         else:
             Psym = para['Psym']
+            if 'PsymDens' in para:
+                PsymDens = para['PsymDens']
+            else:
+                PsymDens = 4
             Zsat = 0
             
 
@@ -524,7 +528,7 @@ class MetaModeling(EOS):
             from scipy.optimize import fsolve
             def func(Zsat):
                 self.vis[4] = Zsat - 8*self.tFG_sat*(-7+5*self.ksat)
-                return self.GetPressure(4*self.rho0, 0.5) - Psym
+                return self.GetPressure(PsymDens*self.rho0, 0.5) - Psym
             root = fsolve(func, 0)
             Zsat = root[0]
             self.vis[4] = Zsat - 8*self.tFG_sat*(-7+5*self.ksat)

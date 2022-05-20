@@ -6,7 +6,7 @@ import matplotlib.colors as colors
 from Utilities.EOSLoader import EOSLoader
 from Plots.FillableHist import FillableHist2D
 from Plots.DrawSym15 import target_name, target_mean, target_sd, GausProd
-from Plots.DrawAcceptedEOSSpiRIT2 import GetMeanAndBounds, GetRanges
+from Plots.DrawAcceptedEOSSpiRIT import GetMeanAndBounds, GetRanges
 import numpy as np
 import pandas as pd
 import sys
@@ -124,13 +124,13 @@ if __name__ == '__main__':
     #g.Draw(ax, norm=mpl.colors.LogNorm())#, cmap=mpl.cm.gray)
     plt.savefig(pdf_name)
     x, mean, lowerB, upperB = GetMeanAndBounds(g, CI=CI)
-    ax.fill_betweenx(x, lowerB, upperB, alpha=1, edgecolor='blue', facecolor='none', linestyle='--', label='%g%% C.I. without constraints' % (CI*100), zorder=3)
+    ax.fill_betweenx(x, lowerB, upperB, alpha=1, edgecolor='blue', facecolor='none', linestyle='--', label='%g%% C.I. prior' % (CI*100), zorder=3)
 
     x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=CI)#_Post)
-    ax.fill_betweenx(x, lowerB, upperB, alpha=1, color='aqua', label='%g%% C.I. with constraints' % (CI*100), zorder=0)
+    ax.fill_betweenx(x, lowerB, upperB, alpha=1, color='aqua', label='%g%% C.I. posterior' % (CI*100), zorder=0)
     CI = 0.68
     x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=CI)#_Post)
-    ax.fill_betweenx(x, lowerB, upperB, alpha=1, color='green', label='%g%% C.I. with constraints' % (CI*100), zorder=1)
+    ax.fill_betweenx(x, lowerB, upperB, alpha=1, color='green', label='%g%% C.I. posterior' % (CI*100), zorder=1)
 
 
     plt.xlabel(r'$R$ (km)')
