@@ -11,7 +11,7 @@
   {
     "time": "15:00:00",
     "mem_per_cpu": "4G",
-    "ntasks": "200",
+    "ntasks": "100",
     "output": "Log/{wildcards.name}.out",
     "error": "Log/{wildcards.name}.err"
   },
