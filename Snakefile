@@ -1,9 +1,5 @@
-#prior = 'Results/BillEOSWidePsym2.Gen.h5'
-prior = 'Results/BillEOSWidePsymMoreMass.Gen.h5'
-#prior = 'Results/BillEOSWidePsymMoreMassPsymAt2.Gen.h5'
+localrules: OverlayAsym, OverlayNS, OverlayNICER, OverlayAsymPressure
 
-prior_weight = prior.replace('Gen.h5', '') + 'Gen.Weight.h5'
-print(prior_weight)
 rule all:
   input: 
     #expand('Report/{name}_Corr.pdf', name=config['name']),
@@ -14,7 +10,6 @@ rule all:
     #expand('Report/{name}_inv_comp.pdf', name=config['name']),
     #expand('Report/{name}_rejected_EOS.pdf', name=config['name']),
     #expand('Report/{name}_accepted_EOS.pdf', name=config['name']),
-    prior_weight,
     expand('Report/{name}_SymPressure.pdf', name=config['name']),
     expand('Report/{name}_AsymPressure.pdf', name=config['name']),
     expand('Report/{name}_PostPressure.pdf', name=config['name']),
@@ -46,93 +41,125 @@ rule draw_SymPressure:
   input:
     wc = 'Plots/DrawAcceptedEOSSymPressure.py',
     data = 'Results/{name}.Gen.h5',
-    weight = 'Results/{name}.Gen.Weight.h5'
+    weight = 'Results/{name}.Gen.Weight.h5',
+    prior_data = expand('Results/{prior_name}.Gen.h5', prior_name=config['prior_name']),
+    prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name'])
   output: 
     pdf = 'Report/{name}_SymPressure.pdf',
     pkl = 'Report/{name}_SymPressure.pkl'
-  params:
-    prior = '' if prior is None else prior
   shell:
     '''
     #module load GNU/8.2.0-2.31.1
     #module load OpenMPI/4.0.0
     export OMPI_MCA_btl_openib_allow_ib=1
-    mpirun python -m Plots.DrawAcceptedEOSSymPressure {output.pdf} {input.data} {params.prior}
+    mpirun python -m Plots.DrawAcceptedEOSSymPressure {output.pdf} {input.data} {input.prior_data}
     '''
 
 rule draw_AsymPressure:
   input:
     wc = 'Plots/DrawAcceptedEOSAsymPressure.py',
     data = 'Results/{name}.Gen.h5',
-    weight = 'Results/{name}.Gen.Weight.h5'
+    weight = 'Results/{name}.Gen.Weight.h5',
+    prior_data = expand('Results/{prior_name}.Gen.h5', prior_name=config['prior_name']),
+    prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name'])
   output: 
-    pdf = 'Report/{name}_AsymPressure.pdf',
-    pkl = 'Report/{name}_AsymPressure.pkl'
-  params:
-    prior = '' if prior is None else prior
+    pdf = 'Report/{name}_AsymPressure_raw.pdf',
+    pkl = 'Report/{name}_AsymPressure_raw.pkl'
   shell:
     '''
     #module load GNU/8.2.0-2.31.1
     #module load OpenMPI/4.0.0
     export OMPI_MCA_btl_openib_allow_ib=1
-    mpirun python -m Plots.DrawAcceptedEOSAsymPressure {output.pdf} {input.data} {params.prior}
-    python -m Plots.OverlaySymPressure {output.pkl} {output.pdf}
+    mpirun python -m Plots.DrawAcceptedEOSAsymPressure {output.pdf} {input.data} {input.prior_data}
     '''
+
+rule OverlayAsymPressure:
+  input:
+    wc = 'Plots/OverlaySymPressure.py',
+    pkl = 'Report/{name}_AsymPressure_raw.pkl'
+  output:
+    pdf = 'Report/{name}_AsymPressure.pdf'
+  shell:
+    '''
+    python -m Plots.OverlaySymPressure {input.pkl} {output.pdf}
+    '''
+
 
 rule draw_Pressure:
   input:
     wc = 'Plots/DrawAcceptedEOSSpiRIT.py',
     data = 'Results/{name}.Gen.h5',
-    weight = 'Results/{name}.Gen.Weight.h5'
+    weight = 'Results/{name}.Gen.Weight.h5',
+    prior_data = expand('Results/{prior_name}.Gen.h5', prior_name=config['prior_name']),
+    prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name'])
+
   output: 
-    pdf = 'Report/{name}_PostPressure.pdf',
-    pkl = 'Report/{name}_PostPressure.pkl'
-  params:
-    prior = '' if prior is None else prior
+    pdf = 'Report/{name}_PostPressure_raw.pdf',
+    pkl = 'Report/{name}_PostPressure_raw.pkl'
   shell:
     '''
     #source /mnt/home/tsangchu/.bashrc_temp
     export OMPI_MCA_btl_openib_allow_ib=1
     #conda activate Tidal3
-    mpirun python -m Plots.DrawAcceptedEOSSpiRIT {output.pdf} {input.data} {params.prior}
-    python -m Plots.OverlayNICER {output.pkl} {output.pdf}
+    mpirun python -m Plots.DrawAcceptedEOSSpiRIT {output.pdf} {input.data} {input.prior_data}
+    '''
+
+rule OverlayNICER:
+  input:
+    wc = 'Plots/OverlayNICER.py',
+    pkl = 'Report/{name}_PostPressure_raw.pkl'
+  output:
+    pdf = 'Report/{name}_PostPressure.pdf'
+  shell:
+    '''
+    python -m Plots.OverlayNICER {input.pkl} {output.pdf}
     '''
 
 rule draw_AsymPost:
   input:
     wc = 'Plots/DrawAcceptedEOSSymTerm.py',
     data = 'Results/{name}.Gen.h5',
-    weight = 'Results/{name}.Gen.Weight.h5'
+    weight = 'Results/{name}.Gen.Weight.h5',
+    prior_data = expand('Results/{prior_name}.Gen.h5', prior_name=config['prior_name']),
+    prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name'])
   output: 
-    pdf = 'Report/{name}_AsymPost.pdf',
-    pkl = 'Report/{name}_AsymPost.pkl'
-  params:
-    prior = '' if prior is None else prior
+    pdf = 'Report/{name}_AsymPost_raw.pdf',
+    pkl = 'Report/{name}_AsymPost_raw.pkl'
   shell:
     '''
     #source /mnt/home/tsangchu/.bashrc_temp
     export OMPI_MCA_btl_openib_allow_ib=1
     #conda activate Tidal3
-    mpirun python -m Plots.DrawAcceptedEOSSymTerm {output.pdf} {input.data} {params.prior}
-    python -m Plots.OverlayAsym {output.pkl} {output.pdf}
+    mpirun python -m Plots.DrawAcceptedEOSSymTerm {output.pdf} {input.data} {input.prior_data}
+    '''
+
+rule OverlayAsym:
+  input:
+    wc = 'Plots/OverlayAsym.py',
+    pkl = 'Report/{name}_AsymPost_raw.pkl'
+  output:
+    pdf = 'Report/{name}_AsymPost.pdf'
+  shell:
+    '''
+    python -m Plots.OverlayAsym {input.pkl} {output.pdf}
     '''
 
 rule draw_NeutronMatterPressure:
   input:
     wc = 'Plots/DrawAcceptedEOSNeutronMatterPressure.py',
     data = 'Results/{name}.Gen.h5',
-    weight = 'Results/{name}.Gen.Weight.h5'
+    weight = 'Results/{name}.Gen.Weight.h5',
+    prior_data = expand('Results/{prior_name}.Gen.h5', prior_name=config['prior_name']),
+    prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name'])
   output: 
     pdf = 'Report/{name}_NeutronMatterPost.pdf',
     pkl = 'Report/{name}_NeutronMatterPost.pkl'
-  params:
-    prior = '' if prior is None else prior
   shell:
     '''
     #source /mnt/home/tsangchu/.bashrc_temp
     export OMPI_MCA_btl_openib_allow_ib=1
     #conda activate Tidal3
-    mpirun python -m Plots.DrawAcceptedEOSNeutronMatterPressure {output.pdf} {input.data} {params.prior}
+    mpirun python -m Plots.DrawAcceptedEOSNeutronMatterPressure {output.pdf} {input.data} {input.prior_data}
     '''
 
 
@@ -141,41 +168,46 @@ rule draw_MR:
   input:
     wc = 'Plots/DrawAcceptedEOSMR.py',
     data = 'Results/{name}.Gen.h5',
-    weight = 'Results/{name}.Gen.Weight.h5'
+    weight = 'Results/{name}.Gen.Weight.h5',
+    prior_data = expand('Results/{prior_name}.Gen.h5', prior_name=config['prior_name']),
+    prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name'])
   output: 
     pkl = 'Report/{name}_MR.pkl',
     pdf = 'Report/{name}_MR.pdf',
-  params:
-    prior = '' if prior is None else prior
   shell:
     '''
     #source /mnt/home/tsangchu/.bashrc_temp
     export OMPI_MCA_btl_openib_allow_ib=1
     #conda activate Tidal3
-    mpirun python -m Plots.DrawAcceptedEOSMR {output.pdf} {input.data} {params.prior}
-    python -m Plots.OverlayNS {output.pkl} {output.pdf}
+    mpirun python -m Plots.DrawAcceptedEOSMR {output.pdf} {input.data} {input.prior_data}
     '''
 
-
-
-
+rule OverlayNS:
+  input:
+    wc = 'Plots/OverlayNS.py',
+    pkl = 'Report/{name}_MR_raw.pkl'
+  output:
+    pdf = 'Report/{name}_MR.pdf'
+  shell:
+    '''
+    python -m Plots.OverlayNS {input.pkl} {output.pdf}
+    '''
 
 rule draw_Post:
   input:
     wc = 'Plots/DrawSym15.py',
     data = 'Results/{name}.Gen.h5',
-    weight = 'Results/{name}.Gen.Weight.h5'
+    weight = 'Results/{name}.Gen.Weight.h5',
+    prior_data = expand('Results/{prior_name}.Gen.h5', prior_name=config['prior_name']),
+    prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name'])
   output: 
     pdf = 'Report/{name}_Post.pdf',
-  params:
-    prior = '' if prior is None else prior
   shell:
     '''
     #source /mnt/home/tsangchu/.bashrc_temp
     #export OMPI_MCA_btl_openib_allow_ib=1
     #conda activate Tidal3
-    echo TEST
-    python -m Plots.DrawSym15 {output.pdf} {input.data} {params.prior}
+    python -m Plots.DrawSym15 {output.pdf} {input.data} {input.prior_data}
     '''
 
 
