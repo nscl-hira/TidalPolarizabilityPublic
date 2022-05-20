@@ -172,8 +172,8 @@ rule draw_MR:
     prior_data = expand('Results/{prior_name}.Gen.h5', prior_name=config['prior_name']),
     prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name'])
   output: 
-    pkl = 'Report/{name}_MR.pkl',
-    pdf = 'Report/{name}_MR.pdf',
+    pkl = 'Report/{name}_MR_raw.pkl',
+    pdf = 'Report/{name}_MR_raw.pdf',
   shell:
     '''
     #source /mnt/home/tsangchu/.bashrc_temp
