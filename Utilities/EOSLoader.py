@@ -24,7 +24,7 @@ class EOSLoader:
         end = length
 
     head, ext = os.path.splitext(filename)
-    self.weight_score = None
+    self.weight_store = None
     if os.path.exists(head + '.Weight' + ext):
       self.weight_store = pd.HDFStore(head + '.Weight' + ext, mode='r')
       self.reasonable = self.weight_store.select('main', start=start, stop=end)['Reasonable']
@@ -67,7 +67,7 @@ class EOSLoader:
 
   def Close(self):
     self.store.close()
-    if self.weight_score is not None:
+    if self.weight_store is not None:
       self.weight_store.close()
 
 

@@ -116,9 +116,10 @@ def AdditionalInfo(eos):
             'L(1.5rho0)':eos.GetL(1.5*rho0),
             'L(rho0)':eos.GetL(rho0),
             'L(0.67rho0)':eos.GetL(0.67*rho0)}
-    for density in [0.027, 0.033, 0.038, 0.044, 0.05, 0.069, 0.101, 0.106, 0.115, 0.232]:
+    for density in [0.05, 0.101, 0.115, 0.106, 0.038, 0.069, 0.232]:#0.027, 0.033, 0.038, 0.044, 0.05, 0.069, 0.101, 0.106, 0.115, 0.232]:
         data['Sym(%g)' % density] = eos.GetAsymEnergy(density)
-    data['L(0.1)'] = eos.GetL(0.1)
+    for density in [0.1, 0.232, 0.240]:
+        data['L(%g)' % density] = eos.GetL(density)
     return data
 
 def dUrca(eos_creator, density):
@@ -219,7 +220,7 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
                                               MaxMassRequested=MaxMassRequested,
                                               Transform_kwargs=Transform_kwargs),
                                        name_list,
-                                       chunk_size=100), 
+                                       chunk_size=1000), 
                             total=total, 
                             ncols=100, 
                             smoothing=0.):
@@ -243,7 +244,7 @@ def CalculatePolarizability(df, mslave, Output, EOSType, TargetMass, MaxMassRequ
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
+logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.CRITICAL)
 #logging.basicConfig(format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -261,6 +262,8 @@ if __name__ == "__main__":
 
     args, unknown = p.parse_known_args()
     argd = vars(args)
+
+    print(argd)
 
     if args.Gen:
         argd['Output'] = argd['Output'] + '.Gen'

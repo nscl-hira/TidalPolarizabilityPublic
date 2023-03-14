@@ -42,7 +42,7 @@ def GetHist(name, weighted, ranges):
         weights = np.array([1]*(result.shape[0]))
 
     #M = np.array([x/10. for x in range(10, 21, 2)] + [2.17])
-    M = np.array([0.3,0.4,0.45,0.5,0.6,0.8,1,1.2,1.4,1.6,1.8,2,2.05,2.1,2.17])
+    M = np.array([0.3,0.4,0.45,0.5,0.6,0.8,1,1.2,1.4,1.6,1.8,2,2.07,2.08,2.17])
     Rs = []
     for m in M:
       Rs.append(loader.store.select('result', start=start, stop=end)['Mass%g' % m]['R'].values)

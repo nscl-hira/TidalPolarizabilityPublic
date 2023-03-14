@@ -54,7 +54,7 @@ if __name__ == '__main__':
       mean_lambda = mass_coef['mean_lambda'].mean(axis=0)
       std_lambda = mass_coef['std_lambda'].mean(axis=0)
 
-      x.add_row(['%g' % mass] +['%.2f' % val for val in coef] + ['%.2f' % intercept, '%.2f' % mean_lambda, '%.2f' % std_lambda])
+      x.add_row(['%g' % mass] +['%.5f' % val for val in coef] + ['%.5f' % intercept, '%.5f' % mean_lambda, '%.5f' % std_lambda])
 
       all_mean_lambda.append(mean_lambda)
       all_std_lambda.append(std_lambda)
@@ -70,6 +70,7 @@ if __name__ == '__main__':
 
 
     graphs = None#{1.2: None, 1.4: None, 1.6: None}
+    graphs_no_std = None
     with pd.HDFStore(filename, 'r') as store, \
          pd.HDFStore(head + '.Weight' + ext, 'r') as weight_store:
 
@@ -108,15 +109,31 @@ if __name__ == '__main__':
           else:
             graphs.Append(standarded_lambda, data, intensity_factor*weight['PosteriorWeight'])
 
-    graphs.Draw(plt.axes())
-    plt.ylabel(r'$\hat{\Lambda}$ (TOV)')
-    plt.xlabel(r'$\hat{\Lambda}$ (Linear model in equation (21))')
+          if graphs_no_std is None and mass == 1.4:
+            graphs_no_std = FillableHist2D(standarded_lambda*std_lambda + mean_lambda, new_df['Mass%g Lambda' % mass], intensity_factor*weight['PosteriorWeight'], bins=100, cmap='Reds', range=[[250,1000],[250,1000]])
+          elif mass == 1.4:
+            graphs_no_std.Append(standarded_lambda*std_lambda + mean_lambda, new_df['Mass%g Lambda' % mass], intensity_factor*weight['PosteriorWeight'])
+          
+
+    fig, ax = plt.subplots(2, figsize=(10,15))
+
+    graphs.Draw(ax[0])
+    ax[0].set_ylabel(r'$\hat{\Lambda}$ (TOV)')
+    ax[0].set_xlabel(r'$\hat{\Lambda}$ (Linear model in Eq. (20))')
+    line = np.linspace(-2, 2, 100)
+    ax[0].plot(line, line, color='b')
+
+
+    graphs_no_std.Draw(ax[1])
+    ax[1].set_ylabel(r'$\Lambda$ (TOV)')
+    ax[1].set_xlabel(r'$\Lambda$ (Linear model in Eq. (18))')
+    line = np.linspace(0, 1000, 100)
+    ax[1].plot(line, line, color='b')
+
     #lower = max([graph.xedge[0], graph.yedge[0]])
     #upper = min([graph.xedge[-1],graph.yedge[-1]])
     #plt.xlim([lower, upper])
     #plt.ylim([lower, upper])
-    line = np.linspace(-2, 2, 100)
-    plt.plot(line, line, color='b')
     plt.tight_layout()
     plt.savefig('%s_linear_model.pdf' % pdf_name)
     #plt.clf()

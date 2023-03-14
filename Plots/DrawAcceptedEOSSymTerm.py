@@ -69,6 +69,7 @@ def GetHist(name, weighted, ranges):
     loader.Close()
     return g_Post
 
+# modifications
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 logging.basicConfig(filename='log/app_rank%d.log' % rank, format='Process id %(process)d: %(name)s %(levelname)s - %(message)s', level=logging.DEBUG)

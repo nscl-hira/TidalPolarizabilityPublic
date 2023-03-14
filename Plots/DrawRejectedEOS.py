@@ -17,13 +17,13 @@ if __name__ == '__main__':
     print('Output: pdf files of the image')
     print(' To use, enter\npython %s pdf_name input1 input2 ....' % sys.argv[0])
   else:
-    fig, ax = plt.subplots(nrows=2, ncols=1)
-    fig.set_size_inches(7, 10)
+    fig, ax = plt.subplots(nrows=1, ncols=2)
+    fig.set_size_inches(14, 7)
 
     # first draw Ksym vs Lsym
     hist = None
     pdf_name = sys.argv[1]
-    with AnalyzeGenData(sys.argv[2]) as analyzer:
+    with AnalyzeGenData(sys.argv[2], gen_weight_file=True) as analyzer:
       for new_df, weight in analyzer.ReasonableData(['Lsym', 'Ksym']):
         if hist is None:
           hist = FillableHist2D(new_df['Lsym'], new_df['Ksym'],
@@ -58,7 +58,7 @@ if __name__ == '__main__':
          
     rejected = loader.Backbone_kwargs.iloc[rejected_params]
     ax[0].scatter(rejected['Lsym'], rejected['Ksym'], color=color_list, s=50)
-    ax[0].set_xlabel(r'$L_{sym}$ (MeV)')
+    ax[0].set_xlabel(r'$L$ (MeV)')
     ax[0].set_ylabel(r'$K_{sym}$ (MeV)')
     ax[1].set_xlim([1e-1, 5e2])
     ax[1].set_ylim([1e-4, 5e2])

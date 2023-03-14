@@ -3,6 +3,7 @@ import sys
 import os
 from Utilities.Utilities import ConcatenateListElements
 import pandas as pd
+from itertools import zip_longest
 
      
 
@@ -78,8 +79,8 @@ check_eos = ['NoData', 'ViolateFrom', 'ViolateCausality']
 def Summarize(args):
   #new_df = pd.concat([args[0][features], args[1][results], args[2][check_eos]], axis=1, sort=False)
   new_df = pd.concat([args[1][results], args[2][check_eos]], axis=1, sort=False)
-  #reasonable = (new_df[('Mass1.4', 'Lambda')] > 0) & (new_df[('Mass1.4', 'Lambda')] < 1200) & (new_df[('Mass1.2', 'Lambda')] > 0) & (new_df[('Mass1.6', 'Lambda')] > 0) & (new_df[('MaxMass', 'Mass')] > 2)
-  reasonable = (new_df[('Mass1.4', 'Lambda')] < 1500) & (new_df[('Mass1.4', 'Lambda')] > -500) & (new_df[('MaxMass', 'Mass')] > 2.17) & (new_df[('Mass1.4', 'R')] < 20)
+  reasonable = (new_df[('Mass1.4', 'Lambda')] < 13000) & (new_df[('Mass1.4', 'Lambda')] > -500) & (new_df[('MaxMass', 'Mass')] > 2.17) & (new_df[('Mass1.4', 'R')] < 20)
+  #reasonable = (new_df[('Mass1.4', 'Lambda')] > 0) 
   prior_weight = pd.Series(GetWeight(new_df), index=new_df.index)
   posterior_weight = GetDeformabilityWeight(new_df)*prior_weight
   causality = CausalityCut(new_df)
@@ -111,10 +112,17 @@ class AnalyzeGenData:
           weight.get_storer('main').attrs.prior_sd = new_sd
       else:
         raise RuntimeError('Cannot find weight files with gen_weight_file disabled. It cannot generate or read weight files. Abort')
+           
+
 
   def __enter__(self):
     self.store = pd.HDFStore(self.filename, 'r')
     self.weight = pd.HDFStore(self.head + '.Weight' + self.ext, 'r')
+    self.ExtData = None
+    if os.path.exists(self.head + '.ExtInfo' + self.ext):
+        # load optional additional information from Plots/DrawAcceptedEOSKsym.py
+        self.ExtData = pd.HDFStore(self.head + '.ExtInfo' + self.ext, 'r')
+ 
     self.new_mean = self.weight.get_storer('main').attrs.prior_mean
     self.new_sd = self.weight.get_storer('main').attrs.prior_sd
     return self
@@ -122,22 +130,31 @@ class AnalyzeGenData:
   def __exit__(self, type, value, traceback):
     self.store.close()
     self.weight.close()
+    if self.ExtData is not None:
+        self.ExtData.close()
 
   def ReasonableData(self, needed_features=None, chunksize=8000):
-    for kwargs, result, add_info, weight in zip(self.store.select('kwargs', chunksize=chunksize),
-                                                self.store.select('result', chunksize=chunksize),
-                                                self.store.select('Additional_info', chunksize=chunksize),
-                                                self.weight.select('main', chunksize=chunksize)):
+    extIt = []
+    if self.ExtData is not None:
+        extIt = self.ExtData.select('ExtInfo', chunksize=chunksize)
+    for kwargs, result, add_info, summary, weight, ext in zip_longest(self.store.select('kwargs', chunksize=chunksize),
+                                                                      self.store.select('result', chunksize=chunksize),
+                                                                      self.store.select('Additional_info', chunksize=chunksize),
+                                                                      self.store.select('summary', chunksize=chunksize),
+                                                                      self.weight.select('main', chunksize=chunksize),
+                                                                      extIt):
       result.columns = [' '.join(col).strip() for col in result.columns.values]
-      idx = (weight['Reasonable'].values & weight['Causality'].values).flatten()
-      new_df = pd.concat([kwargs, result, add_info], axis=1)
+      idx = weight['Reasonable'].values#(weight['Reasonable'].values & weight['Causality'].values).flatten()
+      new_df = pd.concat([kwargs, result, add_info, summary], axis=1)
+      if ext is not None:
+          new_df = pd.concat([new_df, ext], axis=1)
       new_df = new_df[idx]
       weight = weight[idx]
 
       if needed_features is not None:
         new_df = new_df[needed_features]
   
-      yield new_df, weight
+      yield new_df.loc[:,~new_df.columns.duplicated()], weight
 
 
   def AllData(self, needed_features=None, chunksize=8000):

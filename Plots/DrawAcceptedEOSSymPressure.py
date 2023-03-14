@@ -63,19 +63,19 @@ def GetHist(name, weighted, ranges):
       if first:
          print(i, end='\r', flush=True)
       if loader.reasonable.iloc[i]:
-        if np.isnan(weight) or weight == 0:
-          continue
+         if np.isnan(weight) or weight == 0:
+           continue
 
-        eos = loader.GetNuclearEOS(i)
-        density = np.linspace(0.16, 5*0.16, 100)
-        pressure = eos.GetPressure(density, pfrac=0.5)
+         eos = loader.GetNuclearEOS(i)
+         density = np.linspace(0.16, 5*0.16, 100)
+         pressure = eos.GetPressure(density, pfrac=0.5)
  
-        if np.isnan(weight) or weight == 0:
-          continue
-        if g_Post is None:
-          g_Post = FillableHist2D(density, pressure, bins=[100,10000], logy=False, range=[[0.16, 5*0.16], [-500, 5e3]], smooth=False, weights=[weight]*density.shape[0])
-        else:
-          g_Post.Append(density, pressure, weights=[weight]*density.shape[0])
+         if np.isnan(weight) or weight == 0:
+           continue
+         if g_Post is None:
+           g_Post = FillableHist2D(density, pressure, bins=[100,20000], logy=False, range=[[0.16, 5*0.16], [-500, 5e3]], smooth=False, weights=[weight]*density.shape[0])
+         else:
+           g_Post.Append(density, pressure, weights=[weight]*density.shape[0])
     loader.Close()
     return g_Post
 
@@ -126,12 +126,14 @@ if __name__ == '__main__':
     #import matplotlib as mpl
     #g.Draw(ax, norm=mpl.colors.LogNorm())#, cmap=mpl.cm.gray)
 
-    #x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=0.68)
-    #plt.plot(x, mean, label='medium', zorder=2)
-    #ax.fill_between(x, lowerB, upperB, alpha=1, color='skyblue', label='68%% C.I. posterior', zorder=1)
+    x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=0.68)
+    plt.plot(x, mean, label='medium', zorder=2)
+    ax.fill_between(x, lowerB, upperB, alpha=1, color='skyblue', label='68%% C.I. posterior', zorder=1)
+    #CI=0.9999
     x, mean, lowerB, upperB = GetMeanAndBounds(g, CI=CI)
     ax.fill_between(x, lowerB, upperB, alpha=1, edgecolor='blue', facecolor='none', linestyle='--', label='%g%% C.I. prior' % (CI*100), zorder=20)
 
+    CI=0.95
     x, mean, lowerB, upperB = GetMeanAndBounds(g_Post, CI=CI)
     ax.fill_between(x, lowerB, upperB, alpha=1, color='aqua', label='%g%% C.I. posterior' % (CI*100), zorder=0)
     CI = 0.68
@@ -140,12 +142,12 @@ if __name__ == '__main__':
 
 
 
-    ## draw symmetric matter constraints from Kaon and flow
-    ##constraints = pd.read_csv('Constraints/KaonSymMat.csv')
-    ##path, patch = ContourToPatches(constraints['rho/rho0']*0.16, constraints['P(MeV/fm3)'],
-    ##                               linewidth=5, edgecolor='navy', alpha=1,
-    ##                               hatch='\\', lw=2, zorder=10, fill=False, label='Kaon')
-    ##ax.add_patch(copy(patch))
+    # draw symmetric matter constraints from Kaon and flow
+    #constraints = pd.read_csv('Constraints/KaonSymMat.csv')
+    #path, patch = ContourToPatches(constraints['rho/rho0']*0.16, constraints['P(MeV/fm3)'],
+    #                               linewidth=5, edgecolor='navy', alpha=1,
+    #                               hatch='\\', lw=2, zorder=10, fill=False, label='Kaon')
+    #ax.add_patch(copy(patch))
     constraints = pd.read_csv('Constraints/FlowSymMat.csv')
     path, patch = ContourToPatches(constraints['rho/rho0']*0.16, constraints['P(MeV/fm3)'],
                                    linewidth=5, edgecolor='black', alpha=1,
@@ -156,8 +158,8 @@ if __name__ == '__main__':
     plt.yscale('log')
     plt.xlabel(r'$\rho$ (fm$^{-3}$)')
     plt.ylabel(r'P$_{SM}$($\rho$) (MeV/fm$^{3}$)')
-    plt.ylim(1e-1, 2e2)
-    plt.xlim(1e-2, 3*0.16)
+    plt.ylim(1e-1, 5e3)
+    plt.xlim(1e-2, 5*0.16)
     plt.legend(loc='lower right', fontsize=20)
     plt.tight_layout()
     plt.subplots_adjust(right=0.95)

@@ -443,7 +443,8 @@ class FermiGas(EOS):
         reduce to a form of integrate x^2sqrt(a + b*x^2) dx from 0 to 3.094rho
         """
         def anti_deriv(x):
-            return (np.sqrt(b*(a+b*x*x))*x*(a+2*b*x*x)-a*a*np.log(np.sqrt(b*(a+b*x*x))+b*x))/(8*np.power(b, 1.5)*pi2)
+            #return (np.sqrt(b*(a+b*x*x))*x*(a+2*b*x*x)-a*a*np.log(np.sqrt(b*(a+b*x*x))+b*x))/(8*np.power(b, 1.5)*pi2)
+            return (np.sqrt(b*(a+b*x*x))*x*(a+2*b*x*x)-a*a*np.log((np.sqrt(a+b*x*x)+hbar*x)/self.mass))/(8*np.power(b, 1.5)*pi2)
 
         return (anti_deriv(3.094*np.power(rho, 0.33333333333333)) - anti_deriv(0))
 
@@ -557,21 +558,80 @@ class MetaModeling(EOS):
 class BillEOS(MetaModeling):
     def __init__(self, para):
         para = copy.deepcopy(para)
-        self.SINT0 = para['SINT0']
-        self.SINT1 = para['SINT1']
-        self.SINT2 = para['SINT2']
-        self.SINT3 = 0 # will be fixed by condition S(0) = 0
         self.rho01 = 0.1
         self.C = 12.5
 
-        para['Esym'] = 0
-        para['Lsym'] = 0
-        para['Ksym'] = 0
-        para['Qsym'] = 0
-        para['Zsym'] = 0
-        super().__init__(para)
-        Sym0 = self.GetAsymEnergy(0)
-        self.SINT3 = -Sym0*6/np.power(-self.rho01, 3)
+        self.SINT0 = 0
+        self.SINT1 = 0
+        self.SINT2 = 0
+        self.SINT3 = 0
+
+        if 'SINT0' in para and 'SINT1' in para:
+            self.SINT0 = para['SINT0']
+            self.SINT1 = para['SINT1']
+            if 'SINT2' in para:
+                self.SINT2 = para['SINT2']
+            else:
+                self.SINT2 = 0 # will be fixed by condition S(0) = 0 if SINT2 is not provided
+            self.SINT3 = 0 # will be fixed by condition S(0) = 0
+
+            para['Esym'] = 0
+            para['Lsym'] = 0
+            para['Ksym'] = 0
+            para['Qsym'] = 0
+            para['Zsym'] = 0
+            super().__init__(para)
+            Sym0 = self.GetAsymEnergy(0)
+            if 'SINT2' in para:
+                self.SINT3 = -Sym0*6/np.power(-self.rho01, 3)
+            else:
+                self.SINT2 = -Sym0*2/np.power(-self.rho01, 2)
+        elif 'Esym' in para and 'Lsym' in para and 'Ksym' in para:
+            Esym = para['Esym']
+            Lsym = para['Lsym']
+            Ksym = para['Ksym']
+            para['Esym'] = 0
+            para['Lsym'] = 0
+            para['Ksym'] = 0
+            para['Qsym'] = 0
+            para['Zsym'] = 0
+            super().__init__(para)
+            # convert rho0 parameters to rho01 parameters
+            # 0                            = S01 + S'(-rho01)      + 1/2S''(rho01)^2       - 1/6S'''(rho01)^3 # S(0) = 0
+            # S - A(rho/rho0)^2/3          = S01 + S'(rho - rho01) + 1/2S''(rho - rho01)^2 + 1/6S'''(rho - rho01)^3
+            # dS - 2/3A/rho0^2/3rho^-1/3   =       S'              + S''(rho - rho01)      + 1/2S'''(rho - rho01)^2
+            # d^2S + 2/9A/rho0^2/3rho^-4/3 =                         S''                   + S'''(rho - rho01)  
+            a = np.array([[1, -self.rho01           , 0.5*self.rho01*self.rho01              , -1/6.*self.rho01*self.rho01*self.rho01],
+                          [1, self.rho0 - self.rho01, 0.5*np.power(self.rho0 - self.rho01, 2), 1/6.*np.power(self.rho0 - self.rho01, 3)],
+                          [0, 1                     , self.rho0 - self.rho01                 , 1/2.*np.power(self.rho0 - self.rho01, 2)],
+                          [0, 0                     , 1                                      , self.rho0 - self.rho01]])
+            b = np.array([0, 
+                          Esym - self.C,
+                          Lsym/(3*self.rho0) - 2/3.*self.C/self.rho0, 
+                          Ksym/np.power(3*self.rho0, 2) + 2/9*self.C/self.rho0/self.rho0])
+            x = np.linalg.solve(a, b)
+            self.SINT0 = x[0]
+            self.SINT1 = x[1]
+            self.SINT2 = x[2]
+            self.SINT3 = x[3]
+        elif 'E01' in para and 'L01' in para and 'K01' in para:
+            para['Esym'] = 0
+            para['Lsym'] = 0
+            para['Ksym'] = 0
+            para['Qsym'] = 0
+            para['Zsym'] = 0
+
+            super().__init__(para)
+            self.SINT0 = para['E01'] - self.C*np.power(self.rho01/self.rho0, 2/3.)
+            self.SINT1 = para['L01']/(3*self.rho01) - 2/3.*self.C/np.power(self.rho0, 2/3.)/np.power(self.rho01, 1/3.)
+            self.SINT2 = para['K01']/np.power(3*self.rho01, 2) + 2/9.*self.C/np.power(self.rho0, 2/3.)/np.power(self.rho01, 4/3.)
+            self.SINT3 = 0
+            Sym0 = self.GetAsymEnergy(0)
+            self.SINT3 = -Sym0*6/np.power(-self.rho01, 3)
+        else:
+            raise Exception('Wrong input parameters')
+                        
+
 
     def GetEnergy(self, rho, pfrac):
         delta = 1 - 2*pfrac

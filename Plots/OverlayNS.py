@@ -23,6 +23,7 @@ data['RileyM14'] = DataStruct("12.71 1.14 1.19 1.34 0.15 0.16", "red", "white", 
 data['RileyM2'] = DataStruct("12.39 1.3 0.98 2.07 0.07 0.07", "red", "white", "s", r"Riley $2.1M_\odot$")
 data['MillerM14'] = DataStruct("13.02 1.24 1.06 1.44 0.15 0.14", "black", "white", "*", r"Miller $1.4M_\odot$")
 data['MillerM2'] = DataStruct("13.7 2.6 1.5 2.08 0.07 0.07", "black", "white", "s", r"Miller $2.1M_\odot$")
+#new data here
 
 
 if len(sys.argv) == 3:

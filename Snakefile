@@ -2,21 +2,23 @@ localrules: OverlayAsym, OverlayNS, OverlayNICER, OverlayAsymPressure
 
 rule all:
   input: 
-    #expand('Report/{name}_Corr.pdf', name=config['name']),
-    #expand('Report/{name}_Corr_Conc.pdf', name=config['name']),
-    #expand('Report/{name}_linear_model.pdf', name=config['name']),
-    #expand('Report/{name}_CorrHeatmap.pdf', name=config['name']),
-    #expand('Report/{name}_Corr_JustLambda.pdf', name=config['name']),
-    #expand('Report/{name}_inv_comp.pdf', name=config['name']),
-    #expand('Report/{name}_rejected_EOS.pdf', name=config['name']),
-    #expand('Report/{name}_accepted_EOS.pdf', name=config['name']),
-    expand('Report/{name}_SymPressure.pdf', name=config['name']),
-    expand('Report/{name}_AsymPressure.pdf', name=config['name']),
-    expand('Report/{name}_PostPressure.pdf', name=config['name']),
-    expand('Report/{name}_AsymPost.pdf', name=config['name']),
+    ##expand('Report/{name}_Corr.pdf', name=config['name']),
+    ##expand('Report/{name}_Corr_Conc.pdf', name=config['name']),
+    ##expand('Report/{name}_linear_model.pdf', name=config['name']),
+    ##expand('Report/{name}_CorrHeatmap.pdf', name=config['name']),
+    ##expand('Report/{name}_Corr_JustLambda.pdf', name=config['name']),
+    ##expand('Report/{name}_inv_comp.pdf', name=config['name']),
+    ##expand('Report/{name}_rejected_EOS.pdf', name=config['name']),
+    ##expand('Report/{name}_accepted_EOS.pdf', name=config['name']),
+    #expand('Report/{name}_SymPressure.pdf', name=config['name']),
+    #expand('Report/{name}_AsymPressure.pdf', name=config['name']),
+    #expand('Report/{name}_PostPressure.pdf', name=config['name']),
+    #expand('Report/{name}_AsymPost.pdf', name=config['name']),
     expand('Report/{name}_Post.pdf', name=config['name']),
-    expand('Report/{name}_MR.pdf', name=config['name']),
-    expand('Report/{name}_NeutronMatterPost.pdf', name=config['name']),
+    #expand('Report/{name}_MR.pdf', name=config['name']),
+    #expand('Report/{name}_NeutronMatterPost.pdf', name=config['name']),
+    #expand('Report/{name}_Pfrac.pdf', name=config['name']),
+
 
 
 rule generate:
@@ -36,6 +38,15 @@ rule add_weight:
     '''
     python {input.wc} {input.data}
     '''
+rule add_Ksym:
+  input:
+    wc = 'Plots/DrawAcceptedEOSKsym.py',
+    data = 'Results/{name}.Gen.h5',
+  output: 'Results/{name}.Gen.ExtInfo.h5'
+  shell:
+    '''
+    mpirun python -m Plots.DrawAcceptedEOSKsym {input.data}
+    '''
 
 rule draw_SymPressure:
   input:
@@ -54,6 +65,24 @@ rule draw_SymPressure:
     export OMPI_MCA_btl_openib_allow_ib=1
     mpirun python -m Plots.DrawAcceptedEOSSymPressure {output.pdf} {input.data} {input.prior_data}
     '''
+
+rule draw_Pfrac:
+  input:
+    wc = 'Plots/DrawAcceptedEOSPfrac.py',
+    data = 'Results/{name}.Gen.h5',
+    weight = 'Results/{name}.Gen.Weight.h5',
+  output: 
+    pdf = 'Report/{name}_Pfrac.pdf',
+    pkl = 'Report/{name}_Pfrac.pkl'
+  shell:
+    '''
+    #module load GNU/8.2.0-2.31.1
+    #module load OpenMPI/4.0.0
+    export OMPI_MCA_btl_openib_allow_ib=1
+    mpirun python -m Plots.DrawAcceptedEOSPfrac {output.pdf} {input.data}
+    '''
+
+
 
 rule draw_AsymPressure:
   input:
@@ -198,8 +227,10 @@ rule draw_Post:
     wc = 'Plots/DrawSym15.py',
     data = 'Results/{name}.Gen.h5',
     weight = 'Results/{name}.Gen.Weight.h5',
+    #extInfo = 'Results/{name}.Gen.ExtInfo.h5',
     prior_data = expand('Results/{prior_name}.Gen.h5', prior_name=config['prior_name']),
-    prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name'])
+    prior_weight = expand('Results/{prior_name}.Gen.Weight.h5', prior_name=config['prior_name']),
+    #prior_extInfo = expand('Results/{prior_name}.Gen.ExtInfo.h5', prior_name=config['prior_name'])
   output: 
     pdf = 'Report/{name}_Post.pdf',
   shell:

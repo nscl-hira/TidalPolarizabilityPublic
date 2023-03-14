@@ -50,7 +50,7 @@ class FillableHist:
       new_hist, self.edge = np.histogram(x, bins=self.xbins, weights=weights)
       self.histogram = self.histogram + new_hist
 
-  def Draw(self, ax, s=2, **kwargs):
+  def Draw(self, ax, s=2, contour=False, **kwargs):
     #ax.bar(self.edge[:-1], self.histogram, width=np.diff(self.edge), align='edge', **{**kwargs, **self.kwargs})
     #ax.grid(which='minor', alpha=0.2)
     #ax.grid(which='major', alpha=0.5)
@@ -64,6 +64,16 @@ class FillableHist:
     if self.smooth:
       self.histogram = convolve(self.histogram, Gaussian1DKernel(s))
 
+    if contour:
+      frac = np.cumsum(self.histogram)
+      frac = frac/frac[-1]
+      id = np.argmax(frac >= (0.5 - 0.68/2))
+      ax.vlines(x=mean_x[id], color='red', ymin=0, linewidth=3, linestyle='--', ymax=self.histogram[id]/tot_vol)
+      id = np.argmax(frac >= 0.5)
+      ax.vlines(x=mean_x[id], color='red', ymin=0, linewidth=3, ymax=self.histogram[id]/tot_vol)
+      id = np.argmax(frac >= (0.5 + 0.68/2))
+      ax.vlines(x=mean_x[id], color='red', ymin=0, linewidth=3, linestyle='--', ymax=self.histogram[id]/tot_vol)
+
     ax.step(mean_x, self.histogram/tot_vol, **{**kwargs, **self.kwargs})
     ax.set_xlim(min(self.edge), max(self.edge))
     ax.set_ylim(bottom=0)
@@ -74,7 +84,21 @@ class FillableHist:
   def GetSD(self):
     return WeightedCov(0.5*(self.edge[:-1] + self.edge[1:]), 0.5*(self.edge[:-1] + self.edge[1:]), self.histogram)
 
+# calculate confidence region
+def HeightAtFraction(h, frac):
+    from scipy.optimize import bisect
 
+    def FractionAboveZ(h, z):
+        total = h.sum()
+        value_above = h[h > z].sum()
+        return value_above / total
+    return bisect(
+        lambda x: FractionAboveZ(
+            h,
+            x) - frac,
+        0,
+        np.max(h),
+        xtol=1e-5)
 
 
 class FillableHist2D:
@@ -134,13 +158,18 @@ class FillableHist2D:
     new_hist, self.xedge, self.yedge = np.histogram2d(x, y, bins=[self.xbins, self.ybins], weights=weights)
     self.histogram = self.histogram + new_hist
 
-  def Draw(self, ax, s=3, **kwargs):
+  def Draw(self, ax, s=3, contour=False, **kwargs):
     X, Y = np.meshgrid(self.xedge, self.yedge)
     if self.smooth:
       Z = convolve(np.pad(self.histogram.T, pad_width=4, mode='edge'), Gaussian2DKernel(x_stddev=s))[4:-4, 4:-4]
     else:
       Z = self.histogram.T
     ax.pcolormesh(X, Y, Z, **{**kwargs, **self.kwargs})
+    if contour:
+        confidence_interval = [0.95, 0.68]#0.99, 0.95]#, 0.68]
+        levels = [HeightAtFraction(Z, val) for val in confidence_interval] + [np.amax(Z)]#, HeightAtFraction(h, 0.99)] 
+        X, Y = np.meshgrid(0.5*(self.xedge[1:] + self.xedge[:-1]), 0.5*(self.yedge[1:] + self.yedge[:-1]))
+        ax.contour(X, Y, Z, levels=levels, colors='red', linewidths=3)
     ax.set_xlim(min(self.xedge), max(self.xedge))
     ax.set_ylim(min(self.yedge), max(self.yedge))
 

@@ -78,12 +78,14 @@ def GetMeanAndBounds(g, CI=0.68):
 def GetRanges(filename, ncores, num_load=None):
     ranges = []
     if num_load is None:
-        with pd.HDFStore(sys.argv[2], 'r') as store:
+        with pd.HDFStore(filename, 'r') as store:
             num_load = store.get_storer('kwargs').nrows
     batch_size = int(num_load/ncores)
+    if batch_size > 50000:
+        return GetRanges(filename, ncores*10, num_load)
     start = 0
     for i in range(ncores):
-        ranges.append([start, start + batch_size if i != ncores - 1 else num_load - 1])
+        ranges.append([start, start + batch_size if i != ncores - 1 else num_load])
         start = start + batch_size
     return ranges    
 
@@ -127,7 +129,6 @@ def GetHist(name, weighted, ranges):
           #g.Append(density, pressure, weights=[1]*density.shape[0])
           g_Post.Append(density, pressure, weights=[weight]*density.shape[0])
     loader.Close()
-    print('finish')
     return g_Post
 
 comm = MPI.COMM_WORLD

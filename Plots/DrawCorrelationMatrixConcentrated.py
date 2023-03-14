@@ -24,7 +24,7 @@ if __name__ == '__main__':
     orig_df = pd.DataFrame()
     features = ['Lsym', 'Ksym', 'Ksat', 
                 'Zsym', 'Zsat']
-    features_names = [r'$L_{sym}$ (MeV)', r'$K_{sym}$ (MeV)', r'$K_{sat}$ (MeV)', 
+    features_names = [r'$L$ (MeV)', r'$K_{sym}$ (MeV)', r'$K_{sat}$ (MeV)', 
                       r'$Z_{sym}$ (MeV)', r'$Z_{sat}$ (MeV)']
 
     pdf_name = sys.argv[1]
